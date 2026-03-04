@@ -1,0 +1,31 @@
+Nome da aplicação: ApontaMentto
+
+Frontend: React
+Backend: FastApi
+Banco de Dados: PostgresSQL
+
+Entidades: Projetos, Usuários, Locais, Registros...
+
+Roles: admin e usuário normal
+-----------------------------------------------------------------------
+-telas para fazer o crud de projetos, locais.
+-tela de perfil (edição apenas, não exclusão)
+-admin pode acessar todos os registros de todos os usuários
+
+-home simples, onde é possível adicionar um registro de um dia, onde para cada dia:
+-preencher mini formulários (apontar hora de começo e fim, local que está naquele momento, e qual projeto trabalhou dentro daquele espaço de tempo.)
+-é possível adicionar vários registros de horário para o dia
+-deixar o mais simples possível, se for complexo ninguém faz.
+-possibilidade de pesquisar um dia específico nos registros
+-possibilidade de visualização em lista dos dias
+
+
+
+Custo por projeto:
+-deve ser possivel automaticamente calcular o custo do projeto. Esse custo é calculado através do valor/hora do usuário que alocou as horas nele.
+-Se vários usuário trabalharem no projeto, o sistema deve automaticamente realizar a soma dos valores/horas dos diferentes funcionarios para o calculo
+-O valor hora do usuário é, por padrão, nulo, apenas o admin pode configurar o valor/hora do usuário, e só ele pode ver o custo do projeto.
+-filtro dashboard custo por projeto
+
+
+(assinatura digital em um pdf com os registros)

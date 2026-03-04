@@ -1,0 +1,141 @@
+/* ═══════════════════════════════════════════════
+   Timesheet page styles
+   ═══════════════════════════════════════════════ */
+
+/* ─── Month navigation bar ───────────────────── */
+.month-nav {
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.month-nav__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.month-nav__label {
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* ─── Preview table ──────────────────────────── */
+.ts-table-wrap {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.ts-table-scroll {
+  overflow-x: auto;
+}
+
+.ts-table {
+  width: 100%;
+  font-size: 0.75rem;
+  border-collapse: collapse;
+}
+
+.ts-table thead tr {
+  text-align: left;
+}
+
+.ts-table thead th {
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+}
+
+.ts-table thead th:last-child {
+  text-align: right;
+}
+
+.ts-table tbody tr {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.ts-table tbody tr.ts-table__row--empty {
+  opacity: 0.4;
+}
+
+.ts-table tbody td {
+  padding: 0.375rem 0.75rem;
+}
+
+.ts-table tbody td:last-child {
+  text-align: right;
+  font-weight: 500;
+}
+
+.ts-table tfoot tr {
+  border-top: 2px solid hsl(var(--primary) / 0.3);
+  font-weight: 700;
+}
+
+.ts-table tfoot td {
+  padding: 0.5rem 0.75rem;
+}
+
+.ts-table tfoot td:last-child {
+  text-align: right;
+  color: hsl(var(--primary));
+}
+
+/* ─── Signature pad ──────────────────────────── */
+.sig-section {
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.sig-section__hint {
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.sig-canvas-wrap {
+  border: 2px dashed hsl(var(--border));
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+.sig-canvas {
+  width: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  display: block;
+}
+
+.sig-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.sig-controls__ok {
+  font-size: 0.75rem;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Signer identity (name + date) ─────────── */
+.sig-identity {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 0.75rem;
+}
+
+.sig-identity__name {
+  font-weight: 600;
+}
+
+.sig-identity__date {
+  color: hsl(var(--muted-foreground));
+}
