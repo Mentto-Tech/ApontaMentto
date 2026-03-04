@@ -1,7 +1,4 @@
-import { useApiWakeUp } from "@/hooks/use-api-wake-up";
-
 export default function ApiWakeUpScreen() {
-  const { attempt } = useApiWakeUp();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-6 px-4">
@@ -15,8 +12,7 @@ export default function ApiWakeUpScreen() {
         </div>
         <p className="text-sm font-medium text-foreground">Iniciando o servidor…</p>
         <p className="text-xs text-muted-foreground max-w-xs">
-          O servidor está acordando. Isso pode levar até 1 minuto na primeira vez.
-          {attempt > 0 && ` (tentativa ${attempt + 1})`}
+          O servidor está iniciando. Isso pode levar até 1 minuto.
         </p>
       </div>
     </div>
