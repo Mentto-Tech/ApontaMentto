@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useApiWakeUp } from "@/hooks/use-api-wake-up";
+import ApiWakeUpScreen from "@/components/ApiWakeUpScreen";
 import AppLayout from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -57,7 +59,11 @@ const AppRoutes = () => (
   </Routes>
 );
 
-const App = () => (
+const App = () => {
+  const { isAwake } = useApiWakeUp();
+  if (!isAwake) return <ApiWakeUpScreen />;
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -69,6 +75,7 @@ const App = () => (
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
