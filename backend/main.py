@@ -12,7 +12,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ApontaMentto API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="ApontaMentto API", version="1.0.0", lifespan=lifespan)  # noqa
 
 _origins_env = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [o.strip() for o in _origins_env.split(",")] if _origins_env != "*" else ["*"]
