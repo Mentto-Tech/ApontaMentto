@@ -12,7 +12,7 @@ from schemas import UserOut, UserUpdate, UserUpdateRate
 router = APIRouter()
 
 
-@router.get("/", response_model=List[UserOut])
+@router.get("", response_model=List[UserOut])
 async def list_users(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_admin_user),

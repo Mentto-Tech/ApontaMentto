@@ -14,7 +14,7 @@ from schemas import LocationIn, LocationOut
 router = APIRouter()
 
 
-@router.get("/", response_model=List[LocationOut])
+@router.get("", response_model=List[LocationOut])
 async def list_locations(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -23,7 +23,7 @@ async def list_locations(
     return [LocationOut.model_validate(l) for l in result.scalars().all()]
 
 
-@router.post("/", response_model=LocationOut)
+@router.post("", response_model=LocationOut)
 async def create_location(
     data: LocationIn,
     db: AsyncSession = Depends(get_db),

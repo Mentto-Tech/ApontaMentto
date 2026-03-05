@@ -14,7 +14,7 @@ from schemas import ProjectIn, ProjectOut
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ProjectOut])
+@router.get("", response_model=List[ProjectOut])
 async def list_projects(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
@@ -23,7 +23,7 @@ async def list_projects(
     return [ProjectOut.model_validate(p) for p in result.scalars().all()]
 
 
-@router.post("/", response_model=ProjectOut)
+@router.post("", response_model=ProjectOut)
 async def create_project(
     data: ProjectIn,
     db: AsyncSession = Depends(get_db),

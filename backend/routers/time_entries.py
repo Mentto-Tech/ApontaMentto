@@ -14,7 +14,7 @@ from schemas import TimeEntryIn, TimeEntryOut
 router = APIRouter()
 
 
-@router.get("/", response_model=List[TimeEntryOut])
+@router.get("", response_model=List[TimeEntryOut])
 async def list_entries(
     date: Optional[str] = Query(None),
     month: Optional[str] = Query(None),
@@ -40,7 +40,7 @@ async def list_entries(
     return [TimeEntryOut.model_validate(e) for e in result.scalars().all()]
 
 
-@router.post("/", response_model=TimeEntryOut)
+@router.post("", response_model=TimeEntryOut)
 async def create_entry(
     data: TimeEntryIn,
     db: AsyncSession = Depends(get_db),

@@ -4,6 +4,7 @@
   "installCommand": "bun install",
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://apontamentto.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
