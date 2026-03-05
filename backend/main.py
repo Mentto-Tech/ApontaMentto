@@ -1,8 +1,9 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from routers import auth, locations, projects, time_entries, users
 
@@ -29,6 +30,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all so unhandled errors return a proper JSONResponse that travels
+    through the CORS middleware — otherwise ServerErrorMiddleware swallows them
+    above the CORS layer and browsers see 'No Access-Control-Allow-Origin'."""
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
 
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])

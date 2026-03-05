@@ -10,6 +10,12 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://apontamentto:apontamentto@localhost:5432/apontamentto",
 )
 
+# Normalise driver prefix: Neon/Render sometimes emit plain postgres:// or postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 # Neon requires SSL; asyncpg uses connect_args instead of query params
 connect_args = {}
 if "ssl=require" in DATABASE_URL or "sslmode=require" in DATABASE_URL:
