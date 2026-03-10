@@ -23,7 +23,18 @@ export interface TimeEntry {
   projectId: string;
   locationId: string;
   notes: string;
+  entryType?: string;  // "work" | "break"
+  isOvertime?: boolean;
   userId?: string;
+}
+
+export interface DailyRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  clockIn?: string | null; // HH:mm
+  clockOut?: string | null; // HH:mm
+  userId: string;
+  createdAt?: string;
 }
 
 export interface UserProfile {

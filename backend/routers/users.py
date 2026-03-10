@@ -33,6 +33,7 @@ async def update_rate(
     if not user:
         raise HTTPException(404, "Usuário não encontrado")
     user.hourly_rate = data.hourly_rate
+    user.overtime_hourly_rate = data.overtime_hourly_rate
     await db.commit()
     await db.refresh(user)
     return UserOut.model_validate(user)

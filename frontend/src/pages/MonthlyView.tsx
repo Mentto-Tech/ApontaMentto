@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Search, Clock, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Clock, Calendar, Coffee, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,7 +44,9 @@ const MonthlyView = () => {
     return daysInMonth.map(day => {
       const dateStr = format(day, "yyyy-MM-dd");
       const dayEntries = filteredEntries.filter(e => e.date === dateStr);
-      const totalMins = dayEntries.reduce((sum, e) => {
+      // Only count work entries for total
+      const workEntries = dayEntries.filter(e => e.entryType !== "break");
+      const totalMins = workEntries.reduce((sum, e) => {
         const [sh, sm] = e.startTime.split(":").map(Number);
         const [eh, em] = e.endTime.split(":").map(Number);
         return sum + (eh * 60 + em) - (sh * 60 + sm);
@@ -146,15 +148,29 @@ const MonthlyView = () => {
                   {dayEntries.map(entry => {
                     const project = projectMap[entry.projectId];
                     const location = locationMap[entry.locationId];
+                    const isBrk = entry.entryType === "break";
                     return (
                       <div key={entry.id} className="flex items-center gap-2 text-xs">
                         <span
                           className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ background: project?.color || "hsl(var(--primary))" }}
+                          style={{ background: isBrk ? "#f97316" : project?.color || "hsl(var(--primary))" }}
                         />
                         <span className="font-medium">{entry.startTime}–{entry.endTime}</span>
                         <span className="text-muted-foreground truncate">
-                          {project?.name} · {location?.name}
+                          {isBrk ? (
+                            <span className="text-orange-500 flex items-center gap-1">
+                              <Coffee className="h-3 w-3" /> Intervalo
+                            </span>
+                          ) : (
+                            <>
+                              {project?.name} · {location?.name}
+                              {entry.isOvertime && (
+                                <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
+                                  <Zap className="h-3 w-3" />HE
+                                </span>
+                              )}
+                            </>
+                          )}
                           {isAdmin && selectedUserId === "all" && entry.userId && (
                             <> · {userMap[entry.userId]?.name}</>
                           )}

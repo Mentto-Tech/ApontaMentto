@@ -12,7 +12,7 @@
 
 @media (min-width: 768px) {
   .db-cards--user  { grid-template-columns: repeat(3, 1fr); }
-  .db-cards--admin { grid-template-columns: repeat(4, 1fr); }
+  .db-cards--admin { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 }
 
 /* ─── Individual card ────────────────────────── */

@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string;
   role: 'admin' | 'user';
   hourlyRate?: number | null;
+  overtimeHourlyRate?: number | null;
 }
 
 interface AuthContextType {

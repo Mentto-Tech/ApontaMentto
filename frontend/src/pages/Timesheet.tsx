@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTimeEntries, useProjects, useLocations, useUsers } from "@/lib/queries";
+import { useTimeEntries, useProjects, useLocations, useUsers, useDailyRecords } from "@/lib/queries";
 import jsPDF from "jspdf";
 import "./Timesheet.css";
 
@@ -25,6 +25,7 @@ const Timesheet = () => {
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
   const { data: allUsers = [] } = useUsers();
+  const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr });
 
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
   const locationMap = Object.fromEntries(locations.map(l => [l.id, l]));
@@ -41,18 +42,29 @@ const Timesheet = () => {
     return entries.filter(e => e.date.startsWith(monthStr) && e.userId === targetUserId);
   }, [entries, monthStr, targetUserId]);
 
+  const targetDailyRecords = useMemo(() => {
+    return dailyRecords.filter(r => r.date.startsWith(monthStr) && r.userId === targetUserId);
+  }, [dailyRecords, monthStr, targetUserId]);
+
+  const dailyRecordMap = useMemo(() => {
+    return Object.fromEntries(targetDailyRecords.map(r => [r.date, r]));
+  }, [targetDailyRecords]);
+
   const dayData = useMemo(() => {
     return daysInMonth.map(day => {
       const dateStr = format(day, "yyyy-MM-dd");
       const dayEntries = monthEntries.filter(e => e.date === dateStr);
-      const totalMins = dayEntries.reduce((sum, e) => {
+      // Only count work entries (exclude breaks) for total work minutes
+      const workEntries = dayEntries.filter(e => e.entryType !== "break");
+      const totalMins = workEntries.reduce((sum, e) => {
         const [sh, sm] = e.startTime.split(":").map(Number);
         const [eh, em] = e.endTime.split(":").map(Number);
         return sum + (eh * 60 + em) - (sh * 60 + sm);
       }, 0);
-      return { day, dateStr, entries: dayEntries, totalMins };
+      const dailyRecord = dailyRecordMap[dateStr] || null;
+      return { day, dateStr, entries: dayEntries, totalMins, dailyRecord };
     });
-  }, [daysInMonth, monthEntries]);
+  }, [daysInMonth, monthEntries, dailyRecordMap]);
 
   const totalMonthMins = dayData.reduce((s, d) => s + d.totalMins, 0);
 
@@ -122,8 +134,8 @@ const Timesheet = () => {
     y += 10;
 
     // Table header
-    const colWidths = [18, 35, 20, 20, 40, 40];
-    const headers = ["Dia", "Dia Semana", "Entrada", "Saída", "Projeto", "Local"];
+    const colWidths = [18, 35, 22, 22, 50];
+    const headers = ["Dia", "Dia Semana", "Entrada", "Saída", "Projeto"];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     let x = margin;
@@ -137,7 +149,7 @@ const Timesheet = () => {
 
     // Table rows
     doc.setFont("helvetica", "normal");
-    dayData.forEach(({ day, entries: dayEntries }) => {
+    dayData.forEach(({ day, entries: dayEntries, dailyRecord }) => {
       if (y > 260) {
         doc.addPage();
         y = 20;
@@ -145,7 +157,26 @@ const Timesheet = () => {
       const dayNum = format(day, "dd");
       const dayName = format(day, "EEE", { locale: ptBR });
 
-      if (dayEntries.length === 0) {
+      // Show clock-in/out if available
+      if (dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut)) {
+        x = margin;
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7);
+        doc.text(dayNum, x + 1, y);
+        x += colWidths[0];
+        doc.text(dayName, x + 1, y);
+        x += colWidths[1];
+        doc.text(dailyRecord.clockIn || "—", x + 1, y);
+        x += colWidths[2];
+        doc.text(dailyRecord.clockOut || "—", x + 1, y);
+        x += colWidths[3];
+        doc.text("[Registro do dia]", x + 1, y);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        y += 5;
+      }
+
+      if (dayEntries.length === 0 && !(dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut))) {
         x = margin;
         doc.text(dayNum, x + 1, y);
         x += colWidths[0];
@@ -156,19 +187,20 @@ const Timesheet = () => {
       } else {
         dayEntries.forEach((entry, idx) => {
           x = margin;
-          doc.text(idx === 0 ? dayNum : "", x + 1, y);
+          const showDay = idx === 0 && !(dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut));
+          doc.text(showDay ? dayNum : "", x + 1, y);
           x += colWidths[0];
-          doc.text(idx === 0 ? dayName : "", x + 1, y);
+          doc.text(showDay ? dayName : "", x + 1, y);
           x += colWidths[1];
           doc.text(entry.startTime, x + 1, y);
           x += colWidths[2];
           doc.text(entry.endTime, x + 1, y);
           x += colWidths[3];
-          const projName = projectMap[entry.projectId]?.name || "—";
-          doc.text(projName.substring(0, 20), x + 1, y);
-          x += colWidths[4];
-          const locName = locationMap[entry.locationId]?.name || "—";
-          doc.text(locName.substring(0, 20), x + 1, y);
+          const isBrk = entry.entryType === "break";
+          const projLabel = isBrk
+            ? "Intervalo"
+            : `${projectMap[entry.projectId]?.name || "—"}${entry.isOvertime ? " (HE)" : ""}`;
+          doc.text(projLabel.substring(0, 28), x + 1, y);
           y += 5;
         });
       }
@@ -200,7 +232,7 @@ const Timesheet = () => {
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.name || "user"}.pdf`);
-  }, [dayData, currentMonth, targetUser, totalMonthMins, hasSignature, projectMap, locationMap]);
+  }, [dayData, currentMonth, targetUser, totalMonthMins, hasSignature, projectMap]);
 
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
@@ -257,16 +289,32 @@ const Timesheet = () => {
                     <th>Entrada</th>
                     <th>Saída</th>
                     <th>Projeto</th>
-                    <th>Local</th>
                     <th>Horas</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dayData.map(({ day, entries: dayEntries, totalMins }) => {
+                  {dayData.map(({ day, entries: dayEntries, totalMins, dailyRecord }) => {
                     const h = Math.floor(totalMins / 60);
                     const m = totalMins % 60;
-                    if (dayEntries.length === 0) {
-                      return (
+                    const rows: React.ReactNode[] = [];
+
+                    // Clock-in/out row if available
+                    if (dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut)) {
+                      rows.push(
+                        <tr key={`clock-${format(day, "dd")}`} className="text-xs bg-blue-50/50 dark:bg-blue-950/20">
+                          <td>
+                            {format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span>
+                          </td>
+                          <td className="text-blue-600 dark:text-blue-400">{dailyRecord.clockIn || "—"}</td>
+                          <td className="text-blue-600 dark:text-blue-400">{dailyRecord.clockOut || "—"}</td>
+                          <td className="text-blue-600 dark:text-blue-400 italic text-[11px]">Registro do dia</td>
+                          <td></td>
+                        </tr>
+                      );
+                    }
+
+                    if (dayEntries.length === 0 && rows.length === 0) {
+                      rows.push(
                         <tr key={format(day, "dd")} className="ts-table__row--empty">
                           <td>
                             {format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span>
@@ -275,29 +323,43 @@ const Timesheet = () => {
                           <td>—</td>
                           <td>—</td>
                           <td>—</td>
-                          <td>—</td>
                         </tr>
                       );
+                    } else {
+                      dayEntries.forEach((entry, idx) => {
+                        const isBrk = entry.entryType === "break";
+                        rows.push(
+                          <tr key={entry.id} className={isBrk ? "bg-orange-50/50 dark:bg-orange-950/20" : ""}>
+                            <td>
+                              {idx === 0 && rows.length <= (dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut) ? 1 : 0) && (
+                                <>{format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span></>
+                              )}
+                            </td>
+                            <td>{entry.startTime}</td>
+                            <td>{entry.endTime}</td>
+                            <td>
+                              {isBrk ? (
+                                <span className="text-orange-500 italic">Intervalo</span>
+                              ) : (
+                                <>
+                                  {projectMap[entry.projectId]?.name || "—"}
+                                  {entry.isOvertime && (
+                                    <span className="ml-1 text-[10px] font-medium text-amber-600 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-400 px-1 py-0.5 rounded">HE</span>
+                                  )}
+                                </>
+                              )}
+                            </td>
+                            <td>{idx === 0 ? `${h}h${m > 0 ? `${m}m` : ""}` : ""}</td>
+                          </tr>
+                        );
+                      });
                     }
-                    return dayEntries.map((entry, idx) => (
-                      <tr key={entry.id}>
-                        <td>
-                          {idx === 0 && (
-                            <>{format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span></>
-                          )}
-                        </td>
-                        <td>{entry.startTime}</td>
-                        <td>{entry.endTime}</td>
-                        <td>{projectMap[entry.projectId]?.name || "—"}</td>
-                        <td>{locationMap[entry.locationId]?.name || "—"}</td>
-                        <td>{idx === 0 ? `${h}h${m > 0 ? `${m}m` : ""}` : ""}</td>
-                      </tr>
-                    ));
+                    return rows;
                   })}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={5}>Total</td>
+                    <td colSpan={4}>Total</td>
                     <td>{Math.floor(totalMonthMins / 60)}h{totalMonthMins % 60 > 0 ? ` ${totalMonthMins % 60}m` : ""}</td>
                   </tr>
                 </tfoot>

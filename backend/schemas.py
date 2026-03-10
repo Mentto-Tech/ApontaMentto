@@ -46,10 +46,12 @@ class UserOut(CamelModel):
     email: str
     role: str
     hourly_rate: Optional[float] = None
+    overtime_hourly_rate: Optional[float] = None
 
 
 class UserUpdateRate(CamelModel):
     hourly_rate: Optional[float] = None
+    overtime_hourly_rate: Optional[float] = None
 
 
 class UserUpdate(BaseModel):
@@ -96,9 +98,11 @@ class TimeEntryIn(CamelModel):
     date: str
     start_time: str
     end_time: str
-    project_id: str
-    location_id: str
+    project_id: Optional[str] = None
+    location_id: Optional[str] = None
     notes: str = ""
+    entry_type: str = "work"       # "work" | "break"
+    is_overtime: bool = False
 
 
 class TimeEntryOut(CamelModel):
@@ -109,7 +113,27 @@ class TimeEntryOut(CamelModel):
     project_id: Optional[str] = None
     location_id: Optional[str] = None
     notes: str
+    entry_type: str = "work"
+    is_overtime: bool = False
     user_id: Optional[str] = None
+    created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# DailyRecord (clock-in / clock-out)
+# ---------------------------------------------------------------------------
+class DailyRecordIn(CamelModel):
+    date: str
+    clock_in: Optional[str] = None
+    clock_out: Optional[str] = None
+
+
+class DailyRecordOut(CamelModel):
+    id: str
+    date: str
+    clock_in: Optional[str] = None
+    clock_out: Optional[str] = None
+    user_id: str
     created_at: datetime
 
 

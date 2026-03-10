@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
-import { BarChart3, Clock, FolderOpen, Users, DollarSign } from "lucide-react";
+import { BarChart3, Clock, FolderOpen, Users, DollarSign, Coffee, Zap } from "lucide-react";
 import "./Dashboard.css";
 
 const CHART_COLORS = ["#0f766e", "#2563eb", "#9333ea", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#64748b", "#6366f1", "#ec4899"];
@@ -41,9 +41,13 @@ const Dashboard = () => {
     return (eh * 60 + em) - (sh * 60 + sm);
   };
 
+  // Separate work vs break entries
+  const workEntries = useMemo(() => filteredEntries.filter(e => e.entryType !== "break"), [filteredEntries]);
+  const breakEntries = useMemo(() => filteredEntries.filter(e => e.entryType === "break"), [filteredEntries]);
+
   const hoursPerProject = useMemo(() => {
     const map = new Map<string, number>();
-    filteredEntries.forEach(e => {
+    workEntries.forEach(e => {
       map.set(e.projectId, (map.get(e.projectId) || 0) + calcMins(e));
     });
     return Array.from(map.entries())
@@ -53,33 +57,42 @@ const Dashboard = () => {
         color: projectMap[id]?.color || "#64748b",
       }))
       .sort((a, b) => b.hours - a.hours);
-  }, [filteredEntries, projectMap]);
+  }, [workEntries, projectMap]);
 
-  // Cost per project (admin only)
+  // Cost per project (admin only) — separate normal vs overtime rates
   const costPerProject = useMemo(() => {
     if (!isAdmin) return [];
-    const map = new Map<string, number>();
-    filteredEntries.forEach(e => {
+    const map = new Map<string, { normal: number; overtime: number }>();
+    workEntries.forEach(e => {
       const u = userMap[e.userId || ""];
-      const rate = u?.hourlyRate || 0;
       const hours = calcMins(e) / 60;
       const projectId = e.projectId;
-      map.set(projectId, (map.get(projectId) || 0) + hours * rate);
+      const prev = map.get(projectId) || { normal: 0, overtime: 0 };
+      if (e.isOvertime) {
+        const rate = u?.overtimeHourlyRate || u?.hourlyRate || 0;
+        prev.overtime += hours * rate;
+      } else {
+        const rate = u?.hourlyRate || 0;
+        prev.normal += hours * rate;
+      }
+      map.set(projectId, prev);
     });
     return Array.from(map.entries())
-      .map(([id, cost]) => ({
+      .map(([id, { normal, overtime }]) => ({
         name: projectMap[id]?.name || "Desconhecido",
-        cost: Math.round(cost * 100) / 100,
+        cost: Math.round((normal + overtime) * 100) / 100,
+        normalCost: Math.round(normal * 100) / 100,
+        overtimeCost: Math.round(overtime * 100) / 100,
         color: projectMap[id]?.color || "#64748b",
       }))
       .filter(c => c.cost > 0)
       .sort((a, b) => b.cost - a.cost);
-  }, [filteredEntries, isAdmin, userMap, projectMap]);
+  }, [workEntries, isAdmin, userMap, projectMap]);
 
   const hoursPerUser = useMemo(() => {
     if (!isAdmin) return [];
     const map = new Map<string, number>();
-    filteredEntries.forEach(e => {
+    workEntries.forEach(e => {
       map.set(e.userId || "unknown", (map.get(e.userId || "unknown") || 0) + calcMins(e));
     });
     return Array.from(map.entries())
@@ -88,12 +101,17 @@ const Dashboard = () => {
         hours: Math.round((mins / 60) * 100) / 100,
       }))
       .sort((a, b) => b.hours - a.hours);
-  }, [filteredEntries, isAdmin, userMap]);
+  }, [workEntries, isAdmin, userMap]);
 
-  const totalMinutes = filteredEntries.reduce((sum, e) => sum + calcMins(e), 0);
+  const totalMinutes = workEntries.reduce((sum, e) => sum + calcMins(e), 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const totalMins = totalMinutes % 60;
   const totalCost = isAdmin ? costPerProject.reduce((s, c) => s + c.cost, 0) : 0;
+  const totalOvertimeCost = isAdmin ? costPerProject.reduce((s, c) => s + c.overtimeCost, 0) : 0;
+
+  const breakTotalMins = breakEntries.reduce((sum, e) => sum + calcMins(e), 0);
+  const overtimeEntries = workEntries.filter(e => e.isOvertime);
+  const overtimeMins = overtimeEntries.reduce((sum, e) => sum + calcMins(e), 0);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
@@ -136,6 +154,24 @@ const Dashboard = () => {
             <div className="db-card__label text-muted-foreground">Total de horas</div>
           </div>
         </div>
+        {overtimeMins > 0 && (
+          <div className="db-card bg-card border border-border">
+            <Zap className="db-card__icon text-amber-500" />
+            <div className="db-card__body">
+              <div className="db-card__value">{Math.floor(overtimeMins / 60)}h{overtimeMins % 60 > 0 ? ` ${overtimeMins % 60}m` : ""}</div>
+              <div className="db-card__label text-muted-foreground">Horas extras</div>
+            </div>
+          </div>
+        )}
+        {breakTotalMins > 0 && (
+          <div className="db-card bg-card border border-border">
+            <Coffee className="db-card__icon text-orange-500" />
+            <div className="db-card__body">
+              <div className="db-card__value">{Math.floor(breakTotalMins / 60)}h{breakTotalMins % 60 > 0 ? ` ${breakTotalMins % 60}m` : ""}</div>
+              <div className="db-card__label text-muted-foreground">Intervalos</div>
+            </div>
+          </div>
+        )}
         <div className="db-card bg-card border border-border">
           <FolderOpen className="db-card__icon text-primary" />
           <div className="db-card__body">
@@ -155,7 +191,9 @@ const Dashboard = () => {
             <DollarSign className="db-card__icon text-primary" />
             <div className="db-card__body">
               <div className="db-card__value--money">R$ {totalCost.toFixed(2)}</div>
-              <div className="db-card__label text-muted-foreground">Custo total</div>
+              <div className="db-card__label text-muted-foreground">
+                Custo total{totalOvertimeCost > 0 && <span className="text-amber-500"> (HE: R$ {totalOvertimeCost.toFixed(2)})</span>}
+              </div>
             </div>
           </div>
         )}

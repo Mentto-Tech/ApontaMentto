@@ -51,9 +51,11 @@ async def create_entry(
         date=data.date,
         start_time=data.start_time,
         end_time=data.end_time,
-        project_id=data.project_id,
-        location_id=data.location_id,
+        project_id=data.project_id or None,
+        location_id=data.location_id or None,
         notes=data.notes,
+        entry_type=data.entry_type,
+        is_overtime=data.is_overtime,
         user_id=current_user.id,
         created_at=datetime.utcnow(),
     )
@@ -79,9 +81,11 @@ async def update_entry(
     entry.date = data.date
     entry.start_time = data.start_time
     entry.end_time = data.end_time
-    entry.project_id = data.project_id
-    entry.location_id = data.location_id
+    entry.project_id = data.project_id or None
+    entry.location_id = data.location_id or None
     entry.notes = data.notes
+    entry.entry_type = data.entry_type
+    entry.is_overtime = data.is_overtime
     await db.commit()
     await db.refresh(entry)
     return TimeEntryOut.model_validate(entry)

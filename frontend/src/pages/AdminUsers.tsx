@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Users, DollarSign } from "lucide-react";
+import { Users, DollarSign, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useUpdateUserRate } from "@/lib/queries";
 
@@ -12,13 +12,17 @@ const AdminUsers = () => {
   const updateRate = useUpdateUserRate();
 
   const [rates, setRates] = useState<Record<string, string>>({});
+  const [overtimeRates, setOvertimeRates] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const initial: Record<string, string> = {};
+    const initialOt: Record<string, string> = {};
     allUsers.forEach(u => {
       initial[u.id] = u.hourlyRate != null ? String(u.hourlyRate) : "";
+      initialOt[u.id] = u.overtimeHourlyRate != null ? String(u.overtimeHourlyRate) : "";
     });
     setRates(initial);
+    setOvertimeRates(initialOt);
   }, [allUsers]);
 
   if (!isAdmin) {
@@ -33,12 +37,18 @@ const AdminUsers = () => {
     const val = rates[userId];
     const rate = val === "" ? null : parseFloat(val);
     if (val !== "" && (isNaN(rate!) || rate! < 0)) {
-      toast.error("Valor inválido");
+      toast.error("Valor/hora inválido");
+      return;
+    }
+    const otVal = overtimeRates[userId];
+    const otRate = otVal === "" ? null : parseFloat(otVal);
+    if (otVal !== "" && (isNaN(otRate!) || otRate! < 0)) {
+      toast.error("Valor/hora extra inválido");
       return;
     }
     updateRate.mutate(
-      { userId, hourlyRate: rate },
-      { onSuccess: () => toast.success("Valor/hora atualizado!") }
+      { userId, hourlyRate: rate, overtimeHourlyRate: otRate },
+      { onSuccess: () => toast.success("Valores atualizados!") }
     );
   };
 
@@ -51,24 +61,45 @@ const AdminUsers = () => {
 
       <div className="space-y-3">
         {allUsers.map(u => (
-          <div key={u.id} className="bg-card border border-border rounded-lg p-4 flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[150px]">
-              <div className="font-semibold text-sm">{u.name}</div>
-              <div className="text-xs text-muted-foreground">{u.email}</div>
-              <span className="text-[10px] capitalize px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{u.role}</span>
+          <div key={u.id} className="bg-card border border-border rounded-lg p-4">
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="flex-1 min-w-[150px]">
+                <div className="font-semibold text-sm">{u.name}</div>
+                <div className="text-xs text-muted-foreground">{u.email}</div>
+                <span className="text-[10px] capitalize px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{u.role}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <Input
-                type="number"
-                min={0}
-                step={0.01}
-                placeholder="Valor/hora"
-                value={rates[u.id] || ""}
-                onChange={e => setRates(r => ({ ...r, [u.id]: e.target.value }))}
-                className="w-28"
-              />
-              <span className="text-xs text-muted-foreground">/h</span>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <label className="text-[10px] text-muted-foreground block">Normal /h</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="Valor/hora"
+                    value={rates[u.id] || ""}
+                    onChange={e => setRates(r => ({ ...r, [u.id]: e.target.value }))}
+                    className="w-24 h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                <div>
+                  <label className="text-[10px] text-muted-foreground block">Extra /h</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="Hora extra"
+                    value={overtimeRates[u.id] || ""}
+                    onChange={e => setOvertimeRates(r => ({ ...r, [u.id]: e.target.value }))}
+                    className="w-24 h-8 text-sm"
+                  />
+                </div>
+              </div>
               <Button size="sm" onClick={() => handleSave(u.id)} disabled={updateRate.isPending}>
                 Salvar
               </Button>

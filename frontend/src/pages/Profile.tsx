@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/lib/queries";
 import { toast } from "sonner";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, DollarSign, Zap } from "lucide-react";
 
 const Profile = () => {
   const { user, logout, refreshUser } = useAuth();
@@ -65,6 +65,36 @@ const Profile = () => {
           </Button>
         </form>
       </div>
+
+      {/* Rates section (read-only) */}
+      {(user?.hourlyRate != null || user?.overtimeHourlyRate != null) && (
+        <div className="bg-card border border-border rounded-lg p-6 mt-4">
+          <h2 className="text-sm font-semibold mb-3">Taxas</h2>
+          <div className="flex flex-wrap gap-4">
+            {user?.hourlyRate != null && (
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <div className="text-xs text-muted-foreground">Valor/hora normal</div>
+                  <div className="font-semibold text-sm">R$ {user.hourlyRate.toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+            {user?.overtimeHourlyRate != null && (
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                <div>
+                  <div className="text-xs text-muted-foreground">Valor/hora extra</div>
+                  <div className="font-semibold text-sm">R$ {user.overtimeHourlyRate.toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Os valores são configurados pelo administrador.
+          </p>
+        </div>
+      )}
 
       <Button
         variant="outline"

@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Project, Location, TimeEntry } from "@/lib/store";
+import type { Project, Location, TimeEntry, DailyRecord } from "@/lib/store";
 
 // ---------------------------------------------------------------------------
 // Types (re-exported for convenience)
 // ---------------------------------------------------------------------------
-export type { Project, Location, TimeEntry };
+export type { Project, Location, TimeEntry, DailyRecord };
 
 export interface AuthUser {
   id: string;
@@ -14,6 +14,7 @@ export interface AuthUser {
   email: string;
   role: "admin" | "user";
   hourlyRate?: number | null;
+  overtimeHourlyRate?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,10 +148,10 @@ export function useUsers() {
 export function useUpdateUserRate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, hourlyRate }: { userId: string; hourlyRate: number | null }) =>
+    mutationFn: ({ userId, hourlyRate, overtimeHourlyRate }: { userId: string; hourlyRate: number | null; overtimeHourlyRate: number | null }) =>
       apiFetch<AuthUser>(`/api/users/${userId}/rate`, {
         method: "PATCH",
-        body: { hourlyRate },
+        body: { hourlyRate, overtimeHourlyRate },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
@@ -162,5 +163,35 @@ export function useUpdateProfile() {
     mutationFn: (data: { name?: string; email?: string }) =>
       apiFetch<AuthUser>("/api/users/me", { method: "PUT", body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["auth-me"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Daily Records (clock-in / clock-out)
+// ---------------------------------------------------------------------------
+export function useDailyRecords(params?: {
+  date?: string;
+  month?: string;
+  userId?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.date) search.set("date", params.date);
+  if (params?.month) search.set("month", params.month);
+  if (params?.userId) search.set("userId", params.userId);
+  const qs = search.toString() ? `?${search.toString()}` : "";
+
+  return useQuery<DailyRecord[]>({
+    queryKey: ["daily-records", params ?? {}],
+    queryFn: () => apiFetch<DailyRecord[]>(`/api/daily-records${qs}`),
+    staleTime: 10_000,
+  });
+}
+
+export function useUpsertDailyRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { date: string; clockIn?: string | null; clockOut?: string | null }) =>
+      apiFetch<DailyRecord>("/api/daily-records", { method: "PUT", body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["daily-records"] }),
   });
 }
