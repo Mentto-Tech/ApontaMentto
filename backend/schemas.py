@@ -1,7 +1,9 @@
-from datetime import date, datetime, time
-from typing import List, Optional
+from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 from pydantic.alias_generators import to_camel
 
 from models import UserCategory
@@ -20,173 +22,107 @@ class CamelModel(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Auth
+# Auth (keep access_token snake_case to match frontend)
 # ---------------------------------------------------------------------------
 class LoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
 
 
-class Token(BaseModel):
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
     access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
+    user: UserOut
 
 
 # ---------------------------------------------------------------------------
-# User
+# Users
 # ---------------------------------------------------------------------------
-class UserBase(CamelModel):
+class UserOut(CamelModel):
+    id: str
     username: str
     email: str
-    is_active: bool = True
-    is_admin: bool = False
+    role: str
     hourly_rate: Optional[float] = None
-    category: UserCategory = UserCategory.CLT
+    overtime_hourly_rate: Optional[float] = None
+    category: Optional[UserCategory] = None
     weekly_hours: Optional[float] = None
+    created_at: Optional[datetime] = None
+
+    @computed_field(return_type=bool)
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
+
+    @computed_field(return_type=str)
+    @property
+    def name(self) -> str:
+        # Frontend profile screens still use `name`.
+        return self.username
 
 
-class UserCreate(UserBase):
-    password: str
-
-
-class UserUpdate(UserBase):
-    password: Optional[str] = None
-
-
-class UserUpdateAdmin(CamelModel):
+class UserAdminUpdate(CamelModel):
     hourly_rate: Optional[float] = None
+    overtime_hourly_rate: Optional[float] = None
     category: Optional[UserCategory] = None
     weekly_hours: Optional[float] = None
 
 
-class UserInDB(UserBase):
-    id: int
-    hashed_password: str
-
-    class Config:
-        from_attributes = True
-
-
-class UserOut(UserBase):
-    id: int
+class UserMeUpdate(CamelModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
-# Project
+# Projects
 # ---------------------------------------------------------------------------
-class ProjectBase(CamelModel):
+class ProjectIn(CamelModel):
     name: str
-    color: str
+    description: str = ""
+    color: str = "#6366f1"
     is_internal: bool = False
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def _none_to_empty_description(cls, v: Any):
+        return "" if v is None else v
 
-class ProjectCreate(ProjectBase):
-    pass
+    @field_validator("color", mode="before")
+    @classmethod
+    def _none_to_default_color(cls, v: Any):
+        return "#6366f1" if v is None else v
 
 
-class ProjectIn(ProjectBase):
-    pass
-
-
-class ProjectOut(ProjectBase):
-    id: int
-
-    class Config:
-        from_attributes = True
+class ProjectOut(ProjectIn):
+    id: str
+    created_at: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------
-# Location
+# Locations
 # ---------------------------------------------------------------------------
-class LocationBase(CamelModel):
+class LocationIn(CamelModel):
     name: str
+    address: str = ""
+
+    @field_validator("address", mode="before")
+    @classmethod
+    def _none_to_empty_address(cls, v: Any):
+        return "" if v is None else v
 
 
-class LocationCreate(LocationBase):
-    pass
-
-
-class LocationIn(LocationBase):
-    pass
-
-
-class LocationOut(LocationBase):
-    id: int
-
-    class Config:
-        from_attributes = True
+class LocationOut(LocationIn):
+    id: str
+    created_at: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------
-# TimeEntry
-# ---------------------------------------------------------------------------
-class TimeEntryBase(CamelModel):
-    start_time: time
-    end_time: time
-    description: str
-
-
-class TimeEntryCreate(TimeEntryBase):
-    project_id: int
-    location_id: int
-
-
-class TimeEntryIn(TimeEntryBase):
-    project_id: int
-    location_id: int
-
-
-class TimeEntryOut(TimeEntryBase):
-    id: int
-    project: ProjectOut
-    location: LocationOut
-
-    class Config:
-        from_attributes = True
-
-
-# ---------------------------------------------------------------------------
-# DailyRecord
-# ---------------------------------------------------------------------------
-class DailyRecordBase(CamelModel):
-    date: date
-    work_model: str
-    total_hours: float
-
-
-class DailyRecordCreate(DailyRecordBase):
-    pass
-
-
-class DailyRecordIn(DailyRecordBase):
-    pass
-
-
-class DailyRecordOut(DailyRecordBase):
-    id: int
-    time_entries: List[TimeEntryOut] = []
-
-    class Config:
-        from_attributes = True
-
-
-# ---------------------------------------------------------------------------
-# Admin Data (Export/Import)
-# ---------------------------------------------------------------------------
-class AdminData(BaseModel):
-    users: List[UserOut]
-    projects: List[ProjectOut]
-    locations: List[LocationOut]
-    time_entries: List[TimeEntryOut]
-    daily_records: List[DailyRecordOut]
-
-
-# ---------------------------------------------------------------------------
-# TimeEntry
+# Time Entries
 # ---------------------------------------------------------------------------
 class TimeEntryIn(CamelModel):
     date: str
@@ -195,26 +131,23 @@ class TimeEntryIn(CamelModel):
     project_id: Optional[str] = None
     location_id: Optional[str] = None
     notes: str = ""
-    entry_type: str = "work"       # "work" | "break"
+    entry_type: str = "work"  # "work" | "break"
     is_overtime: bool = False
 
+    @field_validator("notes", mode="before")
+    @classmethod
+    def _none_to_empty_notes(cls, v: Any):
+        return "" if v is None else v
 
-class TimeEntryOut(CamelModel):
+
+class TimeEntryOut(TimeEntryIn):
     id: str
-    date: str
-    start_time: str
-    end_time: str
-    project_id: Optional[str] = None
-    location_id: Optional[str] = None
-    notes: str
-    entry_type: str = "work"
-    is_overtime: bool = False
     user_id: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------
-# DailyRecord (clock-in / clock-out)
+# Daily Records (clock-in / clock-out)
 # ---------------------------------------------------------------------------
 class DailyRecordIn(CamelModel):
     date: str
@@ -222,13 +155,27 @@ class DailyRecordIn(CamelModel):
     clock_out: Optional[str] = None
 
 
-class DailyRecordOut(CamelModel):
+class DailyRecordOut(DailyRecordIn):
     id: str
-    date: str
-    clock_in: Optional[str] = None
-    clock_out: Optional[str] = None
     user_id: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
-TokenResponse.model_rebuild()
+# ---------------------------------------------------------------------------
+# Admin import/export payloads
+# ---------------------------------------------------------------------------
+class AdminExport(CamelModel):
+    version: str
+    exported_at: str
+    users: List[UserOut]
+    projects: List[ProjectOut]
+    locations: List[LocationOut]
+    time_entries: List[TimeEntryOut]
+    daily_records: List[DailyRecordOut]
+
+
+class AdminImportResult(CamelModel):
+    ok: bool
+    imported: Dict[str, int]
+
+

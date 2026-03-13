@@ -29,6 +29,9 @@ def get_url() -> str:
         "DATABASE_URL",
         "postgresql://apontamentto:apontamentto@localhost:5432/apontamentto",
     )
+    # Render may provide postgres://; normalize to postgresql://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
     # Alembic needs a sync driver; replace asyncpg with psycopg2
     url = url.replace("postgresql+asyncpg://", "postgresql://")
     # Neon uses ssl=require (asyncpg) → sslmode=require (psycopg2)

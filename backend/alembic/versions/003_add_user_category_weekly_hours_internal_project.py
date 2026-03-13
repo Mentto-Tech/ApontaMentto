@@ -22,11 +22,11 @@ def upgrade() -> None:
     op.execute("UPDATE projects SET is_internal = false")
     op.alter_column('projects', 'is_internal', nullable=False)
 
-    user_category_enum = sa.Enum('PJ', 'CLT', 'ESTAGIARIO', 'DONO', name='usercategory')
-    user_category_enum.create(op.get_bind())
+    user_category_enum = sa.Enum('pj', 'clt', 'estagiario', 'dono', name='usercategory')
+    user_category_enum.create(op.get_bind(), checkfirst=True)
 
-    op.add_column('users', sa.Column('category', sa.Enum('PJ', 'CLT', 'ESTAGIARIO', 'DONO', name='usercategory'), nullable=True))
-    op.execute("UPDATE users SET category = 'CLT'")
+    op.add_column('users', sa.Column('category', sa.Enum('pj', 'clt', 'estagiario', 'dono', name='usercategory'), nullable=True))
+    op.execute("UPDATE users SET category = 'clt'")
     op.alter_column('users', 'category', nullable=False)
 
     op.add_column('users', sa.Column('weekly_hours', sa.Float(), nullable=True))
@@ -38,5 +38,5 @@ def downgrade() -> None:
     op.drop_column('users', 'weekly_hours')
     op.drop_column('users', 'category')
     op.drop_column('projects', 'is_internal')
-    sa.Enum(name='usercategory').drop(op.get_bind(), checkfirst=False)
+    sa.Enum(name='usercategory').drop(op.get_bind(), checkfirst=True)
     # ### end Alembic commands ###

@@ -33,7 +33,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email já cadastrado")
     user = User(
         id=str(uuid.uuid4()),
-        name=data.name,
+        username=data.name,
         email=data.email,
         hashed_password=hash_password(data.password),
         role="user",

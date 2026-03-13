@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "users",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.String(), nullable=False),
         sa.Column("username", sa.String(), nullable=False),
         sa.Column("email", sa.String(), nullable=False),
         sa.Column("hashed_password", sa.String(), nullable=False),
@@ -63,7 +63,7 @@ def upgrade() -> None:
         sa.Column("start_time", sa.String(), nullable=False),
         sa.Column("end_time", sa.String(), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("user_id", sa.String(), nullable=True),
+        sa.Column("user_id", sa.String(), nullable=False),
         sa.Column("project_id", sa.String(), nullable=True),
         sa.Column("location_id", sa.String(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=True),

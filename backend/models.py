@@ -1,82 +1,80 @@
-
-import enum
 import datetime
-from typing import List
+import enum
+from typing import List, Optional
 
 from sqlalchemy import (
     Boolean,
     Column,
-    Date,
     DateTime,
-    Enum,
+    Enum as SAEnum,
     Float,
     ForeignKey,
-    Integer,
     String,
-    Table,
-    Time,
-    UniqueConstraint,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
 
 
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    user = "user"
+
+
 class UserCategory(str, enum.Enum):
-    PJ = "pj"
-    CLT = "clt"
-    ESTAGIARIO = "estagiario"
-    DONO = "dono"
-
-
-# Association table for many-to-many relationship between User and Project
-user_project = Table(
-    "user_project",
-    Base.metadata,
-    Column("user_id", String, ForeignKey("users.id"), nullable=False),
-    Column("project_id", String, ForeignKey("projects.id"), nullable=False),
-    UniqueConstraint("user_id", "project_id", name="uq_user_project"),
-)
+    pj = "pj"
+    clt = "clt"
+    estagiario = "estagiario"
+    dono = "dono"
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    hourly_rate: Mapped[float] = mapped_column(Float, nullable=True)
-    category: Mapped[UserCategory] = mapped_column(
-        Enum(UserCategory), nullable=False, default=UserCategory.CLT
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(UserRole, name="userrole"),
+        nullable=False,
+        default=UserRole.user,
     )
-    weekly_hours: Mapped[float] = mapped_column(Float, nullable=True)
 
-    projects: Mapped[List["Project"]] = relationship(
-        secondary=user_project, back_populates="users"
+    hourly_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    overtime_hourly_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    category: Mapped[UserCategory] = mapped_column(
+        SAEnum(UserCategory, name="usercategory"),
+        nullable=False,
+        default=UserCategory.clt,
     )
+    weekly_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
+
     time_entries: Mapped[List["TimeEntry"]] = relationship(
-        "TimeEntry", back_populates="user"
+        "TimeEntry", back_populates="user", cascade="all, delete-orphan"
     )
     daily_records: Mapped[List["DailyRecord"]] = relationship(
-        "DailyRecord", back_populates="user"
+        "DailyRecord", back_populates="user", cascade="all, delete-orphan"
     )
 
 
 class Project(Base):
     __tablename__ = "projects"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, index=True)
-    color: Mapped[str] = mapped_column(String)
-    is_internal: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    users: Mapped[List["User"]] = relationship(
-        secondary=user_project, back_populates="projects"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
     )
+
     time_entries: Mapped[List["TimeEntry"]] = relationship(
         "TimeEntry", back_populates="project"
     )
@@ -85,46 +83,63 @@ class Project(Base):
 class Location(Base):
     __tablename__ = "locations"
 
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    address = Column(Text, default="")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
 
-    time_entries = relationship("TimeEntry", back_populates="location")
+    time_entries: Mapped[List["TimeEntry"]] = relationship(
+        "TimeEntry", back_populates="location"
+    )
 
 
 class TimeEntry(Base):
     __tablename__ = "time_entries"
 
-    id = Column(String, primary_key=True)
-    date = Column(String, nullable=False, index=True)    # YYYY-MM-DD
-    start_time = Column(String, nullable=False)           # HH:mm
-    end_time = Column(String, nullable=False)             # HH:mm
-    notes = Column(Text, default="")
-    entry_type = Column(String, default="work", nullable=False)  # "work" | "break"
-    is_overtime = Column(Boolean, default=False, nullable=False)
-    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=True)
-    location_id = Column(String, ForeignKey("locations.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
+    start_time: Mapped[str] = mapped_column(String, nullable=False)  # HH:mm
+    end_time: Mapped[str] = mapped_column(String, nullable=False)  # HH:mm
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    entry_type: Mapped[str] = mapped_column(String, nullable=False, default="work")
+    is_overtime: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id"), nullable=False, index=True
+    )
+    project_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("projects.id"), nullable=True
+    )
+    location_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("locations.id"), nullable=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
 
-    user = relationship("User", back_populates="time_entries")
-    project = relationship("Project", back_populates="time_entries")
-    location = relationship("Location", back_populates="time_entries")
+    user: Mapped[User] = relationship("User", back_populates="time_entries")
+    project: Mapped[Optional[Project]] = relationship("Project", back_populates="time_entries")
+    location: Mapped[Optional[Location]] = relationship("Location", back_populates="time_entries")
 
 
 class DailyRecord(Base):
     """Optional clock-in / clock-out per day, independent of activities."""
+
     __tablename__ = "daily_records"
     __table_args__ = (
         UniqueConstraint("date", "user_id", name="uq_daily_record_date_user"),
     )
 
-    id = Column(String, primary_key=True)
-    date = Column(String, nullable=False, index=True)     # YYYY-MM-DD
-    clock_in = Column(String, nullable=True)               # HH:mm
-    clock_out = Column(String, nullable=True)              # HH:mm
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
+    clock_in: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    clock_out: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
 
-    user = relationship("User", back_populates="daily_records")
+    user: Mapped[User] = relationship("User", back_populates="daily_records")
