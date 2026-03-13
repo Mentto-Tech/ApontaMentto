@@ -25,8 +25,8 @@ async def seed():
             print(f"Admin '{email}' already exists.")
             return
         session.add(User(
-            id=str(uuid.uuid4()), name=name, email=email,
-            hashed_password=hash_password(password), role="admin", hourly_rate=None,
+            username=name, email=email,
+            hashed_password=hash_password(password), is_admin=True, hourly_rate=None,
         ))
         await session.commit()
         print(f"Admin '{email}' created.")
