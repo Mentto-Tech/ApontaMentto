@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users } from "lucide-react";
+import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -15,7 +15,12 @@ const AppLayout = () => {
     { to: "/projects", icon: FolderOpen, label: "Projetos" },
     { to: "/locations", icon: MapPin, label: "Locais" },
     { to: "/profile", icon: User, label: "Perfil" },
-    ...(isAdmin ? [{ to: "/admin/users", icon: Users, label: "Usuários" }] : []),
+    ...(isAdmin
+      ? [
+          { to: "/admin/users", icon: Users, label: "Usuários (Admin)" },
+          { to: "/admin/settings", icon: Settings, label: "Configurações (Admin)" },
+        ]
+      : []),
   ];
 
   const handleLogout = () => {
@@ -56,11 +61,11 @@ const AppLayout = () => {
         <div className="px-3 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-2 px-3 mb-2">
             <div className="w-7 h-7 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-bold text-sidebar-primary">
-              {user?.name?.charAt(0).toUpperCase()}
+              {user?.username?.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-sidebar-foreground truncate">{user?.name}</div>
-              <div className="text-[10px] text-sidebar-foreground/50 capitalize">{user?.role}</div>
+              <div className="text-xs font-medium text-sidebar-foreground truncate">{user?.username}</div>
+              <div className="text-[10px] text-sidebar-foreground/50 capitalize">{user?.isAdmin ? 'Admin' : 'User'}</div>
             </div>
           </div>
           <Button

@@ -1,8 +1,10 @@
-from datetime import datetime
-from typing import Optional
+from datetime import date, datetime, time
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+
+from models import UserCategory
 
 
 # ---------------------------------------------------------------------------
@@ -21,74 +23,166 @@ class CamelModel(BaseModel):
 # Auth
 # ---------------------------------------------------------------------------
 class LoginRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
 
-class RegisterRequest(BaseModel):
-    name: str
-    email: str
-    password: str
-
-
-class TokenResponse(BaseModel):
+class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
-    user: "UserOut"
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: str | None = None
 
 
 # ---------------------------------------------------------------------------
 # User
 # ---------------------------------------------------------------------------
-class UserOut(CamelModel):
-    id: str
-    name: str
+class UserBase(CamelModel):
+    username: str
     email: str
-    role: str
+    is_active: bool = True
+    is_admin: bool = False
     hourly_rate: Optional[float] = None
-    overtime_hourly_rate: Optional[float] = None
+    category: UserCategory = UserCategory.CLT
+    weekly_hours: Optional[float] = None
 
 
-class UserUpdateRate(CamelModel):
+class UserCreate(UserBase):
+    password: str
+
+
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+
+
+class UserUpdateAdmin(CamelModel):
     hourly_rate: Optional[float] = None
-    overtime_hourly_rate: Optional[float] = None
+    category: Optional[UserCategory] = None
+    weekly_hours: Optional[float] = None
 
 
-class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
+class UserInDB(UserBase):
+    id: int
+    hashed_password: str
+
+    class Config:
+        from_attributes = True
+
+
+class UserOut(UserBase):
+    id: int
 
 
 # ---------------------------------------------------------------------------
 # Project
 # ---------------------------------------------------------------------------
-class ProjectIn(BaseModel):
+class ProjectBase(CamelModel):
     name: str
-    description: str = ""
-    color: str = "#0f766e"
-
-
-class ProjectOut(CamelModel):
-    id: str
-    name: str
-    description: str
     color: str
-    created_at: datetime
+    is_internal: bool = False
+
+
+class ProjectCreate(ProjectBase):
+    pass
+
+
+class ProjectIn(ProjectBase):
+    pass
+
+
+class ProjectOut(ProjectBase):
+    id: int
+
+    class Config:
+        from_attributes = True
 
 
 # ---------------------------------------------------------------------------
 # Location
 # ---------------------------------------------------------------------------
-class LocationIn(BaseModel):
+class LocationBase(CamelModel):
     name: str
-    address: str = ""
 
 
-class LocationOut(CamelModel):
-    id: str
-    name: str
-    address: str
-    created_at: datetime
+class LocationCreate(LocationBase):
+    pass
+
+
+class LocationIn(LocationBase):
+    pass
+
+
+class LocationOut(LocationBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# TimeEntry
+# ---------------------------------------------------------------------------
+class TimeEntryBase(CamelModel):
+    start_time: time
+    end_time: time
+    description: str
+
+
+class TimeEntryCreate(TimeEntryBase):
+    project_id: int
+    location_id: int
+
+
+class TimeEntryIn(TimeEntryBase):
+    project_id: int
+    location_id: int
+
+
+class TimeEntryOut(TimeEntryBase):
+    id: int
+    project: ProjectOut
+    location: LocationOut
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# DailyRecord
+# ---------------------------------------------------------------------------
+class DailyRecordBase(CamelModel):
+    date: date
+    work_model: str
+    total_hours: float
+
+
+class DailyRecordCreate(DailyRecordBase):
+    pass
+
+
+class DailyRecordIn(DailyRecordBase):
+    pass
+
+
+class DailyRecordOut(DailyRecordBase):
+    id: int
+    time_entries: List[TimeEntryOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Admin Data (Export/Import)
+# ---------------------------------------------------------------------------
+class AdminData(BaseModel):
+    users: List[UserOut]
+    projects: List[ProjectOut]
+    locations: List[LocationOut]
+    time_entries: List[TimeEntryOut]
+    daily_records: List[DailyRecordOut]
 
 
 # ---------------------------------------------------------------------------

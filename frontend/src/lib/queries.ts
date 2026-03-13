@@ -10,12 +10,14 @@ export type { Project, Location, TimeEntry, DailyRecord };
 
 export interface AuthUser {
   id: string;
-  name: string;
+  username: string;
   email: string;
-  role: "admin" | "user";
+  isAdmin: boolean;
   hourlyRate?: number | null;
-  overtimeHourlyRate?: number | null;
+  category: "pj" | "clt" | "estagiario" | "dono";
+  weeklyHours?: number | null;
 }
+
 
 // ---------------------------------------------------------------------------
 // Projects
@@ -145,15 +147,56 @@ export function useUsers() {
   });
 }
 
-export function useUpdateUserRate() {
+export function useUpdateUserAdmin() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, hourlyRate, overtimeHourlyRate }: { userId: string; hourlyRate: number | null; overtimeHourlyRate: number | null }) =>
-      apiFetch<AuthUser>(`/api/users/${userId}/rate`, {
+    mutationFn: ({
+      userId,
+      ...data
+    }: {
+      userId: string;
+      hourlyRate?: number | null;
+      category?: string;
+      weeklyHours?: number | null;
+    }) =>
+      apiFetch<AuthUser>(`/api/users/${userId}`, {
         method: "PATCH",
-        body: { hourlyRate, overtimeHourlyRate },
+        body: data,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: (updatedUser) => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      // Also update the current user in the auth context if it matches
+      const authUser = qc.getQueryData<AuthUser>(["auth", "me"]);
+      if (authUser && authUser.id === updatedUser.id) {
+        qc.setQueryData(["auth", "me"], updatedUser);
+      }
+    },
+  });
+}
+
+export function useExportData() {
+  return useQuery<Record<string, unknown>>({
+    queryKey: ["admin-export"],
+    queryFn: () => apiFetch<Record<string, unknown>>("/api/admin/export"),
+    enabled: false, // only triggered manually
+  });
+}
+
+export function useImportData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      apiFetch<{ ok: boolean; imported: Record<string, number> }>("/api/admin/import", {
+        method: "POST",
+        body: data,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["locations"] });
+      qc.invalidateQueries({ queryKey: ["time-entries"] });
+      qc.invalidateQueries({ queryKey: ["daily-records"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
   });
 }
 

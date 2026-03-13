@@ -17,6 +17,7 @@ import Signup from "./pages/Signup";
 import MonthlyView from "./pages/MonthlyView";
 import Timesheet from "./pages/Timesheet";
 import AdminUsers from "./pages/AdminUsers";
+import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const AppRoutes = () => (
       <Route path="/locations" element={<Locations />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+      <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

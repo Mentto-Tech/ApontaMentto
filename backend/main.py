@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import auth, daily_records, locations, projects, time_entries, users
+from routers import admin_data, auth, daily_records, locations, projects, time_entries, users
 
 
 @asynccontextmanager
@@ -49,6 +49,7 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(locations.router, prefix="/api/locations", tags=["locations"])
 app.include_router(time_entries.router, prefix="/api/time-entries", tags=["time-entries"])
 app.include_router(daily_records.router, prefix="/api/daily-records", tags=["daily-records"])
+app.include_router(admin_data.router, prefix="/api/admin", tags=["admin"])
 
 
 @app.get("/api/health")

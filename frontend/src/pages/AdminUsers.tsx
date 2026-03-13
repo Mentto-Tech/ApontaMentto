@@ -2,27 +2,38 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Users, DollarSign, Zap } from "lucide-react";
-import { toast } from "sonner";
-import { useUsers, useUpdateUserRate } from "@/lib/queries";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Users, DollarSign, Briefcase, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useUsers, useUpdateUserAdmin, type AuthUser } from "@/lib/queries";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  clt: "CLT",
+  pj: "PJ",
+  estagiario: "Estagiário",
+  dono: "Dono",
+};
+
+const CATEGORIES_WITH_HOURS = ["clt", "estagiario"];
 
 const AdminUsers = () => {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const { data: allUsers = [] } = useUsers();
-  const updateRate = useUpdateUserRate();
+  const { mutate: updateUser, isPending } = useUpdateUserAdmin();
 
-  const [rates, setRates] = useState<Record<string, string>>({});
-  const [overtimeRates, setOvertimeRates] = useState<Record<string, string>>({});
+  const [localUsers, setLocalUsers] = useState<AuthUser[]>([]);
 
   useEffect(() => {
-    const initial: Record<string, string> = {};
-    const initialOt: Record<string, string> = {};
-    allUsers.forEach(u => {
-      initial[u.id] = u.hourlyRate != null ? String(u.hourlyRate) : "";
-      initialOt[u.id] = u.overtimeHourlyRate != null ? String(u.overtimeHourlyRate) : "";
-    });
-    setRates(initial);
-    setOvertimeRates(initialOt);
+    if (allUsers.length > 0) {
+      setLocalUsers(JSON.parse(JSON.stringify(allUsers)));
+    }
   }, [allUsers]);
 
   if (!isAdmin) {
@@ -33,23 +44,37 @@ const AdminUsers = () => {
     );
   }
 
-  const handleSave = (userId: string) => {
-    const val = rates[userId];
-    const rate = val === "" ? null : parseFloat(val);
-    if (val !== "" && (isNaN(rate!) || rate! < 0)) {
-      toast.error("Valor/hora inválido");
-      return;
-    }
-    const otVal = overtimeRates[userId];
-    const otRate = otVal === "" ? null : parseFloat(otVal);
-    if (otVal !== "" && (isNaN(otRate!) || otRate! < 0)) {
-      toast.error("Valor/hora extra inválido");
-      return;
-    }
-    updateRate.mutate(
-      { userId, hourlyRate: rate, overtimeHourlyRate: otRate },
-      { onSuccess: () => toast.success("Valores atualizados!") }
+  const handleFieldChange = (
+    userId: string,
+    field: keyof AuthUser,
+    value: string | number | null
+  ) => {
+    setLocalUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, [field]: value } : u))
     );
+  };
+
+  const handleSave = (user: AuthUser) => {
+    const originalUser = allUsers.find((u) => u.id === user.id);
+    if (!originalUser) return;
+
+    const changes: Partial<AuthUser> = {};
+    if (user.hourlyRate !== originalUser.hourlyRate) {
+      changes.hourlyRate = user.hourlyRate === "" ? null : Number(user.hourlyRate);
+    }
+    if (user.category !== originalUser.category) {
+      changes.category = user.category;
+    }
+    if (user.weeklyHours !== originalUser.weeklyHours) {
+      changes.weeklyHours = user.weeklyHours === "" ? null : Number(user.weeklyHours);
+    }
+    
+    if (Object.keys(changes).length > 0) {
+        updateUser({ userId: user.id, ...changes }, {
+            onSuccess: () => toast({ title: "Sucesso!", description: `Dados de ${user.username} atualizados.`}),
+            onError: () => toast({ variant: "destructive", title: "Erro!", description: "Não foi possível atualizar o usuário."})
+        });
+    }
   };
 
   return (
@@ -60,49 +85,75 @@ const AdminUsers = () => {
       </h1>
 
       <div className="space-y-3">
-        {allUsers.map(u => (
-          <div key={u.id} className="bg-card border border-border rounded-lg p-4">
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <div className="flex-1 min-w-[150px]">
-                <div className="font-semibold text-sm">{u.name}</div>
-                <div className="text-xs text-muted-foreground">{u.email}</div>
-                <span className="text-[10px] capitalize px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{u.role}</span>
+        {localUsers.map((user) => (
+          <div key={user.id} className="bg-card border border-border rounded-lg p-4">
+            <div className="font-semibold text-sm">{user.username}</div>
+            <div className="text-xs text-muted-foreground mb-3">{user.email}</div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {/* Category */}
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <label className="text-[10px] text-muted-foreground block">Categoria</label>
+                  <Select
+                    value={user.category || "clt"}
+                    onValueChange={(val) => handleFieldChange(user.id, "category", val)}
+                  >
+                    <SelectTrigger className="w-32 h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
+
+              {/* Weekly Hours */}
+              {CATEGORIES_WITH_HOURS.includes(user.category || "clt") && (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block">Horas/semana</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="40"
+                      value={user.weeklyHours || ""}
+                      onChange={(e) => handleFieldChange(user.id, "weeklyHours", e.target.value)}
+                      className="w-24 h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Hourly Rate */}
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <label className="text-[10px] text-muted-foreground block">Normal /h</label>
+                  <label className="text-[10px] text-muted-foreground block">Valor/hora</label>
                   <Input
                     type="number"
                     min={0}
                     step={0.01}
-                    placeholder="Valor/hora"
-                    value={rates[u.id] || ""}
-                    onChange={e => setRates(r => ({ ...r, [u.id]: e.target.value }))}
+                    placeholder="N/A"
+                    value={user.hourlyRate || ""}
+                    onChange={(e) => handleFieldChange(user.id, "hourlyRate", e.target.value)}
                     className="w-24 h-8 text-sm"
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
-                <div>
-                  <label className="text-[10px] text-muted-foreground block">Extra /h</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="Hora extra"
-                    value={overtimeRates[u.id] || ""}
-                    onChange={e => setOvertimeRates(r => ({ ...r, [u.id]: e.target.value }))}
-                    className="w-24 h-8 text-sm"
-                  />
-                </div>
-              </div>
-              <Button size="sm" onClick={() => handleSave(u.id)} disabled={updateRate.isPending}>
-                Salvar
-              </Button>
+            </div>
+            <div className="mt-4">
+                <Button size="sm" onClick={() => handleSave(user)} disabled={isPending}>
+                    Salvar Alterações
+                </Button>
             </div>
           </div>
         ))}

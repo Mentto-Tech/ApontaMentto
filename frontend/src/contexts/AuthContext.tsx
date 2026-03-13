@@ -3,11 +3,12 @@ import { apiFetch, getToken, removeToken, setToken } from "@/lib/api";
 
 export interface AuthUser {
   id: string;
-  name: string;
+  username: string;
   email: string;
-  role: 'admin' | 'user';
+  isAdmin: boolean;
   hourlyRate?: number | null;
-  overtimeHourlyRate?: number | null;
+  category?: "pj" | "clt" | "estagiario" | "dono";
+  weeklyHours?: number | null;
 }
 
 interface AuthContextType {
