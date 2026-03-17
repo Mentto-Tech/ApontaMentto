@@ -43,7 +43,7 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(), nullable=False),
         sa.Column(
             "role",
-            sa.Enum("admin", "user", name="userrole"),
+            sa.Enum("admin", "user", name="userrole", create_type=False),
             nullable=False,
             server_default="user",
         ),
@@ -51,7 +51,7 @@ def upgrade() -> None:
         sa.Column("overtime_hourly_rate", sa.Float(), nullable=True),
         sa.Column(
             "category",
-            sa.Enum("pj", "clt", "estagiario", "dono", name="usercategory"),
+            sa.Enum("pj", "clt", "estagiario", "dono", name="usercategory", create_type=False),
             nullable=False,
             server_default="clt",
         ),
@@ -59,6 +59,11 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
+    
+    # Add enum constraints manually
+    op.execute("ALTER TABLE users ADD CONSTRAINT check_role CHECK (role IN ('admin', 'user'))")
+    op.execute("ALTER TABLE users ADD CONSTRAINT check_category CHECK (category IN ('pj', 'clt', 'estagiario', 'dono'))")
+    
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
     op.create_index(op.f("ix_users_username"), "users", ["username"], unique=True)
@@ -85,7 +90,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # Create time_entries table
+    # Create time_entries table (without enum to avoid SQLAlchemy trying to create it)
     op.create_table(
         "time_entries",
         sa.Column("id", sa.String(), nullable=False),
