@@ -7,17 +7,15 @@ export function useApiWakeUp() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    // Se não tiver API_URL configurada (Docker local), considera já acordado
-    if (!API_URL) {
-      setIsAwake(true);
-      return;
-    }
+    // If API_URL is empty we assume same-origin proxy/rewrite (Vercel rewrites, Vite proxy, nginx, etc.)
+    const healthUrl = API_URL ? `${API_URL}/api/health` : "/api/health";
 
     let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
 
     const ping = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/health`, { signal: AbortSignal.timeout(8000) });
+        const res = await fetch(healthUrl, { signal: AbortSignal.timeout(30_000) });
         if (res.ok && !cancelled) {
           setIsAwake(true);
           return true;
@@ -33,17 +31,21 @@ export function useApiWakeUp() {
       if (ok || cancelled) return;
 
       // Tenta a cada 3 segundos até acordar
-      const interval = setInterval(async () => {
-        setAttempt(a => a + 1);
+      interval = setInterval(async () => {
+        setAttempt((a) => a + 1);
         const ok = await ping();
-        if (ok) clearInterval(interval);
+        if (ok && interval) {
+          clearInterval(interval);
+          interval = null;
+        }
       }, 3000);
-
-      return () => clearInterval(interval);
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   return { isAwake, attempt };
