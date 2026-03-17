@@ -18,7 +18,7 @@ const AppLayout = () => {
     ...(isAdmin
       ? [
           { to: "/admin/users", icon: Users, label: "Usuários (Admin)" },
-          { to: "/admin/settings", icon: Settings, label: "Configurações (Admin)" },
+          { to: "/admin/settings", icon: Settings, label: "Backup (Admin)" },
         ]
       : []),
   ];
@@ -31,7 +31,7 @@ const AppLayout = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="hidden md:flex w-56 flex-col bg-sidebar border-r border-sidebar-border">
+      <aside className="hidden md:flex w-56 flex-col bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
         <div className="p-5 flex items-center gap-2">
           <Clock className="h-6 w-6 text-sidebar-primary" strokeWidth={2.5} />
           <span className="text-lg font-bold text-sidebar-foreground tracking-tight">
@@ -56,9 +56,8 @@ const AppLayout = () => {
               {label}
             </NavLink>
           ))}
-        </nav>
 
-        <div className="px-3 py-4 border-t border-sidebar-border">
+          <div className="px-3 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-2 px-3 mb-2">
             <div className="w-7 h-7 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-bold text-sidebar-primary">
               {user?.username?.charAt(0).toUpperCase()}
@@ -78,6 +77,7 @@ const AppLayout = () => {
             Sair
           </Button>
         </div>
+        </nav>
       </aside>
 
       {/* Mobile bottom nav - show only key items */}

@@ -289,44 +289,11 @@ const Dashboard = () => {
           </div>
         ) : null}
         {isAdmin && totalUnattributed > 0 ? (
-          <div className="db-card border border-border rounded-lg p-4">
-            <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <CalendarOff className="h-5 w-5 text-orange-500" />
-              Horas Não Atribuídas (CLT/Estagiário)
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-4">
-              <div className="bg-background p-3 rounded-lg">
-                <div className="text-xs text-muted-foreground">Total Não Atribuído</div>
-                <div className="text-xl font-bold text-orange-500">
-                  {totalUnattributed.toFixed(2)}h
-                </div>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left font-medium p-2">Usuário</th>
-                    <th className="text-left font-medium p-2">Semana de</th>
-                    <th className="text-right font-medium p-2">Esperado</th>
-                    <th className="text-right font-medium p-2">Alocado</th>
-                    <th className="text-right font-medium p-2 text-orange-500">Não Atribuído</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unattributedData.map((d, i) => (
-                    <tr key={i} className="border-b border-border/50">
-                      <td className="p-2">{d.userName}</td>
-                      <td className="p-2">{new Date(d.weekStart + "T00:00:00").toLocaleDateString()}</td>
-                      <td className="text-right p-2">{d.expected.toFixed(2)}h</td>
-                      <td className="text-right p-2">{d.allocated.toFixed(2)}h</td>
-                      <td className="text-right p-2 font-bold text-orange-500">
-                        {d.unattributed.toFixed(2)}h
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="db-card bg-card border border-border">
+            <CalendarOff className="db-card__icon text-orange-500" />
+            <div className="db-card__body">
+              <div className="db-card__value">{totalUnattributed.toFixed(2)}h</div>
+              <div className="db-card__label text-muted-foreground">Horas Não Atribuídas</div>
             </div>
           </div>
         ) : null}
@@ -477,28 +444,28 @@ const Dashboard = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left font-medium p-2">Usuário</th>
-                      <th className="text-left font-medium p-2">Semana de</th>
-                      <th className="text-right font-medium p-2">Esperado</th>
-                      <th className="text-right font-medium p-2">Alocado</th>
-                      <th className="text-right font-medium p-2 text-orange-500">Não Atribuído</th>
+                      <th className="text-center font-medium p-2">Usuário</th>
+                      <th className="text-center font-medium p-2">Semana de</th>
+                      <th className="text-center font-medium p-2">Esperado</th>
+                      <th className="text-center font-medium p-2">Alocado</th>
+                      <th className="text-center font-medium p-2 text-orange-500">Não Atribuído</th>
                     </tr>
                   </thead>
                   <tbody>
                     {unattributedData.map((d, i) => (
-                      <tr key={i}>
-                        <td>{d.userName}</td>
-                        <td className="text-xs">{d.weekStart}</td>
-                        <td>{d.expected}h</td>
-                        <td>{d.allocated}h</td>
-                        <td className="text-red-500 font-medium">{d.unattributed}h</td>
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="text-center p-2">{d.userName}</td>
+                        <td className="text-center p-2 text-xs">{d.weekStart}</td>
+                        <td className="text-center p-2">{d.expected}h</td>
+                        <td className="text-center p-2">{d.allocated}h</td>
+                        <td className="text-center p-2 text-red-500 font-medium">{d.unattributed}h</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr>
-                      <td colSpan={4}>Total não atribuído</td>
-                      <td className="text-red-500 font-medium">{Math.round(totalUnattributed * 100) / 100}h</td>
+                    <tr className="border-t border-border">
+                      <td colSpan={4} className="text-center p-2 font-medium">Total não atribuído</td>
+                      <td className="text-center p-2 text-red-500 font-medium">{Math.round(totalUnattributed * 100) / 100}h</td>
                     </tr>
                   </tfoot>
                 </table>

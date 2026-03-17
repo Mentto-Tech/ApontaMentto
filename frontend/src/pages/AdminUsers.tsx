@@ -62,6 +62,9 @@ const AdminUsers = () => {
     if (user.hourlyRate !== originalUser.hourlyRate) {
       changes.hourlyRate = user.hourlyRate === "" ? null : Number(user.hourlyRate);
     }
+    if (user.overtimeHourlyRate !== originalUser.overtimeHourlyRate) {
+      changes.overtimeHourlyRate = user.overtimeHourlyRate === "" ? null : Number(user.overtimeHourlyRate);
+    }
     if (user.category !== originalUser.category) {
       changes.category = user.category;
     }
@@ -145,6 +148,23 @@ const AdminUsers = () => {
                     placeholder="N/A"
                     value={user.hourlyRate || ""}
                     onChange={(e) => handleFieldChange(user.id, "hourlyRate", e.target.value)}
+                    className="w-24 h-8 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Overtime Hourly Rate */}
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <label className="text-[10px] text-muted-foreground block">Valor/hora extra</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="N/A"
+                    value={user.overtimeHourlyRate || ""}
+                    onChange={(e) => handleFieldChange(user.id, "overtimeHourlyRate", e.target.value)}
                     className="w-24 h-8 text-sm"
                   />
                 </div>

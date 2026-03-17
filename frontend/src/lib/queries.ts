@@ -14,6 +14,7 @@ export interface AuthUser {
   email: string;
   isAdmin: boolean;
   hourlyRate?: number | null;
+  overtimeHourlyRate?: number | null;
   category: "pj" | "clt" | "estagiario" | "dono";
   weeklyHours?: number | null;
 }
@@ -156,6 +157,7 @@ export function useUpdateUserAdmin() {
     }: {
       userId: string;
       hourlyRate?: number | null;
+      overtimeHourlyRate?: number | null;
       category?: string;
       weeklyHours?: number | null;
     }) =>
