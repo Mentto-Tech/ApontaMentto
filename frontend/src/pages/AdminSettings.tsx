@@ -59,7 +59,7 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold mt-2 ml-2">Configurações de Administrador</h1>
+      <h1 className="text-2xl font-semibold mt-4 ml-4">Configurações de Administrador</h1>
       <Card>
         <CardHeader>
           <CardTitle>Importar/Exportar Dados</CardTitle>
