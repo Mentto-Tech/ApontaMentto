@@ -31,7 +31,7 @@ const AppLayout = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="hidden md:flex w-56 flex-col bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
+      <aside className="hidden md:flex w-56 flex-col bg-sidebar border-r border-sidebar-border fixed left-0 top-0 bottom-0 h-full">
         <div className="p-5 flex items-center gap-2">
           <Clock className="h-6 w-6 text-sidebar-primary" strokeWidth={2.5} />
           <span className="text-lg font-bold text-sidebar-foreground tracking-tight">
@@ -101,7 +101,7 @@ const AppLayout = () => {
         ))}
       </nav>
 
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="flex-1 pb-20 md:pb-0 md:ml-56">
         <Outlet />
       </main>
     </div>
