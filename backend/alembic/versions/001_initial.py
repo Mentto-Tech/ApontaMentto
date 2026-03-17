@@ -6,9 +6,9 @@ Create Date: 2026-03-17 00:00:00.000000
 
 """
 from typing import Sequence, Union
-
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "001"
 down_revision: Union[str, None] = None
@@ -17,24 +17,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enums (skip if already exists)
     conn = op.get_bind()
     
-    # Check and create userrole enum
-    result = conn.execute(sa.text(
-        "SELECT 1 FROM pg_type WHERE typname = 'userrole'"
-    ))
-    if not result.fetchone():
+    result_role = conn.execute(sa.text("SELECT 1 FROM pg_type WHERE typname = 'userrole'"))
+    if not result_role.fetchone():
         op.execute("CREATE TYPE userrole AS ENUM ('admin', 'user')")
     
-    # Check and create usercategory enum
-    result = conn.execute(sa.text(
-        "SELECT 1 FROM pg_type WHERE typname = 'usercategory'"
-    ))
-    if not result.fetchone():
+    result_cat = conn.execute(sa.text("SELECT 1 FROM pg_type WHERE typname = 'usercategory'"))
+    if not result_cat.fetchone():
         op.execute("CREATE TYPE usercategory AS ENUM ('pj', 'clt', 'estagiario', 'dono')")
 
-    # Create users table
     op.create_table(
         "users",
         sa.Column("id", sa.String(), nullable=False),
@@ -43,7 +35,7 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(), nullable=False),
         sa.Column(
             "role",
-            sa.Enum("admin", "user", name="userrole", create_type=False),
+            postgresql.ENUM("admin", "user", name="userrole", create_type=False),
             nullable=False,
             server_default="user",
         ),
@@ -51,7 +43,7 @@ def upgrade() -> None:
         sa.Column("overtime_hourly_rate", sa.Float(), nullable=True),
         sa.Column(
             "category",
-            sa.Enum("pj", "clt", "estagiario", "dono", name="usercategory", create_type=False),
+            postgresql.ENUM("pj", "clt", "estagiario", "dono", name="usercategory", create_type=False),
             nullable=False,
             server_default="clt",
         ),
@@ -60,15 +52,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     
-    # Add enum constraints manually
-    op.execute("ALTER TABLE users ADD CONSTRAINT check_role CHECK (role IN ('admin', 'user'))")
-    op.execute("ALTER TABLE users ADD CONSTRAINT check_category CHECK (category IN ('pj', 'clt', 'estagiario', 'dono'))")
-    
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
     op.create_index(op.f("ix_users_username"), "users", ["username"], unique=True)
 
-    # Create projects table
     op.create_table(
         "projects",
         sa.Column("id", sa.String(), nullable=False),
@@ -80,7 +67,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # Create locations table
     op.create_table(
         "locations",
         sa.Column("id", sa.String(), nullable=False),
@@ -90,7 +76,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # Create time_entries table (without enum to avoid SQLAlchemy trying to create it)
     op.create_table(
         "time_entries",
         sa.Column("id", sa.String(), nullable=False),
@@ -112,7 +97,6 @@ def upgrade() -> None:
     op.create_index("ix_time_entries_date", "time_entries", ["date"])
     op.create_index("ix_time_entries_user_id", "time_entries", ["user_id"])
 
-    # Create daily_records table
     op.create_table(
         "daily_records",
         sa.Column("id", sa.String(), nullable=False),
@@ -130,17 +114,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_daily_records_user_id", "daily_records")
-    op.drop_index("ix_daily_records_date", "daily_records")
     op.drop_table("daily_records")
-    op.drop_index("ix_time_entries_user_id", "time_entries")
-    op.drop_index("ix_time_entries_date", "time_entries")
     op.drop_table("time_entries")
     op.drop_table("locations")
     op.drop_table("projects")
-    op.drop_index(op.f("ix_users_username"), "users")
-    op.drop_index(op.f("ix_users_id"), "users")
-    op.drop_index(op.f("ix_users_email"), "users")
     op.drop_table("users")
     op.execute("DROP TYPE IF EXISTS usercategory")
     op.execute("DROP TYPE IF EXISTS userrole")
