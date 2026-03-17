@@ -4,8 +4,8 @@
 !.env.example
 
 # Scripts de seed (contêm credenciais locais)
-backend/seed.py
-backend/seed_test.py
+# backend/seed.py
+# backend/seed_test.py
 
 # Python
 __pycache__/
