@@ -17,9 +17,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enums
-    op.execute("CREATE TYPE userrole AS ENUM ('admin', 'user')")
-    op.execute("CREATE TYPE usercategory AS ENUM ('pj', 'clt', 'estagiario', 'dono')")
+    # Create enums (if not exists)
+    op.execute("CREATE TYPE IF NOT EXISTS userrole AS ENUM ('admin', 'user')")
+    op.execute("CREATE TYPE IF NOT EXISTS usercategory AS ENUM ('pj', 'clt', 'estagiario', 'dono')")
 
     # Create users table
     op.create_table(
