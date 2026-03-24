@@ -362,7 +362,8 @@ export function useReverseGeocode(params?: {
     queryKey: ["reverse-geocode", latKey, lngKey, params?.lang || "pt-BR"],
     queryFn: () => apiFetch<ReverseGeocodeResult>(`/api/geocode/reverse${qs}`),
     enabled,
-    staleTime: 7 * 24 * 60 * 60 * 1000,
+    retry: 1,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -381,6 +382,7 @@ export function useIpGeocode(params?: { ip?: string | null; lang?: string }) {
     queryKey: ["ip-geocode", ip || null, params?.lang || "pt-BR"],
     queryFn: () => apiFetch<IpGeocodeResult>(`/api/geocode/ip${qs}`),
     enabled,
-    staleTime: 7 * 24 * 60 * 60 * 1000,
+    retry: 1,
+    staleTime: 30 * 60 * 1000,
   });
 }

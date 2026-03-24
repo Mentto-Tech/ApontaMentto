@@ -25,6 +25,7 @@ if _CONTACT:
 
 _USER_AGENT = os.getenv("GEOCODER_USER_AGENT", _DEFAULT_UA)
 _CACHE_TTL_SECONDS = int(os.getenv("GEOCODER_CACHE_TTL_SECONDS", str(7 * 24 * 60 * 60)))
+_NEGATIVE_CACHE_TTL_SECONDS = int(os.getenv("GEOCODER_NEGATIVE_CACHE_TTL_SECONDS", "300"))
 
 _IP_GEO_BASE = os.getenv("IP_GEO_BASE_URL", "https://ipwho.is")
 
@@ -104,7 +105,8 @@ async def reverse_geocode(
         payload = {"displayName": None}
 
     async with _cache_lock:
-        _cache[key] = (now + _CACHE_TTL_SECONDS, payload)
+        ttl = _CACHE_TTL_SECONDS if payload.get("displayName") else _NEGATIVE_CACHE_TTL_SECONDS
+        _cache[key] = (now + ttl, payload)
 
     return payload
 
@@ -166,6 +168,7 @@ async def ip_geocode(
         payload = {"displayName": None}
 
     async with _cache_lock:
-        _cache[key] = (now + _CACHE_TTL_SECONDS, payload)
+        ttl = _CACHE_TTL_SECONDS if payload.get("displayName") else _NEGATIVE_CACHE_TTL_SECONDS
+        _cache[key] = (now + ttl, payload)
 
     return payload

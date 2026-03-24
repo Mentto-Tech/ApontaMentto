@@ -28,8 +28,11 @@ function formatLatLng(lat?: number | null, lng?: number | null) {
 }
 
 const GeoAddress = ({ lat, lng }: { lat?: number | null; lng?: number | null }) => {
-  const { data } = useReverseGeocode({ lat: lat ?? null, lng: lng ?? null, lang: "pt-BR" });
+  const { data, isFetching } = useReverseGeocode({ lat: lat ?? null, lng: lng ?? null, lang: "pt-BR" });
   if (lat == null || lng == null) return null;
+  if (isFetching) return (
+    <div className="text-muted-foreground">Endereço: carregando…</div>
+  );
   if (!data?.displayName) return (
     <div className="text-muted-foreground">Endereço: —</div>
   );
@@ -39,8 +42,11 @@ const GeoAddress = ({ lat, lng }: { lat?: number | null; lng?: number | null }) 
 };
 
 const IpAddress = ({ ip }: { ip?: string | null }) => {
-  const { data } = useIpGeocode({ ip: ip ?? null, lang: "pt-BR" });
+  const { data, isFetching } = useIpGeocode({ ip: ip ?? null, lang: "pt-BR" });
   if (!ip) return null;
+  if (isFetching) return (
+    <div className="text-muted-foreground">Local aproximado (IP): carregando…</div>
+  );
   if (!data?.displayName) return (
     <div className="text-muted-foreground">Local aproximado (IP): —</div>
   );

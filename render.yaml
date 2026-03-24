@@ -31,3 +31,5 @@ services:
         sync: false  # Default: https://ipwho.is
       - key: GEOCODER_CACHE_TTL_SECONDS
         sync: false  # Default: 604800 (7 dias)
+      - key: GEOCODER_NEGATIVE_CACHE_TTL_SECONDS
+        sync: false  # Default: 300 (5 min) para falhas/rate-limit
