@@ -42,7 +42,7 @@ const AppLayout = () => {
           </span>
         </div>
         <nav className="flex-1 px-3 py-2 flex flex-col min-h-0">
-          <div className="space-y-1 overflow-y-auto pr-1 min-h-0 flex-1">
+          <div className="sidebar-scroll space-y-1 overflow-y-auto pr-1 min-h-0 flex-1">
             {mainNavItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
