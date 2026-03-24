@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -78,6 +78,25 @@ async def upsert_daily_record(
     out2 = data.out2 if data.out2 is not None else data.clock_out
     clock_in = data.clock_in if data.clock_in is not None else data.in1
     clock_out = data.clock_out if data.clock_out is not None else data.out2
+
+    # Enforce sequential punches (frontend also enforces, but keep backend safe).
+    # Allowed patterns:
+    # - Full folha: in1 -> out1 -> in2 -> out2 (with partials allowed, but never skipping)
+    # - Legacy single pair: in1 + out2 with out1/in2 empty
+    out1 = data.out1
+    in2 = data.in2
+
+    if out1 and not in1:
+        raise HTTPException(status_code=400, detail="out1 requires in1")
+
+    if in2 and not out1:
+        raise HTTPException(status_code=400, detail="in2 requires out1")
+
+    if out2 and (out1 or in2) and not in2:
+        raise HTTPException(status_code=400, detail="out2 requires in2")
+
+    if data.overtime_minutes is not None and data.overtime_minutes < 0:
+        raise HTTPException(status_code=400, detail="overtimeMinutes must be >= 0")
 
     ip_address = _extract_client_ip(request)
     user_agent = request.headers.get("user-agent")

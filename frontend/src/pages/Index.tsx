@@ -92,6 +92,10 @@ const Index = () => {
 
   const isToday = useMemo(() => isSameDay(date, new Date()), [date]);
 
+  const canUseOut1 = Boolean(in1);
+  const canUseIn2 = Boolean(in1 && out1);
+  const canUseOut2 = Boolean(in1 && out1 && in2);
+
   const nextPunchField = useMemo(() => {
     if (!in1) return "in1" as const;
     if (!out1) return "out1" as const;
@@ -138,6 +142,40 @@ const Index = () => {
     if (nextPunchField === "out1") override.out1 = nowTime;
     if (nextPunchField === "in2") override.in2 = nowTime;
     if (nextPunchField === "out2") override.out2 = nowTime;
+
+    await handleClockSave(override, { captureGeo: true });
+  };
+
+  const handlePunchFieldNow = async (field: "in1" | "out1" | "in2" | "out2") => {
+    if (!isToday) return;
+    if (editingField !== null) return;
+    if (nextPunchField !== field) return;
+
+    const nowTime = format(new Date(), "HH:mm");
+    const override: Partial<{
+      in1: string | null;
+      out1: string | null;
+      in2: string | null;
+      out2: string | null;
+      overtimeMinutes: number | null;
+    }> = {};
+
+    if (field === "in1") {
+      setIn1(nowTime);
+      override.in1 = nowTime;
+    }
+    if (field === "out1") {
+      setOut1(nowTime);
+      override.out1 = nowTime;
+    }
+    if (field === "in2") {
+      setIn2(nowTime);
+      override.in2 = nowTime;
+    }
+    if (field === "out2") {
+      setOut2(nowTime);
+      override.out2 = nowTime;
+    }
 
     await handleClockSave(override, { captureGeo: true });
   };
@@ -228,6 +266,16 @@ const Index = () => {
                 <Button
                   type="button"
                   size="sm"
+                  variant="default"
+                  className="h-7 px-2 text-[11px]"
+                  disabled={!isToday || nextPunchField !== "in1" || upsertDailyRecord.isPending || editingField !== null}
+                  onClick={() => void handlePunchFieldNow("in1")}
+                >
+                  Bater
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant={editingField === "in1" ? "secondary" : "outline"}
                   className="h-7 px-2 text-[11px]"
                   onClick={() => setEditingField(editingField === "in1" ? null : "in1")}
@@ -241,7 +289,7 @@ const Index = () => {
                     className="h-7 px-2 text-[11px]"
                     onClick={() => {
                       setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: false });
+                      void handleClockSave(undefined, { captureGeo: true });
                     }}
                   >
                     Salvar
@@ -265,8 +313,19 @@ const Index = () => {
                 <Button
                   type="button"
                   size="sm"
+                  variant="default"
+                  className="h-7 px-2 text-[11px]"
+                  disabled={!isToday || !canUseOut1 || nextPunchField !== "out1" || upsertDailyRecord.isPending || editingField !== null}
+                  onClick={() => void handlePunchFieldNow("out1")}
+                >
+                  Bater
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant={editingField === "out1" ? "secondary" : "outline"}
                   className="h-7 px-2 text-[11px]"
+                  disabled={!canUseOut1 && !out1}
                   onClick={() => setEditingField(editingField === "out1" ? null : "out1")}
                 >
                   {editingField === "out1" ? "Cancelar" : "Editar"}
@@ -278,7 +337,7 @@ const Index = () => {
                     className="h-7 px-2 text-[11px]"
                     onClick={() => {
                       setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: false });
+                      void handleClockSave(undefined, { captureGeo: true });
                     }}
                   >
                     Salvar
@@ -303,8 +362,19 @@ const Index = () => {
                 <Button
                   type="button"
                   size="sm"
+                  variant="default"
+                  className="h-7 px-2 text-[11px]"
+                  disabled={!isToday || !canUseIn2 || nextPunchField !== "in2" || upsertDailyRecord.isPending || editingField !== null}
+                  onClick={() => void handlePunchFieldNow("in2")}
+                >
+                  Bater
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant={editingField === "in2" ? "secondary" : "outline"}
                   className="h-7 px-2 text-[11px]"
+                  disabled={!canUseIn2 && !in2}
                   onClick={() => setEditingField(editingField === "in2" ? null : "in2")}
                 >
                   {editingField === "in2" ? "Cancelar" : "Editar"}
@@ -316,7 +386,7 @@ const Index = () => {
                     className="h-7 px-2 text-[11px]"
                     onClick={() => {
                       setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: false });
+                      void handleClockSave(undefined, { captureGeo: true });
                     }}
                   >
                     Salvar
@@ -340,8 +410,19 @@ const Index = () => {
                 <Button
                   type="button"
                   size="sm"
+                  variant="default"
+                  className="h-7 px-2 text-[11px]"
+                  disabled={!isToday || !canUseOut2 || nextPunchField !== "out2" || upsertDailyRecord.isPending || editingField !== null}
+                  onClick={() => void handlePunchFieldNow("out2")}
+                >
+                  Bater
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant={editingField === "out2" ? "secondary" : "outline"}
                   className="h-7 px-2 text-[11px]"
+                  disabled={!canUseOut2 && !out2}
                   onClick={() => setEditingField(editingField === "out2" ? null : "out2")}
                 >
                   {editingField === "out2" ? "Cancelar" : "Editar"}
@@ -353,7 +434,7 @@ const Index = () => {
                     className="h-7 px-2 text-[11px]"
                     onClick={() => {
                       setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: false });
+                      void handleClockSave(undefined, { captureGeo: true });
                     }}
                   >
                     Salvar
