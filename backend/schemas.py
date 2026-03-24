@@ -194,6 +194,26 @@ class AbsenceJustificationOut(CamelModel):
 
 
 # ---------------------------------------------------------------------------
+# Punch Logs
+# ---------------------------------------------------------------------------
+class PunchLogOut(CamelModel):
+    id: str
+    user_id: str
+    daily_record_id: Optional[str] = None
+    date: str
+    field: str
+    time_value: Optional[str] = None
+    overtime_minutes: Optional[int] = None
+    recorded_at: Optional[datetime] = None
+    geo_lat: Optional[float] = None
+    geo_lng: Optional[float] = None
+    geo_accuracy: Optional[float] = None
+    geo_source: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
 # Admin import/export payloads
 # ---------------------------------------------------------------------------
 class AdminExport(CamelModel):

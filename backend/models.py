@@ -65,6 +65,9 @@ class User(Base):
     absence_justifications: Mapped[List["AbsenceJustification"]] = relationship(
         "AbsenceJustification", back_populates="user", cascade="all, delete-orphan"
     )
+    punch_logs: Mapped[List["PunchLog"]] = relationship(
+        "PunchLog", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Project(Base):
@@ -194,3 +197,36 @@ class AbsenceJustification(Base):
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User] = relationship("User", back_populates="absence_justifications")
+
+
+class PunchLog(Base):
+    """Log de batidas de ponto (uma linha por ação de registro)."""
+
+    __tablename__ = "punch_logs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    daily_record_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("daily_records.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+
+    date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
+    field: Mapped[str] = mapped_column(String, nullable=False)  # in1/out1/in2/out2/overtime_minutes
+    time_value: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    overtime_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    recorded_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+    )
+
+    # Localização/metadados no momento do registro
+    geo_lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geo_lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geo_accuracy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geo_source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    user: Mapped[User] = relationship("User", back_populates="punch_logs")

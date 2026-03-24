@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Project, Location, TimeEntry, DailyRecord, AbsenceJustification } from "@/lib/store";
+import type { Project, Location, TimeEntry, DailyRecord, AbsenceJustification, PunchLog } from "@/lib/store";
 
 // ---------------------------------------------------------------------------
 // Types (re-exported for convenience)
 // ---------------------------------------------------------------------------
 export type { Project, Location, TimeEntry, DailyRecord };
 export type { AbsenceJustification };
+export type { PunchLog };
 
 export interface AuthUser {
   id: string;
@@ -297,5 +298,28 @@ export function useDeleteJustification() {
     mutationFn: (id: string) =>
       apiFetch(`/api/justifications/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["justifications"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Punch Logs
+// ---------------------------------------------------------------------------
+export function usePunchLogs(params?: {
+  date?: string;
+  month?: string;
+  userId?: string;
+  limit?: number;
+}) {
+  const search = new URLSearchParams();
+  if (params?.date) search.set("date", params.date);
+  if (params?.month) search.set("month", params.month);
+  if (params?.userId) search.set("userId", params.userId);
+  if (params?.limit) search.set("limit", String(params.limit));
+  const qs = search.toString() ? `?${search.toString()}` : "";
+
+  return useQuery<PunchLog[]>({
+    queryKey: ["punch-logs", params ?? {}],
+    queryFn: () => apiFetch<PunchLog[]>(`/api/punch-logs${qs}`),
+    staleTime: 5_000,
   });
 }

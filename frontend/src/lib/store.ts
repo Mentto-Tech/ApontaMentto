@@ -67,6 +67,23 @@ export interface AbsenceJustification {
   updatedAt?: string | null;
 }
 
+export interface PunchLog {
+  id: string;
+  userId: string;
+  dailyRecordId?: string | null;
+  date: string; // YYYY-MM-DD
+  field: string;
+  timeValue?: string | null; // HH:mm
+  overtimeMinutes?: number | null;
+  recordedAt?: string | null;
+  geoLat?: number | null;
+  geoLng?: number | null;
+  geoAccuracy?: number | null;
+  geoSource?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
+
 export interface UserProfile {
   name: string;
   email: string;

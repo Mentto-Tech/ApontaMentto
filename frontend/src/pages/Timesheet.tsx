@@ -84,6 +84,7 @@ const Timesheet = () => {
 
   const totalMonthMins = dayData.reduce((s, d) => s + d.workedMins, 0);
   const totalMonthOvertimeMins = dayData.reduce((s, d) => s + (d.overtimeMins || 0), 0);
+  const totalMonthAllMins = totalMonthMins + totalMonthOvertimeMins;
 
   // Canvas drawing
   const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
@@ -202,8 +203,8 @@ const Timesheet = () => {
     y += 5;
     doc.line(margin, y, pageW - margin, y);
     y += 6;
-    const totalH = Math.floor(totalMonthMins / 60);
-    const totalM = totalMonthMins % 60;
+    const totalH = Math.floor(totalMonthAllMins / 60);
+    const totalM = totalMonthAllMins % 60;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text(
@@ -230,7 +231,7 @@ const Timesheet = () => {
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
-  }, [dayData, currentMonth, targetUser, totalMonthMins, totalMonthOvertimeMins, hasSignature, user?.username]);
+  }, [dayData, currentMonth, targetUser, totalMonthAllMins, totalMonthOvertimeMins, hasSignature, user?.username]);
 
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
@@ -295,8 +296,9 @@ const Timesheet = () => {
                 </thead>
                 <tbody>
                   {dayData.map(({ day, workedMins, overtimeMins, dailyRecord }) => {
-                    const h = Math.floor(workedMins / 60);
-                    const m = workedMins % 60;
+                    const dayTotalMins = workedMins + (overtimeMins || 0);
+                    const h = Math.floor(dayTotalMins / 60);
+                    const m = dayTotalMins % 60;
 
                     const firstIn = dailyRecord?.in1 ?? dailyRecord?.clockIn ?? null;
                     const firstOut = dailyRecord?.out1 ?? null;
@@ -326,7 +328,7 @@ const Timesheet = () => {
                   <tr>
                     <td colSpan={6}>Total</td>
                     <td>
-                      {Math.floor(totalMonthMins / 60)}h{totalMonthMins % 60 > 0 ? ` ${totalMonthMins % 60}m` : ""}
+                      {Math.floor(totalMonthAllMins / 60)}h{totalMonthAllMins % 60 > 0 ? ` ${totalMonthAllMins % 60}m` : ""}
                       {totalMonthOvertimeMins > 0 && (
                         <span className="ml-2 text-[11px] text-amber-600 dark:text-amber-400">
                           HE: {Math.floor(totalMonthOvertimeMins / 60)}h{totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}m` : ""}

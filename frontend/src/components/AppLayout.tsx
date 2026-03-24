@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload } from "lucide-react";
+import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -7,7 +7,7 @@ const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const navItems = [
+  const mainNavItems = [
     { to: "/", icon: Clock, label: "Registros" },
     { to: "/monthly", icon: Calendar, label: "Mensal" },
     { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
@@ -16,13 +16,15 @@ const AppLayout = () => {
     { to: "/projects", icon: FolderOpen, label: "Projetos" },
     { to: "/locations", icon: MapPin, label: "Locais" },
     { to: "/profile", icon: User, label: "Perfil" },
-    ...(isAdmin
-      ? [
-          { to: "/admin/users", icon: Users, label: "Usuários (Admin)" },
-          { to: "/admin/settings", icon: Settings, label: "Backup (Admin)" },
-        ]
-      : []),
   ];
+
+  const adminNavItems = isAdmin
+    ? [
+        { to: "/admin/users", icon: Users, label: "Usuários" },
+        { to: "/admin/logs", icon: History, label: "Logs" },
+        { to: "/admin/settings", icon: Settings, label: "Backup" },
+      ]
+    : [];
 
   const handleLogout = () => {
     logout();
@@ -41,7 +43,7 @@ const AppLayout = () => {
         </div>
         <nav className="flex-1 px-3 py-2 space-y-1 flex flex-col">
           <div className="space-y-1">
-            {navItems.map(({ to, icon: Icon, label }) => (
+            {mainNavItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -58,6 +60,34 @@ const AppLayout = () => {
                 {label}
               </NavLink>
             ))}
+
+            {adminNavItems.length > 0 && (
+              <>
+                <div className="pt-3 mt-2 border-t border-sidebar-border">
+                  <div className="px-3 pb-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wide">
+                    Admin
+                  </div>
+                  <div className="space-y-1">
+                    {adminNavItems.map(({ to, icon: Icon, label }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            isActive
+                              ? "bg-sidebar-accent text-sidebar-primary"
+                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                          }`
+                        }
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-auto px-3 py-4 border-t border-sidebar-border">
@@ -85,7 +115,7 @@ const AppLayout = () => {
 
       {/* Mobile bottom nav - show only key items */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex justify-around py-2">
-        {navItems.filter(i => !i.to.startsWith("/admin")).slice(0, 6).map(({ to, icon: Icon, label }) => (
+        {mainNavItems.slice(0, 6).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

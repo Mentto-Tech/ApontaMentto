@@ -18,6 +18,7 @@ import MonthlyView from "./pages/MonthlyView";
 import Timesheet from "./pages/Timesheet";
 import Justifications from "./pages/Justifications";
 import AdminUsers from "./pages/AdminUsers";
+import AdminPunchLogs from "./pages/AdminPunchLogs";
 import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ const AppRoutes = () => (
       <Route path="/locations" element={<Locations />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+      <Route path="/admin/logs" element={<AdminRoute><AdminPunchLogs /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
     </Route>
     <Route path="*" element={<NotFound />} />

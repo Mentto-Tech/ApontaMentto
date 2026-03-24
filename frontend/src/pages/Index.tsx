@@ -59,34 +59,22 @@ const Index = () => {
     });
   };
 
-  const handleClockSave = async (
-    override?: Partial<{
-    in1: string | null;
-    out1: string | null;
-    in2: string | null;
-    out2: string | null;
-    overtimeMinutes: number | null;
-  }>,
-    opts?: { captureGeo?: boolean }
-  ) => {
+  type DailyRecordPatch = {
+    date: string;
+    in1?: string | null;
+    out1?: string | null;
+    in2?: string | null;
+    out2?: string | null;
+    overtimeMinutes?: number | null;
+    geoLat?: number | null;
+    geoLng?: number | null;
+    geoAccuracy?: number | null;
+    geoSource?: string | null;
+  };
+
+  const sendPatch = async (patch: DailyRecordPatch, opts?: { captureGeo?: boolean }) => {
     const geo = opts?.captureGeo ? await tryGetDeviceGeo() : null;
-
-    const overtime = overtimeMinutes.trim() ? Number(overtimeMinutes) : null;
-    let payload = {
-      date: dateStr,
-      in1: override?.in1 ?? (in1 || null),
-      out1: override?.out1 ?? (out1 || null),
-      in2: override?.in2 ?? (in2 || null),
-      out2: override?.out2 ?? (out2 || null),
-      overtimeMinutes:
-        override?.overtimeMinutes ??
-        (Number.isFinite(overtime as number) ? (overtime as number) : null),
-    } as const;
-
-    if (geo) {
-      payload = { ...payload, ...geo };
-    }
-
+    const payload = geo ? ({ ...patch, ...geo } as const) : (patch as const);
     upsertDailyRecord.mutate(payload);
   };
 
@@ -143,7 +131,12 @@ const Index = () => {
     if (nextPunchField === "in2") override.in2 = nowTime;
     if (nextPunchField === "out2") override.out2 = nowTime;
 
-    await handleClockSave(override, { captureGeo: true });
+    const patch: DailyRecordPatch = { date: dateStr };
+    if (override.in1 !== undefined) patch.in1 = override.in1;
+    if (override.out1 !== undefined) patch.out1 = override.out1;
+    if (override.in2 !== undefined) patch.in2 = override.in2;
+    if (override.out2 !== undefined) patch.out2 = override.out2;
+    await sendPatch(patch, { captureGeo: true });
   };
 
   const handlePunchFieldNow = async (field: "in1" | "out1" | "in2" | "out2") => {
@@ -177,7 +170,31 @@ const Index = () => {
       override.out2 = nowTime;
     }
 
-    await handleClockSave(override, { captureGeo: true });
+    const patch: DailyRecordPatch = { date: dateStr };
+    if (override.in1 !== undefined) patch.in1 = override.in1;
+    if (override.out1 !== undefined) patch.out1 = override.out1;
+    if (override.in2 !== undefined) patch.in2 = override.in2;
+    if (override.out2 !== undefined) patch.out2 = override.out2;
+
+    await sendPatch(patch, { captureGeo: true });
+  };
+
+  const commitEditedField = async () => {
+    if (!editingField) return;
+
+    const patch: DailyRecordPatch = { date: dateStr };
+
+    if (editingField === "in1") patch.in1 = in1 || null;
+    if (editingField === "out1") patch.out1 = out1 || null;
+    if (editingField === "in2") patch.in2 = in2 || null;
+    if (editingField === "out2") patch.out2 = out2 || null;
+    if (editingField === "overtime") {
+      const ot = overtimeMinutes.trim() ? Number(overtimeMinutes) : null;
+      patch.overtimeMinutes = Number.isFinite(ot as number) ? (ot as number) : null;
+    }
+
+    setEditingField(null);
+    await sendPatch(patch, { captureGeo: editingField !== "overtime" });
   };
 
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
@@ -287,12 +304,9 @@ const Index = () => {
                     type="button"
                     size="sm"
                     className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: true });
-                    }}
+                    onClick={() => void commitEditedField()}
                   >
-                    Salvar
+                    Bater ponto
                   </Button>
                 )}
               </div>
@@ -335,12 +349,9 @@ const Index = () => {
                     type="button"
                     size="sm"
                     className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: true });
-                    }}
+                    onClick={() => void commitEditedField()}
                   >
-                    Salvar
+                    Bater ponto
                   </Button>
                 )}
               </div>
@@ -384,12 +395,9 @@ const Index = () => {
                     type="button"
                     size="sm"
                     className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: true });
-                    }}
+                    onClick={() => void commitEditedField()}
                   >
-                    Salvar
+                    Bater ponto
                   </Button>
                 )}
               </div>
@@ -432,12 +440,9 @@ const Index = () => {
                     type="button"
                     size="sm"
                     className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: true });
-                    }}
+                    onClick={() => void commitEditedField()}
                   >
-                    Salvar
+                    Bater ponto
                   </Button>
                 )}
               </div>
@@ -473,10 +478,7 @@ const Index = () => {
                     type="button"
                     size="sm"
                     className="h-7 px-2 text-[11px]"
-                    onClick={() => {
-                      setEditingField(null);
-                      void handleClockSave(undefined, { captureGeo: false });
-                    }}
+                    onClick={() => void commitEditedField()}
                   >
                     Salvar
                   </Button>
