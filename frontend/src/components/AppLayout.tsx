@@ -34,15 +34,15 @@ const AppLayout = () => {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="hidden md:flex w-56 flex-col bg-sidebar border-r border-sidebar-border fixed left-0 top-0 bottom-0 h-full">
+      <aside className="hidden md:flex w-56 flex-col bg-sidebar border-r border-sidebar-border fixed left-0 top-0 bottom-0 h-full min-h-0">
         <div className="p-5 flex items-center gap-2">
           <Clock className="h-6 w-6 text-sidebar-primary" strokeWidth={2.5} />
           <span className="text-lg font-bold text-sidebar-foreground tracking-tight">
             Aponta<span className="text-sidebar-primary">Mentto</span>
           </span>
         </div>
-        <nav className="flex-1 px-3 py-2 space-y-1 flex flex-col">
-          <div className="space-y-1">
+        <nav className="flex-1 px-3 py-2 flex flex-col min-h-0">
+          <div className="space-y-1 overflow-y-auto pr-1 min-h-0 flex-1">
             {mainNavItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}

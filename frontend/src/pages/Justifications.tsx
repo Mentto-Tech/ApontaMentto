@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetchBlob } from "@/lib/api";
 import { useCreateJustification, useDeleteJustification, useJustifications, useUsers } from "@/lib/queries";
 
 const Justifications = () => {
   const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
@@ -73,15 +75,27 @@ const Justifications = () => {
   };
 
   const handleDownload = async (id: string, filename?: string | null) => {
-    const blob = await apiFetchBlob(`/api/justifications/${id}/file`);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || `atestado-${id}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await apiFetchBlob(`/api/justifications/${id}/file`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || `atestado-${id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Falha ao baixar arquivo";
+      toast({
+        variant: "destructive",
+        title: "Erro ao baixar",
+        description:
+          message === "File missing" || message === "No file"
+            ? "Arquivo não encontrado (pode ter sido removido no servidor)."
+            : message,
+      });
+    }
   };
 
   return (

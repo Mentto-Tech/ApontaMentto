@@ -235,11 +235,6 @@ const AdminPunchLogs = () => {
                   <div className="text-muted-foreground">IP</div>
                   <div>{log.ipAddress || "-"}</div>
                 </div>
-
-                <div>
-                  <div className="text-muted-foreground">User-Agent</div>
-                  <div className="break-all">{log.userAgent || "-"}</div>
-                </div>
               </div>
             </div>
           );

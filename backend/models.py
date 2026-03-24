@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -184,6 +185,7 @@ class AbsenceJustification(Base):
     reason_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     file_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    file_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     original_filename: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

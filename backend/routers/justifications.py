@@ -1,12 +1,10 @@
-import os
-import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,14 +14,6 @@ from models import AbsenceJustification, User
 from schemas import AbsenceJustificationOut
 
 router = APIRouter()
-
-
-def _upload_dir() -> Path:
-    # Keep it simple: local disk storage. Can be swapped to S3 later.
-    base = os.getenv("UPLOAD_DIR", "uploads")
-    p = Path(base)
-    p.mkdir(parents=True, exist_ok=True)
-    return p
 
 
 def _ensure_can_access(current_user: User, record: AbsenceJustification) -> None:
@@ -86,20 +76,11 @@ async def create_justification(
         if file.content_type and file.content_type not in allowed:
             raise HTTPException(status_code=400, detail="Unsupported file type")
 
-        ext = Path(file.filename or "").suffix
-        dest_name = f"{uuid.uuid4().hex}{ext}"
-        dest_path = _upload_dir() / dest_name
-
-        with dest_path.open("wb") as out:
-            shutil.copyfileobj(file.file, out)
-
-        record.file_path = str(dest_path)
+        data = await file.read()
+        record.file_data = data
         record.original_filename = file.filename
         record.mime_type = file.content_type
-        try:
-            record.size_bytes = dest_path.stat().st_size
-        except Exception:
-            record.size_bytes = None
+        record.size_bytes = len(data) if data is not None else None
 
     db.add(record)
     await db.commit()
@@ -123,7 +104,18 @@ async def download_justification_file(
     _ensure_can_access(current_user, record)
 
     if not record.file_path:
-        raise HTTPException(status_code=404, detail="No file")
+        if not record.file_data:
+            raise HTTPException(status_code=404, detail="No file")
+
+    # Prefer DB-stored file (persistent in cloud deploys)
+    if record.file_data:
+        filename = record.original_filename or f"justificativa-{record.id}"
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        return Response(
+            content=record.file_data,
+            media_type=record.mime_type or "application/octet-stream",
+            headers=headers,
+        )
 
     p = Path(record.file_path)
     if not p.exists():

@@ -1,9 +1,3 @@
 APP Mobile do ApontaMentto
 Tiago e Isabelly precisam assinar a folho de ponto (enviar por email)
 Banco de horas -> possibilidade de registrar entrada e saída com descrição
-
-
--Justificativa não fica na aba da folha
--Botão de "Bater ponto" para salvar a entrada e saída. Só é possível editar 1 por vez, e quando o botão é apertado, a hora exata e a localização do usuário também são salvas
- 
--Pegar localização real do usuário ao ele fazer um registro (pode ser por localização do dispositivo ou ip)
