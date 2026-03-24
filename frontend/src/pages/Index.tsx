@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import TimeEntryForm from "@/components/TimeEntryForm";
 import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord } from "@/lib/queries";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
+  const { toast } = useToast();
   const [date, setDate] = useState(new Date());
 
   const dateStr = format(date, "yyyy-MM-dd");
@@ -53,7 +55,7 @@ const Index = () => {
           });
         },
         () => resolve(null),
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60_000 }
+        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 }
       );
     });
   };
@@ -73,6 +75,15 @@ const Index = () => {
 
   const sendPatch = async (patch: DailyRecordPatch, opts?: { captureGeo?: boolean }) => {
     const geo = opts?.captureGeo ? await tryGetDeviceGeo() : null;
+    if (opts?.captureGeo && !geo) {
+      toast({
+        variant: "destructive",
+        title: "Localização necessária",
+        description:
+          "Para registrar com endereço completo, permita o acesso à localização e tente novamente.",
+      });
+      return;
+    }
     const payload: DailyRecordPatch = geo ? { ...patch, ...geo } : patch;
     upsertDailyRecord.mutate(payload);
   };
