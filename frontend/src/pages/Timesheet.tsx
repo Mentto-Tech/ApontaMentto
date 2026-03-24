@@ -1,12 +1,15 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, FileText, Pen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText, Pen, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTimeEntries, useProjects, useLocations, useUsers, useDailyRecords } from "@/lib/queries";
+import { apiFetchBlob } from "@/lib/api";
+import { useCreateJustification, useDailyRecords, useDeleteJustification, useJustifications, useUsers } from "@/lib/queries";
 import jsPDF from "jspdf";
 import "./Timesheet.css";
 
@@ -21,14 +24,19 @@ const Timesheet = () => {
   const monthStr = format(currentMonth, "yyyy-MM");
   const targetUserId = isAdmin ? selectedUserId : user?.id || "";
 
-  const { data: entries = [] } = useTimeEntries({ month: monthStr });
-  const { data: projects = [] } = useProjects();
-  const { data: locations = [] } = useLocations();
   const { data: allUsers = [] } = useUsers();
   const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr });
 
-  const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
-  const locationMap = Object.fromEntries(locations.map(l => [l.id, l]));
+  const { data: justifications = [] } = useJustifications({
+    month: monthStr,
+    userId: isAdmin ? targetUserId : undefined,
+  });
+  const createJustification = useCreateJustification();
+  const deleteJustification = useDeleteJustification();
+
+  const [justDate, setJustDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [justText, setJustText] = useState("");
+  const [justFile, setJustFile] = useState<File | null>(null);
 
   const targetUser = isAdmin
     ? allUsers.find(u => u.id === targetUserId)
@@ -38,10 +46,6 @@ const Timesheet = () => {
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  const monthEntries = useMemo(() => {
-    return entries.filter(e => e.date.startsWith(monthStr) && e.userId === targetUserId);
-  }, [entries, monthStr, targetUserId]);
-
   const targetDailyRecords = useMemo(() => {
     return dailyRecords.filter(r => r.date.startsWith(monthStr) && r.userId === targetUserId);
   }, [dailyRecords, monthStr, targetUserId]);
@@ -50,23 +54,50 @@ const Timesheet = () => {
     return Object.fromEntries(targetDailyRecords.map(r => [r.date, r]));
   }, [targetDailyRecords]);
 
+  const minsBetween = useCallback((start?: string | null, end?: string | null) => {
+    if (!start || !end) return 0;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    return diff > 0 ? diff : 0;
+  }, []);
+
+  const calcWorkedMins = useCallback((r: {
+    in1?: string | null;
+    out1?: string | null;
+    in2?: string | null;
+    out2?: string | null;
+    overtimeMinutes?: number | null;
+    clockIn?: string | null;
+    clockOut?: string | null;
+  } | null) => {
+    if (!r) return 0;
+
+    const firstIn = r.in1 ?? r.clockIn ?? null;
+    const firstOut = r.out1 ?? null;
+    const secondIn = r.in2 ?? null;
+    const secondOut = r.out2 ?? r.clockOut ?? null;
+
+    // If we only have a single pair (legacy), use in1 -> out2
+    if (firstIn && secondOut && !firstOut && !secondIn) {
+      return minsBetween(firstIn, secondOut);
+    }
+
+    return minsBetween(firstIn, firstOut) + minsBetween(secondIn, secondOut);
+  }, [minsBetween]);
+
   const dayData = useMemo(() => {
     return daysInMonth.map(day => {
       const dateStr = format(day, "yyyy-MM-dd");
-      const dayEntries = monthEntries.filter(e => e.date === dateStr);
-      // Only count work entries (exclude breaks) for total work minutes
-      const workEntries = dayEntries.filter(e => e.entryType !== "break");
-      const totalMins = workEntries.reduce((sum, e) => {
-        const [sh, sm] = e.startTime.split(":").map(Number);
-        const [eh, em] = e.endTime.split(":").map(Number);
-        return sum + (eh * 60 + em) - (sh * 60 + sm);
-      }, 0);
       const dailyRecord = dailyRecordMap[dateStr] || null;
-      return { day, dateStr, entries: dayEntries, totalMins, dailyRecord };
+      const workedMins = calcWorkedMins(dailyRecord);
+      const overtimeMins = dailyRecord?.overtimeMinutes ? Number(dailyRecord.overtimeMinutes) : 0;
+      return { day, dateStr, workedMins, overtimeMins, dailyRecord };
     });
-  }, [daysInMonth, monthEntries, dailyRecordMap]);
+  }, [daysInMonth, dailyRecordMap, calcWorkedMins]);
 
-  const totalMonthMins = dayData.reduce((s, d) => s + d.totalMins, 0);
+  const totalMonthMins = dayData.reduce((s, d) => s + d.workedMins, 0);
+  const totalMonthOvertimeMins = dayData.reduce((s, d) => s + (d.overtimeMins || 0), 0);
 
   // Canvas drawing
   const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
@@ -128,14 +159,14 @@ const Timesheet = () => {
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Funcionário: ${targetUser?.name || "—"}`, margin, y);
+    doc.text(`Funcionário: ${targetUser?.username || "—"}`, margin, y);
     y += 5;
     doc.text(`Mês: ${format(currentMonth, "MMMM yyyy", { locale: ptBR })}`, margin, y);
     y += 10;
 
     // Table header
-    const colWidths = [18, 35, 22, 22, 50];
-    const headers = ["Dia", "Dia Semana", "Entrada", "Saída", "Projeto"];
+    const colWidths = [12, 20, 18, 18, 18, 18, 16];
+    const headers = ["Dia", "Semana", "Ent 1", "Sai 1", "Ent 2", "Sai 2", "HE (min)"];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     let x = margin;
@@ -149,61 +180,36 @@ const Timesheet = () => {
 
     // Table rows
     doc.setFont("helvetica", "normal");
-    dayData.forEach(({ day, entries: dayEntries, dailyRecord }) => {
-      if (y > 260) {
+    doc.setFontSize(8);
+    dayData.forEach(({ day, dailyRecord, overtimeMins }) => {
+      if (y > 270) {
         doc.addPage();
         y = 20;
       }
+
       const dayNum = format(day, "dd");
       const dayName = format(day, "EEE", { locale: ptBR });
 
-      // Show clock-in/out if available
-      if (dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut)) {
-        x = margin;
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(7);
-        doc.text(dayNum, x + 1, y);
-        x += colWidths[0];
-        doc.text(dayName, x + 1, y);
-        x += colWidths[1];
-        doc.text(dailyRecord.clockIn || "—", x + 1, y);
-        x += colWidths[2];
-        doc.text(dailyRecord.clockOut || "—", x + 1, y);
-        x += colWidths[3];
-        doc.text("[Registro do dia]", x + 1, y);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        y += 5;
-      }
+      const firstIn = dailyRecord?.in1 ?? dailyRecord?.clockIn ?? "—";
+      const firstOut = dailyRecord?.out1 ?? "—";
+      const secondIn = dailyRecord?.in2 ?? "—";
+      const secondOut = dailyRecord?.out2 ?? dailyRecord?.clockOut ?? "—";
 
-      if (dayEntries.length === 0 && !(dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut))) {
-        x = margin;
-        doc.text(dayNum, x + 1, y);
-        x += colWidths[0];
-        doc.text(dayName, x + 1, y);
-        x += colWidths[1];
-        doc.text("—", x + 1, y);
-        y += 5;
-      } else {
-        dayEntries.forEach((entry, idx) => {
-          x = margin;
-          const showDay = idx === 0 && !(dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut));
-          doc.text(showDay ? dayNum : "", x + 1, y);
-          x += colWidths[0];
-          doc.text(showDay ? dayName : "", x + 1, y);
-          x += colWidths[1];
-          doc.text(entry.startTime, x + 1, y);
-          x += colWidths[2];
-          doc.text(entry.endTime, x + 1, y);
-          x += colWidths[3];
-          const isBrk = entry.entryType === "break";
-          const projLabel = isBrk
-            ? "Intervalo"
-            : `${projectMap[entry.projectId]?.name || "—"}${entry.isOvertime ? " (HE)" : ""}`;
-          doc.text(projLabel.substring(0, 28), x + 1, y);
-          y += 5;
-        });
-      }
+      x = margin;
+      doc.text(dayNum, x + 1, y);
+      x += colWidths[0];
+      doc.text(dayName, x + 1, y);
+      x += colWidths[1];
+      doc.text(firstIn || "—", x + 1, y);
+      x += colWidths[2];
+      doc.text(firstOut || "—", x + 1, y);
+      x += colWidths[3];
+      doc.text(secondIn || "—", x + 1, y);
+      x += colWidths[4];
+      doc.text(secondOut || "—", x + 1, y);
+      x += colWidths[5];
+      doc.text(overtimeMins ? String(overtimeMins) : "—", x + 1, y);
+      y += 5;
     });
 
     // Total
@@ -214,7 +220,13 @@ const Timesheet = () => {
     const totalM = totalMonthMins % 60;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text(`Total: ${totalH}h ${totalM > 0 ? `${totalM}min` : ""}`, margin, y);
+    doc.text(
+      `Total: ${totalH}h ${totalM > 0 ? `${totalM}min` : ""}  |  HE: ${Math.floor(totalMonthOvertimeMins / 60)}h${
+        totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}min` : ""
+      }`,
+      margin,
+      y
+    );
 
     // Signature
     if (hasSignature && canvasRef.current) {
@@ -228,14 +240,40 @@ const Timesheet = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       const today = format(new Date(), "dd/MM/yyyy");
-      doc.text(`${user?.name || ""}  —  ${today}`, margin, y + 4);
+      doc.text(`${user?.username || ""}  —  ${today}`, margin, y + 4);
     }
 
-    doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.name || "user"}.pdf`);
-  }, [dayData, currentMonth, targetUser, totalMonthMins, hasSignature, projectMap]);
+    doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
+  }, [dayData, currentMonth, targetUser, totalMonthMins, totalMonthOvertimeMins, hasSignature, user?.username]);
 
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+
+  const handleCreateJustification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("date", justDate);
+    fd.append("reasonText", justText);
+    if (justFile) fd.append("file", justFile);
+    createJustification.mutate(fd, {
+      onSuccess: () => {
+        setJustText("");
+        setJustFile(null);
+      },
+    });
+  };
+
+  const handleDownload = async (id: string, filename?: string | null) => {
+    const blob = await apiFetchBlob(`/api/justifications/${id}/file`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || `atestado-${id}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
@@ -264,7 +302,7 @@ const Timesheet = () => {
             </SelectTrigger>
             <SelectContent>
               {allUsers.map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                <SelectItem key={u.id} value={u.id}>{u.username}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -274,6 +312,9 @@ const Timesheet = () => {
       <Tabs defaultValue="preview" className="mb-6">
         <TabsList className="w-full">
           <TabsTrigger value="preview" className="flex-1">Prévia</TabsTrigger>
+          <TabsTrigger value="justifications" className="flex-1">
+            <Upload className="h-3.5 w-3.5 mr-1" /> Justificativas
+          </TabsTrigger>
           <TabsTrigger value="signature" className="flex-1">
             <Pen className="h-3.5 w-3.5 mr-1" /> Assinar
           </TabsTrigger>
@@ -286,84 +327,141 @@ const Timesheet = () => {
                 <thead>
                   <tr className="bg-muted/50">
                     <th>Dia</th>
-                    <th>Entrada</th>
-                    <th>Saída</th>
-                    <th>Projeto</th>
+                    <th>Entrada 1</th>
+                    <th>Saída 1</th>
+                    <th>Entrada 2</th>
+                    <th>Saída 2</th>
+                    <th>HE</th>
                     <th>Horas</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dayData.map(({ day, entries: dayEntries, totalMins, dailyRecord }) => {
-                    const h = Math.floor(totalMins / 60);
-                    const m = totalMins % 60;
-                    const rows: React.ReactNode[] = [];
+                  {dayData.map(({ day, workedMins, overtimeMins, dailyRecord }) => {
+                    const h = Math.floor(workedMins / 60);
+                    const m = workedMins % 60;
 
-                    // Clock-in/out row if available
-                    if (dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut)) {
-                      rows.push(
-                        <tr key={`clock-${format(day, "dd")}`} className="text-xs bg-blue-50/50 dark:bg-blue-950/20">
-                          <td>
-                            {format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span>
-                          </td>
-                          <td className="text-blue-600 dark:text-blue-400">{dailyRecord.clockIn || "—"}</td>
-                          <td className="text-blue-600 dark:text-blue-400">{dailyRecord.clockOut || "—"}</td>
-                          <td className="text-blue-600 dark:text-blue-400 italic text-[11px]">Registro do dia</td>
-                          <td></td>
-                        </tr>
-                      );
-                    }
+                    const firstIn = dailyRecord?.in1 ?? dailyRecord?.clockIn ?? null;
+                    const firstOut = dailyRecord?.out1 ?? null;
+                    const secondIn = dailyRecord?.in2 ?? null;
+                    const secondOut = dailyRecord?.out2 ?? dailyRecord?.clockOut ?? null;
 
-                    if (dayEntries.length === 0 && rows.length === 0) {
-                      rows.push(
-                        <tr key={format(day, "dd")} className="ts-table__row--empty">
-                          <td>
-                            {format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span>
-                          </td>
-                          <td>—</td>
-                          <td>—</td>
-                          <td>—</td>
-                          <td>—</td>
-                        </tr>
-                      );
-                    } else {
-                      dayEntries.forEach((entry, idx) => {
-                        const isBrk = entry.entryType === "break";
-                        rows.push(
-                          <tr key={entry.id} className={isBrk ? "bg-orange-50/50 dark:bg-orange-950/20" : ""}>
-                            <td>
-                              {idx === 0 && rows.length <= (dailyRecord && (dailyRecord.clockIn || dailyRecord.clockOut) ? 1 : 0) && (
-                                <>{format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span></>
-                              )}
-                            </td>
-                            <td>{entry.startTime}</td>
-                            <td>{entry.endTime}</td>
-                            <td>
-                              {isBrk ? (
-                                <span className="text-orange-500 italic">Intervalo</span>
-                              ) : (
-                                <>
-                                  {projectMap[entry.projectId]?.name || "—"}
-                                  {entry.isOvertime && (
-                                    <span className="ml-1 text-[10px] font-medium text-amber-600 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-400 px-1 py-0.5 rounded">HE</span>
-                                  )}
-                                </>
-                              )}
-                            </td>
-                            <td>{idx === 0 ? `${h}h${m > 0 ? `${m}m` : ""}` : ""}</td>
-                          </tr>
-                        );
-                      });
-                    }
-                    return rows;
+                    const heLabel = overtimeMins ? `${Math.floor(overtimeMins / 60)}h${overtimeMins % 60 > 0 ? ` ${overtimeMins % 60}m` : ""}` : "—";
+
+                    const hasAny = Boolean(firstIn || firstOut || secondIn || secondOut || overtimeMins);
+
+                    return (
+                      <tr key={format(day, "yyyy-MM-dd")} className={!hasAny ? "ts-table__row--empty" : ""}>
+                        <td>
+                          {format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span>
+                        </td>
+                        <td>{firstIn || "—"}</td>
+                        <td>{firstOut || "—"}</td>
+                        <td>{secondIn || "—"}</td>
+                        <td>{secondOut || "—"}</td>
+                        <td>{heLabel}</td>
+                        <td>{hasAny ? `${h}h${m > 0 ? `${m}m` : ""}` : "—"}</td>
+                      </tr>
+                    );
                   })}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4}>Total</td>
-                    <td>{Math.floor(totalMonthMins / 60)}h{totalMonthMins % 60 > 0 ? ` ${totalMonthMins % 60}m` : ""}</td>
+                    <td colSpan={6}>Total</td>
+                    <td>
+                      {Math.floor(totalMonthMins / 60)}h{totalMonthMins % 60 > 0 ? ` ${totalMonthMins % 60}m` : ""}
+                      {totalMonthOvertimeMins > 0 && (
+                        <span className="ml-2 text-[11px] text-amber-600 dark:text-amber-400">
+                          HE: {Math.floor(totalMonthOvertimeMins / 60)}h{totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}m` : ""}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="justifications">
+          <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+            <div>
+              <div className="text-sm font-semibold">Justificativa de falta</div>
+              <div className="text-xs text-muted-foreground">
+                Adicione texto e/ou anexe um atestado. O download é protegido por login.
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateJustification} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Data</label>
+                  <Input type="date" value={justDate} onChange={(e) => setJustDate(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Atestado (PDF/JPG/PNG)</label>
+                  <Input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png"
+                    onChange={(e) => setJustFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Justificativa</label>
+                <Textarea
+                  value={justText}
+                  onChange={(e) => setJustText(e.target.value)}
+                  placeholder="Ex.: Consulta médica / afastamento / etc."
+                />
+              </div>
+
+              <Button type="submit" disabled={createJustification.isPending}>
+                <Upload className="h-4 w-4 mr-2" /> Enviar justificativa
+              </Button>
+            </form>
+
+            <div className="space-y-2">
+              {justifications.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Nenhuma justificativa neste mês.</div>
+              ) : (
+                justifications.map((j) => (
+                  <div
+                    key={j.id}
+                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-border rounded-lg p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold">{j.date}</div>
+                      {j.reasonText && (
+                        <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{j.reasonText}</div>
+                      )}
+                      {j.originalFilename && (
+                        <div className="text-xs text-muted-foreground">Arquivo: {j.originalFilename}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {j.originalFilename && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleDownload(j.id, j.originalFilename)}
+                        >
+                          <Download className="h-4 w-4 mr-2" /> Baixar
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteJustification.mutate(j.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </TabsContent>
@@ -395,7 +493,7 @@ const Timesheet = () => {
               )}
             </div>
             <div className="sig-identity">
-              <span className="sig-identity__name">{user?.name}</span>
+              <span className="sig-identity__name">{user?.username}</span>
               <span className="sig-identity__date">{format(new Date(), "dd/MM/yyyy")}</span>
             </div>
           </div>

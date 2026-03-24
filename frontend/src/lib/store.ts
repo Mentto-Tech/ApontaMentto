@@ -32,10 +32,39 @@ export interface TimeEntry {
 export interface DailyRecord {
   id: string;
   date: string; // YYYY-MM-DD
+  // Legacy fields (still returned by API)
   clockIn?: string | null; // HH:mm
   clockOut?: string | null; // HH:mm
+
+  // Folha de ponto (2 entradas / 2 saídas)
+  in1?: string | null; // HH:mm
+  out1?: string | null; // HH:mm
+  in2?: string | null; // HH:mm
+  out2?: string | null; // HH:mm
+  overtimeMinutes?: number | null;
+
+  // Localização/metadados do registro
+  geoLat?: number | null;
+  geoLng?: number | null;
+  geoAccuracy?: number | null;
+  geoSource?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  updatedAt?: string | null;
   userId: string;
   createdAt?: string;
+}
+
+export interface AbsenceJustification {
+  id: string;
+  date: string; // YYYY-MM-DD
+  reasonText?: string | null;
+  originalFilename?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  userId: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface UserProfile {

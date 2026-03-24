@@ -151,14 +151,46 @@ class TimeEntryOut(TimeEntryIn):
 # ---------------------------------------------------------------------------
 class DailyRecordIn(CamelModel):
     date: str
+    # Legacy fields (kept for backward compatibility)
     clock_in: Optional[str] = None
     clock_out: Optional[str] = None
+
+    # Folha de ponto (2 entradas / 2 saídas)
+    in1: Optional[str] = None
+    out1: Optional[str] = None
+    in2: Optional[str] = None
+    out2: Optional[str] = None
+    overtime_minutes: Optional[int] = None
+
+    # Captura de localização do dispositivo (opcional)
+    geo_lat: Optional[float] = None
+    geo_lng: Optional[float] = None
+    geo_accuracy: Optional[float] = None
+    geo_source: Optional[str] = None
 
 
 class DailyRecordOut(DailyRecordIn):
     id: str
     user_id: str
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Absence Justifications
+# ---------------------------------------------------------------------------
+class AbsenceJustificationOut(CamelModel):
+    id: str
+    date: str
+    reason_text: Optional[str] = None
+    original_filename: Optional[str] = None
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    user_id: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------

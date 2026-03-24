@@ -20,20 +20,62 @@ const Index = () => {
   const { data: dailyRecords = [] } = useDailyRecords({ date: dateStr });
   const upsertDailyRecord = useUpsertDailyRecord();
   const todayRecord = dailyRecords.find(r => r.date === dateStr);
-  const [clockIn, setClockIn] = useState("");
-  const [clockOut, setClockOut] = useState("");
+  const [in1, setIn1] = useState("");
+  const [out1, setOut1] = useState("");
+  const [in2, setIn2] = useState("");
+  const [out2, setOut2] = useState("");
+  const [overtimeMinutes, setOvertimeMinutes] = useState("");
 
   useEffect(() => {
-    setClockIn(todayRecord?.clockIn || "");
-    setClockOut(todayRecord?.clockOut || "");
+    setIn1(todayRecord?.in1 || todayRecord?.clockIn || "");
+    setOut1(todayRecord?.out1 || "");
+    setIn2(todayRecord?.in2 || "");
+    setOut2(todayRecord?.out2 || todayRecord?.clockOut || "");
+    setOvertimeMinutes(
+      todayRecord?.overtimeMinutes !== undefined && todayRecord?.overtimeMinutes !== null
+        ? String(todayRecord.overtimeMinutes)
+        : ""
+    );
   }, [todayRecord, dateStr]);
 
-  const handleClockSave = () => {
-    upsertDailyRecord.mutate({
-      date: dateStr,
-      clockIn: clockIn || null,
-      clockOut: clockOut || null,
+  type GeoPayload = { geoLat: number; geoLng: number; geoAccuracy?: number; geoSource: string };
+
+  const tryGetDeviceGeo = async (): Promise<GeoPayload | null> => {
+    if (!("geolocation" in navigator)) return null;
+    return new Promise<GeoPayload | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            geoLat: pos.coords.latitude,
+            geoLng: pos.coords.longitude,
+            geoAccuracy: pos.coords.accuracy,
+            geoSource: "device",
+          });
+        },
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60_000 }
+      );
     });
+  };
+
+  const handleClockSave = async () => {
+    const geo = await tryGetDeviceGeo();
+
+    const overtime = overtimeMinutes.trim() ? Number(overtimeMinutes) : null;
+    let payload = {
+      date: dateStr,
+      in1: in1 || null,
+      out1: out1 || null,
+      in2: in2 || null,
+      out2: out2 || null,
+      overtimeMinutes: Number.isFinite(overtime as number) ? (overtime as number) : null,
+    } as const;
+
+    if (geo) {
+      payload = { ...payload, ...geo };
+    }
+
+    upsertDailyRecord.mutate(payload);
   };
 
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
@@ -91,12 +133,12 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <LogIn className="h-3.5 w-3.5 text-green-600" />
             <div>
-              <label className="text-xs text-muted-foreground block">Entrada</label>
+              <label className="text-xs text-muted-foreground block">Entrada 1</label>
               <Input
                 type="time"
-                value={clockIn}
-                onChange={e => setClockIn(e.target.value)}
-                onBlur={handleClockSave}
+                value={in1}
+                onChange={e => setIn1(e.target.value)}
+                onBlur={() => void handleClockSave()}
                 className="w-[110px] h-8 text-sm"
               />
             </div>
@@ -104,13 +146,57 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <LogOut className="h-3.5 w-3.5 text-red-500" />
             <div>
-              <label className="text-xs text-muted-foreground block">Saída</label>
+              <label className="text-xs text-muted-foreground block">Saída 1</label>
               <Input
                 type="time"
-                value={clockOut}
-                onChange={e => setClockOut(e.target.value)}
-                onBlur={handleClockSave}
+                value={out1}
+                onChange={e => setOut1(e.target.value)}
+                onBlur={() => void handleClockSave()}
                 className="w-[110px] h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <LogIn className="h-3.5 w-3.5 text-green-600" />
+            <div>
+              <label className="text-xs text-muted-foreground block">Entrada 2</label>
+              <Input
+                type="time"
+                value={in2}
+                onChange={e => setIn2(e.target.value)}
+                onBlur={() => void handleClockSave()}
+                className="w-[110px] h-8 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <LogOut className="h-3.5 w-3.5 text-red-500" />
+            <div>
+              <label className="text-xs text-muted-foreground block">Saída 2</label>
+              <Input
+                type="time"
+                value={out2}
+                onChange={e => setOut2(e.target.value)}
+                onBlur={() => void handleClockSave()}
+                className="w-[110px] h-8 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-amber-600" />
+            <div>
+              <label className="text-xs text-muted-foreground block">Hora extra (min)</label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                value={overtimeMinutes}
+                onChange={e => setOvertimeMinutes(e.target.value)}
+                onBlur={() => void handleClockSave()}
+                className="w-[140px] h-8 text-sm"
+                placeholder="0"
               />
             </div>
           </div>

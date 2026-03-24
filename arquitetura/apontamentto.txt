@@ -1,0 +1,10 @@
+APP Mobile do ApontaMentto
+Tiago e Isabelly precisam assinar a folho de ponto (enviar por email)
+Banco de horas -> possibilidade de registrar entrada e saída com descrição
+
+
+
+-Torne possível inserir 2 registros de entrada e 2 de saídas + 1 registro de hora extra (modelo: entrada, saida, entrada, saida, hora extra)
+-Tirar os registros dos projetos da folha de ponto (deixar apenas os horários de entrada e saída)
+-Ter uma aba para colocar a justificativa em caso de falta, por exemplo texto e anexar um atestado
+-Pegar localização real do usuário ao ele fazer um registro (pode ser por localização do dispositivo ou ip)

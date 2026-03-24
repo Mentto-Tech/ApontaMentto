@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Project, Location, TimeEntry, DailyRecord } from "@/lib/store";
+import type { Project, Location, TimeEntry, DailyRecord, AbsenceJustification } from "@/lib/store";
 
 // ---------------------------------------------------------------------------
 // Types (re-exported for convenience)
 // ---------------------------------------------------------------------------
 export type { Project, Location, TimeEntry, DailyRecord };
+export type { AbsenceJustification };
 
 export interface AuthUser {
   id: string;
@@ -235,8 +236,66 @@ export function useDailyRecords(params?: {
 export function useUpsertDailyRecord() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { date: string; clockIn?: string | null; clockOut?: string | null }) =>
+    mutationFn: (data: {
+      date: string;
+      // legacy
+      clockIn?: string | null;
+      clockOut?: string | null;
+      // folha
+      in1?: string | null;
+      out1?: string | null;
+      in2?: string | null;
+      out2?: string | null;
+      overtimeMinutes?: number | null;
+      // geo
+      geoLat?: number | null;
+      geoLng?: number | null;
+      geoAccuracy?: number | null;
+      geoSource?: string | null;
+    }) =>
       apiFetch<DailyRecord>("/api/daily-records", { method: "PUT", body: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["daily-records"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Absence Justifications
+// ---------------------------------------------------------------------------
+export function useJustifications(params?: {
+  date?: string;
+  month?: string;
+  userId?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.date) search.set("date", params.date);
+  if (params?.month) search.set("month", params.month);
+  if (params?.userId) search.set("userId", params.userId);
+  const qs = search.toString() ? `?${search.toString()}` : "";
+
+  return useQuery<AbsenceJustification[]>({
+    queryKey: ["justifications", params ?? {}],
+    queryFn: () => apiFetch<AbsenceJustification[]>(`/api/justifications${qs}`),
+    staleTime: 10_000,
+  });
+}
+
+export function useCreateJustification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: FormData) =>
+      apiFetch<AbsenceJustification>("/api/justifications", {
+        method: "POST",
+        body: data,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["justifications"] }),
+  });
+}
+
+export function useDeleteJustification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/justifications/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["justifications"] }),
   });
 }

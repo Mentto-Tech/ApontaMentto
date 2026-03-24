@@ -28,21 +28,25 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const token = getToken();
 
+  const { body, ...rest } = options;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const { body, ...rest } = options;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...rest,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined
+        ? undefined
+        : isFormData
+          ? (body as FormData)
+          : JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -59,4 +63,36 @@ export async function apiFetch<T>(
   if (res.status === 204) return undefined as T;
 
   return res.json() as Promise<T>;
+}
+
+export async function apiFetchBlob(
+  path: string,
+  options: Omit<RequestInit, "body"> & { body?: FormData } = {}
+): Promise<Blob> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`,
+    {
+      ...options,
+      headers,
+      body: options.body,
+    }
+  );
+
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const json = await res.json();
+      detail = json.detail || detail;
+    } catch {
+      // ignore
+    }
+    throw new Error(detail);
+  }
+
+  return res.blob();
 }

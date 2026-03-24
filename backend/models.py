@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum as SAEnum,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -60,6 +61,9 @@ class User(Base):
     )
     daily_records: Mapped[List["DailyRecord"]] = relationship(
         "DailyRecord", back_populates="user", cascade="all, delete-orphan"
+    )
+    absence_justifications: Mapped[List["AbsenceJustification"]] = relationship(
+        "AbsenceJustification", back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -135,6 +139,25 @@ class DailyRecord(Base):
     date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
     clock_in: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
     clock_out: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+
+    # Folha de ponto (2 entradas / 2 saídas)
+    in1: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    out1: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    in2: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    out2: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    overtime_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Captura de localização (device/IP)
+    geo_lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geo_lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geo_accuracy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    geo_source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
     user_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id"), nullable=False, index=True
     )
@@ -143,3 +166,31 @@ class DailyRecord(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="daily_records")
+
+
+class AbsenceJustification(Base):
+    """Justificativa de falta (texto + anexo opcional)."""
+
+    __tablename__ = "absence_justifications"
+    __table_args__ = (
+        UniqueConstraint("date", "user_id", name="uq_absence_justification_date_user"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
+    reason_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    file_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    original_filename: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    mime_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
+    updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship("User", back_populates="absence_justifications")
