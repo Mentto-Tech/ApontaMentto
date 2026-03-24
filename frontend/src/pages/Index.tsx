@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { format, addDays, subDays, isSameDay } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Trash2, Clock, Coffee, Zap, LogIn, LogOut, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,8 +77,6 @@ const Index = () => {
     upsertDailyRecord.mutate(payload);
   };
 
-  const isToday = useMemo(() => isSameDay(date, new Date()), [date]);
-
   const canUseOut1 = Boolean(in1);
   const canUseIn2 = Boolean(in1 && out1);
   const canUseOut2 = Boolean(in1 && out1 && in2);
@@ -109,7 +107,6 @@ const Index = () => {
   const isValidTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
   const handleCommitNextPunch = async () => {
-    if (!isToday) return;
     if (!nextPunchField) return;
     if (upsertDailyRecord.isPending) return;
 
@@ -199,15 +196,11 @@ const Index = () => {
 
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="text-xs text-muted-foreground">
-            {isToday ? (
-              <span>Use <strong>Bater ponto</strong> para salvar a hora atual.</span>
-            ) : (
-              <span>Para bater ponto, selecione o dia de hoje.</span>
-            )}
+            <span>Digite a hora (opcional) e clique em <strong>Bater ponto</strong> para salvar.</span>
           </div>
           <Button
             onClick={() => void handleCommitNextPunch()}
-            disabled={!isToday || !nextPunchField || upsertDailyRecord.isPending}
+            disabled={!nextPunchField || upsertDailyRecord.isPending}
             className="shrink-0"
           >
             <MapPin className="h-4 w-4 mr-2" />
@@ -224,7 +217,7 @@ const Index = () => {
                 type="time"
                 value={in1}
                 onChange={e => setIn1(e.target.value)}
-                disabled={!isToday || nextPunchField !== "in1"}
+                disabled={nextPunchField !== "in1"}
                 className="w-[110px] h-8 text-sm"
               />
             </div>
@@ -237,7 +230,7 @@ const Index = () => {
                 type="time"
                 value={out1}
                 onChange={e => setOut1(e.target.value)}
-                disabled={!isToday || nextPunchField !== "out1"}
+                disabled={nextPunchField !== "out1"}
                 className="w-[110px] h-8 text-sm"
               />
             </div>
@@ -251,7 +244,7 @@ const Index = () => {
                 type="time"
                 value={in2}
                 onChange={e => setIn2(e.target.value)}
-                disabled={!isToday || nextPunchField !== "in2"}
+                disabled={nextPunchField !== "in2"}
                 className="w-[110px] h-8 text-sm"
               />
             </div>
@@ -264,7 +257,7 @@ const Index = () => {
                 type="time"
                 value={out2}
                 onChange={e => setOut2(e.target.value)}
-                disabled={!isToday || nextPunchField !== "out2"}
+                disabled={nextPunchField !== "out2"}
                 className="w-[110px] h-8 text-sm"
               />
             </div>
