@@ -25,7 +25,6 @@ const Index = () => {
   const [in2, setIn2] = useState("");
   const [out2, setOut2] = useState("");
   const [overtimeMinutes, setOvertimeMinutes] = useState("");
-  const [editingField, setEditingField] = useState<null | "in1" | "out1" | "in2" | "out2" | "overtime">(null);
 
   useEffect(() => {
     setIn1(todayRecord?.in1 || todayRecord?.clockIn || "");
@@ -74,7 +73,7 @@ const Index = () => {
 
   const sendPatch = async (patch: DailyRecordPatch, opts?: { captureGeo?: boolean }) => {
     const geo = opts?.captureGeo ? await tryGetDeviceGeo() : null;
-    const payload = geo ? ({ ...patch, ...geo } as const) : (patch as const);
+    const payload: DailyRecordPatch = geo ? { ...patch, ...geo } : patch;
     upsertDailyRecord.mutate(payload);
   };
 
@@ -107,94 +106,43 @@ const Index = () => {
     }
   }, [nextPunchField]);
 
-  const handlePunchNow = async () => {
+  const isValidTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
+  const handleCommitNextPunch = async () => {
     if (!isToday) return;
     if (!nextPunchField) return;
+    if (upsertDailyRecord.isPending) return;
 
     const nowTime = format(new Date(), "HH:mm");
 
-    if (nextPunchField === "in1") setIn1(nowTime);
-    if (nextPunchField === "out1") setOut1(nowTime);
-    if (nextPunchField === "in2") setIn2(nowTime);
-    if (nextPunchField === "out2") setOut2(nowTime);
+    const currentValue =
+      nextPunchField === "in1"
+        ? in1
+        : nextPunchField === "out1"
+          ? out1
+          : nextPunchField === "in2"
+            ? in2
+            : out2;
 
-    const override: Partial<{
-      in1: string | null;
-      out1: string | null;
-      in2: string | null;
-      out2: string | null;
-      overtimeMinutes: number | null;
-    }> = {};
+    const timeToSave = (currentValue || "").trim() || nowTime;
+    if (!isValidTime(timeToSave)) return;
 
-    if (nextPunchField === "in1") override.in1 = nowTime;
-    if (nextPunchField === "out1") override.out1 = nowTime;
-    if (nextPunchField === "in2") override.in2 = nowTime;
-    if (nextPunchField === "out2") override.out2 = nowTime;
+    // Keep UI in sync (in case we auto-filled with now).
+    if (nextPunchField === "in1") setIn1(timeToSave);
+    if (nextPunchField === "out1") setOut1(timeToSave);
+    if (nextPunchField === "in2") setIn2(timeToSave);
+    if (nextPunchField === "out2") setOut2(timeToSave);
 
-    const patch: DailyRecordPatch = { date: dateStr };
-    if (override.in1 !== undefined) patch.in1 = override.in1;
-    if (override.out1 !== undefined) patch.out1 = override.out1;
-    if (override.in2 !== undefined) patch.in2 = override.in2;
-    if (override.out2 !== undefined) patch.out2 = override.out2;
+    const patch: DailyRecordPatch = { date: dateStr, [nextPunchField]: timeToSave };
     await sendPatch(patch, { captureGeo: true });
   };
 
-  const handlePunchFieldNow = async (field: "in1" | "out1" | "in2" | "out2") => {
-    if (!isToday) return;
-    if (editingField !== null) return;
-    if (nextPunchField !== field) return;
-
-    const nowTime = format(new Date(), "HH:mm");
-    const override: Partial<{
-      in1: string | null;
-      out1: string | null;
-      in2: string | null;
-      out2: string | null;
-      overtimeMinutes: number | null;
-    }> = {};
-
-    if (field === "in1") {
-      setIn1(nowTime);
-      override.in1 = nowTime;
-    }
-    if (field === "out1") {
-      setOut1(nowTime);
-      override.out1 = nowTime;
-    }
-    if (field === "in2") {
-      setIn2(nowTime);
-      override.in2 = nowTime;
-    }
-    if (field === "out2") {
-      setOut2(nowTime);
-      override.out2 = nowTime;
-    }
-
-    const patch: DailyRecordPatch = { date: dateStr };
-    if (override.in1 !== undefined) patch.in1 = override.in1;
-    if (override.out1 !== undefined) patch.out1 = override.out1;
-    if (override.in2 !== undefined) patch.in2 = override.in2;
-    if (override.out2 !== undefined) patch.out2 = override.out2;
-
-    await sendPatch(patch, { captureGeo: true });
-  };
-
-  const commitEditedField = async () => {
-    if (!editingField) return;
-
-    const patch: DailyRecordPatch = { date: dateStr };
-
-    if (editingField === "in1") patch.in1 = in1 || null;
-    if (editingField === "out1") patch.out1 = out1 || null;
-    if (editingField === "in2") patch.in2 = in2 || null;
-    if (editingField === "out2") patch.out2 = out2 || null;
-    if (editingField === "overtime") {
-      const ot = overtimeMinutes.trim() ? Number(overtimeMinutes) : null;
-      patch.overtimeMinutes = Number.isFinite(ot as number) ? (ot as number) : null;
-    }
-
-    setEditingField(null);
-    await sendPatch(patch, { captureGeo: editingField !== "overtime" });
+  const handleSaveOvertime = async () => {
+    if (upsertDailyRecord.isPending) return;
+    const ot = overtimeMinutes.trim() ? Number(overtimeMinutes) : null;
+    const overtime = Number.isFinite(ot as number) ? (ot as number) : null;
+    const patch: DailyRecordPatch = { date: dateStr, overtimeMinutes: overtime };
+    await sendPatch(patch, { captureGeo: false });
   };
 
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
@@ -258,8 +206,8 @@ const Index = () => {
             )}
           </div>
           <Button
-            onClick={() => void handlePunchNow()}
-            disabled={!isToday || !nextPunchField || upsertDailyRecord.isPending || editingField !== null}
+            onClick={() => void handleCommitNextPunch()}
+            disabled={!isToday || !nextPunchField || upsertDailyRecord.isPending}
             className="shrink-0"
           >
             <MapPin className="h-4 w-4 mr-2" />
@@ -276,40 +224,9 @@ const Index = () => {
                 type="time"
                 value={in1}
                 onChange={e => setIn1(e.target.value)}
-                disabled={editingField !== "in1"}
+                disabled={!isToday || nextPunchField !== "in1"}
                 className="w-[110px] h-8 text-sm"
               />
-              <div className="mt-1 flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="default"
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!isToday || nextPunchField !== "in1" || upsertDailyRecord.isPending || editingField !== null}
-                  onClick={() => void handlePunchFieldNow("in1")}
-                >
-                  Bater
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={editingField === "in1" ? "secondary" : "outline"}
-                  className="h-7 px-2 text-[11px]"
-                  onClick={() => setEditingField(editingField === "in1" ? null : "in1")}
-                >
-                  {editingField === "in1" ? "Cancelar" : "Editar"}
-                </Button>
-                {editingField === "in1" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => void commitEditedField()}
-                  >
-                    Bater ponto
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -320,41 +237,9 @@ const Index = () => {
                 type="time"
                 value={out1}
                 onChange={e => setOut1(e.target.value)}
-                disabled={editingField !== "out1"}
+                disabled={!isToday || nextPunchField !== "out1"}
                 className="w-[110px] h-8 text-sm"
               />
-              <div className="mt-1 flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="default"
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!isToday || !canUseOut1 || nextPunchField !== "out1" || upsertDailyRecord.isPending || editingField !== null}
-                  onClick={() => void handlePunchFieldNow("out1")}
-                >
-                  Bater
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={editingField === "out1" ? "secondary" : "outline"}
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!canUseOut1 && !out1}
-                  onClick={() => setEditingField(editingField === "out1" ? null : "out1")}
-                >
-                  {editingField === "out1" ? "Cancelar" : "Editar"}
-                </Button>
-                {editingField === "out1" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => void commitEditedField()}
-                  >
-                    Bater ponto
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
 
@@ -366,41 +251,9 @@ const Index = () => {
                 type="time"
                 value={in2}
                 onChange={e => setIn2(e.target.value)}
-                disabled={editingField !== "in2"}
+                disabled={!isToday || nextPunchField !== "in2"}
                 className="w-[110px] h-8 text-sm"
               />
-              <div className="mt-1 flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="default"
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!isToday || !canUseIn2 || nextPunchField !== "in2" || upsertDailyRecord.isPending || editingField !== null}
-                  onClick={() => void handlePunchFieldNow("in2")}
-                >
-                  Bater
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={editingField === "in2" ? "secondary" : "outline"}
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!canUseIn2 && !in2}
-                  onClick={() => setEditingField(editingField === "in2" ? null : "in2")}
-                >
-                  {editingField === "in2" ? "Cancelar" : "Editar"}
-                </Button>
-                {editingField === "in2" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => void commitEditedField()}
-                  >
-                    Bater ponto
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -411,41 +264,9 @@ const Index = () => {
                 type="time"
                 value={out2}
                 onChange={e => setOut2(e.target.value)}
-                disabled={editingField !== "out2"}
+                disabled={!isToday || nextPunchField !== "out2"}
                 className="w-[110px] h-8 text-sm"
               />
-              <div className="mt-1 flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="default"
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!isToday || !canUseOut2 || nextPunchField !== "out2" || upsertDailyRecord.isPending || editingField !== null}
-                  onClick={() => void handlePunchFieldNow("out2")}
-                >
-                  Bater
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={editingField === "out2" ? "secondary" : "outline"}
-                  className="h-7 px-2 text-[11px]"
-                  disabled={!canUseOut2 && !out2}
-                  onClick={() => setEditingField(editingField === "out2" ? null : "out2")}
-                >
-                  {editingField === "out2" ? "Cancelar" : "Editar"}
-                </Button>
-                {editingField === "out2" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => void commitEditedField()}
-                  >
-                    Bater ponto
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
 
@@ -459,30 +280,21 @@ const Index = () => {
                 step={1}
                 value={overtimeMinutes}
                 onChange={e => setOvertimeMinutes(e.target.value)}
-                disabled={editingField !== "overtime"}
+                disabled={upsertDailyRecord.isPending}
                 className="w-[140px] h-8 text-sm"
                 placeholder="0"
               />
-              <div className="mt-1 flex gap-2">
+              <div className="mt-1">
                 <Button
                   type="button"
                   size="sm"
-                  variant={editingField === "overtime" ? "secondary" : "outline"}
+                  variant="outline"
                   className="h-7 px-2 text-[11px]"
-                  onClick={() => setEditingField(editingField === "overtime" ? null : "overtime")}
+                  onClick={() => void handleSaveOvertime()}
+                  disabled={upsertDailyRecord.isPending}
                 >
-                  {editingField === "overtime" ? "Cancelar" : "Editar"}
+                  Salvar HE
                 </Button>
-                {editingField === "overtime" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-[11px]"
-                    onClick={() => void commitEditedField()}
-                  >
-                    Salvar
-                  </Button>
-                )}
               </div>
             </div>
           </div>

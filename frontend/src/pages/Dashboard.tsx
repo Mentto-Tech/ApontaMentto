@@ -397,31 +397,33 @@ const Dashboard = () => {
 
                   {/* Cost breakdown table */}
                   <div className="mt-4 border-t border-border pt-4">
-                    <table className="breakdown-table">
-                      <thead>
-                        <tr>
-                          <th>Projeto</th>
-                          <th>Custo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {costPerProject.map(c => (
-                          <tr key={c.name}>
-                            <td className="breakdown-table__cell--name">
-                              <span className="color-dot" style={{ background: c.color }} />
-                              {c.name}
-                            </td>
-                            <td>R$ {c.cost.toFixed(2)}</td>
+                    <div className="max-h-[420px] overflow-y-auto pr-2">
+                      <table className="breakdown-table">
+                        <thead>
+                          <tr>
+                            <th>Projeto</th>
+                            <th>Custo</th>
                           </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td>Total</td>
-                          <td>R$ {totalCost.toFixed(2)}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {costPerProject.map(c => (
+                            <tr key={c.name}>
+                              <td className="breakdown-table__cell--name">
+                                <span className="color-dot" style={{ background: c.color }} />
+                                {c.name}
+                              </td>
+                              <td>R$ {c.cost.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td>Total</td>
+                            <td>R$ {totalCost.toFixed(2)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
                 </>
               )}
@@ -440,7 +442,7 @@ const Dashboard = () => {
                 Diferença entre horas semanais esperadas e horas alocadas em projetos.
                 Aplica-se apenas a usuários CLT e Estagiário.
               </p>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border">

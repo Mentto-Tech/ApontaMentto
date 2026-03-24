@@ -20,3 +20,14 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # Optional: reverse-geocoding / IP geolocation (for logs address display)
+      - key: GEOCODER_USER_AGENT
+        sync: false  # Ex: ApontaMentto/1.0 (contato@seudominio.com)
+      - key: GEOCODER_CONTACT_EMAIL
+        sync: false  # Usado para compor o User-Agent se GEOCODER_USER_AGENT não for definido
+      - key: NOMINATIM_BASE_URL
+        sync: false  # Default: https://nominatim.openstreetmap.org
+      - key: IP_GEO_BASE_URL
+        sync: false  # Default: https://ipwho.is
+      - key: GEOCODER_CACHE_TTL_SECONDS
+        sync: false  # Default: 604800 (7 dias)

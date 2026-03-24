@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePunchLogs, useUsers } from "@/lib/queries";
+import { useIpGeocode, usePunchLogs, useReverseGeocode, useUsers } from "@/lib/queries";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,28 @@ function formatLatLng(lat?: number | null, lng?: number | null) {
   if (lat == null || lng == null) return "-";
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
+
+const GeoAddress = ({ lat, lng }: { lat?: number | null; lng?: number | null }) => {
+  const { data } = useReverseGeocode({ lat: lat ?? null, lng: lng ?? null, lang: "pt-BR" });
+  if (lat == null || lng == null) return null;
+  if (!data?.displayName) return (
+    <div className="text-muted-foreground">Endereço: —</div>
+  );
+  return (
+    <div className="text-muted-foreground break-words">Endereço: {data.displayName}</div>
+  );
+};
+
+const IpAddress = ({ ip }: { ip?: string | null }) => {
+  const { data } = useIpGeocode({ ip: ip ?? null, lang: "pt-BR" });
+  if (!ip) return null;
+  if (!data?.displayName) return (
+    <div className="text-muted-foreground">Local aproximado (IP): —</div>
+  );
+  return (
+    <div className="text-muted-foreground break-words">Local aproximado (IP): {data.displayName}</div>
+  );
+};
 
 const AdminPunchLogs = () => {
   const { isAdmin } = useAuth();
@@ -199,6 +221,10 @@ const AdminPunchLogs = () => {
                       </a>
                     ) : null}
                   </div>
+                  <GeoAddress lat={log.geoLat} lng={log.geoLng} />
+                  {log.geoLat == null || log.geoLng == null ? (
+                    <IpAddress ip={log.ipAddress} />
+                  ) : null}
                   <div className="text-muted-foreground">
                     Fonte: {log.geoSource || "-"}
                     {log.geoAccuracy != null ? ` · ±${Math.round(log.geoAccuracy)}m` : ""}

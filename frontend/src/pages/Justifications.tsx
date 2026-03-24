@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Download, FileText, Trash2, Upload } from "lucide-react";
 
@@ -14,16 +14,32 @@ import { useCreateJustification, useDeleteJustification, useJustifications, useU
 const Justifications = () => {
   const { user, isAdmin } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedUserId, setSelectedUserId] = useState<string>(user?.id || "");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
+
+  useEffect(() => {
+    if (!isAdmin && user?.id) {
+      setSelectedUserId(user.id);
+    }
+  }, [isAdmin, user?.id]);
 
   const monthStr = format(currentMonth, "yyyy-MM");
   const targetUserId = isAdmin ? selectedUserId : user?.id || "";
 
   const { data: allUsers = [] } = useUsers();
 
+  const userMap = useMemo(() => Object.fromEntries(allUsers.map((u) => [u.id, u])), [allUsers]);
+
+  const formatBrDate = (iso: string) => {
+    try {
+      return format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return iso;
+    }
+  };
+
   const { data: justifications = [] } = useJustifications({
     month: monthStr,
-    userId: isAdmin ? targetUserId : undefined,
+    userId: isAdmin && selectedUserId !== "all" ? targetUserId : undefined,
   });
   const createJustification = useCreateJustification();
   const deleteJustification = useDeleteJustification();
@@ -33,7 +49,9 @@ const Justifications = () => {
   const [justFile, setJustFile] = useState<File | null>(null);
 
   const targetUser = useMemo(() => {
-    return isAdmin ? allUsers.find((u) => u.id === targetUserId) : user;
+    return isAdmin && selectedUserId !== "all"
+      ? allUsers.find((u) => u.id === targetUserId)
+      : user;
   }, [allUsers, isAdmin, targetUserId, user]);
 
   const prevMonth = () => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -93,6 +111,7 @@ const Justifications = () => {
                 <SelectValue placeholder="Selecione o usuário" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
                 {allUsers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.username}
@@ -104,7 +123,7 @@ const Justifications = () => {
         )}
 
         <div className="mt-2 text-xs text-muted-foreground">
-          Exibindo: {targetUser?.username || "—"}
+          Exibindo: {isAdmin ? (selectedUserId === "all" ? "Todos" : targetUser?.username || "—") : targetUser?.username || "—"}
         </div>
       </div>
 
@@ -155,7 +174,12 @@ const Justifications = () => {
                 className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-border rounded-lg p-3"
               >
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold">{j.date}</div>
+                  <div className="text-sm font-semibold flex flex-wrap items-center gap-2">
+                    {isAdmin ? (
+                      <span className="text-muted-foreground">{userMap[j.userId]?.username || j.userId}</span>
+                    ) : null}
+                    <span>{formatBrDate(j.date)}</span>
+                  </div>
                   {j.reasonText && (
                     <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{j.reasonText}</div>
                   )}

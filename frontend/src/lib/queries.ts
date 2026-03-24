@@ -10,6 +10,16 @@ export type { Project, Location, TimeEntry, DailyRecord };
 export type { AbsenceJustification };
 export type { PunchLog };
 
+export interface ReverseGeocodeResult {
+  displayName?: string | null;
+  address?: Record<string, unknown> | null;
+}
+
+export interface IpGeocodeResult {
+  displayName?: string | null;
+  raw?: Record<string, unknown> | null;
+}
+
 export interface AuthUser {
   id: string;
   username: string;
@@ -321,5 +331,56 @@ export function usePunchLogs(params?: {
     queryKey: ["punch-logs", params ?? {}],
     queryFn: () => apiFetch<PunchLog[]>(`/api/punch-logs${qs}`),
     staleTime: 5_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Geocode
+// ---------------------------------------------------------------------------
+export function useReverseGeocode(params?: {
+  lat?: number | null;
+  lng?: number | null;
+  lang?: string;
+}) {
+  const lat = params?.lat;
+  const lng = params?.lng;
+  const enabled = lat != null && lng != null;
+
+  // Round for cache key stability and provider friendliness.
+  const latKey = enabled ? Number(lat!.toFixed(5)) : null;
+  const lngKey = enabled ? Number(lng!.toFixed(5)) : null;
+
+  const search = new URLSearchParams();
+  if (enabled) {
+    search.set("lat", String(latKey));
+    search.set("lng", String(lngKey));
+    search.set("lang", params?.lang || "pt-BR");
+  }
+  const qs = enabled ? `?${search.toString()}` : "";
+
+  return useQuery<ReverseGeocodeResult>({
+    queryKey: ["reverse-geocode", latKey, lngKey, params?.lang || "pt-BR"],
+    queryFn: () => apiFetch<ReverseGeocodeResult>(`/api/geocode/reverse${qs}`),
+    enabled,
+    staleTime: 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
+export function useIpGeocode(params?: { ip?: string | null; lang?: string }) {
+  const ip = params?.ip?.trim();
+  const enabled = Boolean(ip);
+
+  const search = new URLSearchParams();
+  if (enabled && ip) {
+    search.set("ip", ip);
+    search.set("lang", params?.lang || "pt-BR");
+  }
+  const qs = enabled ? `?${search.toString()}` : "";
+
+  return useQuery<IpGeocodeResult>({
+    queryKey: ["ip-geocode", ip || null, params?.lang || "pt-BR"],
+    queryFn: () => apiFetch<IpGeocodeResult>(`/api/geocode/ip${qs}`),
+    enabled,
+    staleTime: 7 * 24 * 60 * 60 * 1000,
   });
 }
