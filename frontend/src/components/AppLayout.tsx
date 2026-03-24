@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings } from "lucide-react";
+import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ const AppLayout = () => {
     { to: "/monthly", icon: Calendar, label: "Mensal" },
     { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
     { to: "/timesheet", icon: FileText, label: "Folha" },
+    { to: "/justifications", icon: Upload, label: "Justificativas" },
     { to: "/projects", icon: FolderOpen, label: "Projetos" },
     { to: "/locations", icon: MapPin, label: "Locais" },
     { to: "/profile", icon: User, label: "Perfil" },
@@ -84,7 +85,7 @@ const AppLayout = () => {
 
       {/* Mobile bottom nav - show only key items */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex justify-around py-2">
-        {navItems.slice(0, 5).map(({ to, icon: Icon, label }) => (
+        {navItems.filter(i => !i.to.startsWith("/admin")).slice(0, 6).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

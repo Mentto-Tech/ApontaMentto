@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MonthlyView from "./pages/MonthlyView";
 import Timesheet from "./pages/Timesheet";
+import Justifications from "./pages/Justifications";
 import AdminUsers from "./pages/AdminUsers";
 import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
@@ -51,6 +52,7 @@ const AppRoutes = () => (
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/monthly" element={<MonthlyView />} />
       <Route path="/timesheet" element={<Timesheet />} />
+      <Route path="/justifications" element={<Justifications />} />
       <Route path="/projects" element={<Projects />} />
       <Route path="/locations" element={<Locations />} />
       <Route path="/profile" element={<Profile />} />

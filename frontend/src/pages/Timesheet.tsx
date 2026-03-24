@@ -1,15 +1,12 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Download, FileText, Pen, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Pen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiFetchBlob } from "@/lib/api";
-import { useCreateJustification, useDailyRecords, useDeleteJustification, useJustifications, useUsers } from "@/lib/queries";
+import { useDailyRecords, useUsers } from "@/lib/queries";
 import jsPDF from "jspdf";
 import "./Timesheet.css";
 
@@ -26,17 +23,6 @@ const Timesheet = () => {
 
   const { data: allUsers = [] } = useUsers();
   const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr });
-
-  const { data: justifications = [] } = useJustifications({
-    month: monthStr,
-    userId: isAdmin ? targetUserId : undefined,
-  });
-  const createJustification = useCreateJustification();
-  const deleteJustification = useDeleteJustification();
-
-  const [justDate, setJustDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [justText, setJustText] = useState("");
-  const [justFile, setJustFile] = useState<File | null>(null);
 
   const targetUser = isAdmin
     ? allUsers.find(u => u.id === targetUserId)
@@ -166,7 +152,7 @@ const Timesheet = () => {
 
     // Table header
     const colWidths = [12, 20, 18, 18, 18, 18, 16];
-    const headers = ["Dia", "Semana", "Ent 1", "Sai 1", "Ent 2", "Sai 2", "HE (min)"];
+    const headers = ["Dia", "Semana", "Entrada", "Saída", "Entrada", "Saída", "Hora extra (min)"];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     let x = margin;
@@ -249,31 +235,6 @@ const Timesheet = () => {
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
-  const handleCreateJustification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const fd = new FormData();
-    fd.append("date", justDate);
-    fd.append("reasonText", justText);
-    if (justFile) fd.append("file", justFile);
-    createJustification.mutate(fd, {
-      onSuccess: () => {
-        setJustText("");
-        setJustFile(null);
-      },
-    });
-  };
-
-  const handleDownload = async (id: string, filename?: string | null) => {
-    const blob = await apiFetchBlob(`/api/justifications/${id}/file`);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || `atestado-${id}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
@@ -312,9 +273,6 @@ const Timesheet = () => {
       <Tabs defaultValue="preview" className="mb-6">
         <TabsList className="w-full">
           <TabsTrigger value="preview" className="flex-1">Prévia</TabsTrigger>
-          <TabsTrigger value="justifications" className="flex-1">
-            <Upload className="h-3.5 w-3.5 mr-1" /> Justificativas
-          </TabsTrigger>
           <TabsTrigger value="signature" className="flex-1">
             <Pen className="h-3.5 w-3.5 mr-1" /> Assinar
           </TabsTrigger>
@@ -378,90 +336,6 @@ const Timesheet = () => {
                   </tr>
                 </tfoot>
               </table>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="justifications">
-          <div className="bg-card border border-border rounded-lg p-4 space-y-4">
-            <div>
-              <div className="text-sm font-semibold">Justificativa de falta</div>
-              <div className="text-xs text-muted-foreground">
-                Adicione texto e/ou anexe um atestado. O download é protegido por login.
-              </div>
-            </div>
-
-            <form onSubmit={handleCreateJustification} className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Data</label>
-                  <Input type="date" value={justDate} onChange={(e) => setJustDate(e.target.value)} required />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Atestado (PDF/JPG/PNG)</label>
-                  <Input
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png"
-                    onChange={(e) => setJustFile(e.target.files?.[0] ?? null)}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Justificativa</label>
-                <Textarea
-                  value={justText}
-                  onChange={(e) => setJustText(e.target.value)}
-                  placeholder="Ex.: Consulta médica / afastamento / etc."
-                />
-              </div>
-
-              <Button type="submit" disabled={createJustification.isPending}>
-                <Upload className="h-4 w-4 mr-2" /> Enviar justificativa
-              </Button>
-            </form>
-
-            <div className="space-y-2">
-              {justifications.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Nenhuma justificativa neste mês.</div>
-              ) : (
-                justifications.map((j) => (
-                  <div
-                    key={j.id}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-border rounded-lg p-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold">{j.date}</div>
-                      {j.reasonText && (
-                        <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{j.reasonText}</div>
-                      )}
-                      {j.originalFilename && (
-                        <div className="text-xs text-muted-foreground">Arquivo: {j.originalFilename}</div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {j.originalFilename && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleDownload(j.id, j.originalFilename)}
-                        >
-                          <Download className="h-4 w-4 mr-2" /> Baixar
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteJustification.mutate(j.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         </TabsContent>

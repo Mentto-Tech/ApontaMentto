@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { format, addDays, subDays } from "date-fns";
+import { useMemo, useState, useEffect } from "react";
+import { format, addDays, subDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Trash2, Clock, Coffee, Zap, LogIn, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Clock, Coffee, Zap, LogIn, LogOut, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import TimeEntryForm from "@/components/TimeEntryForm";
@@ -25,6 +25,7 @@ const Index = () => {
   const [in2, setIn2] = useState("");
   const [out2, setOut2] = useState("");
   const [overtimeMinutes, setOvertimeMinutes] = useState("");
+  const [editingField, setEditingField] = useState<null | "in1" | "out1" | "in2" | "out2" | "overtime">(null);
 
   useEffect(() => {
     setIn1(todayRecord?.in1 || todayRecord?.clockIn || "");
@@ -58,17 +59,28 @@ const Index = () => {
     });
   };
 
-  const handleClockSave = async () => {
-    const geo = await tryGetDeviceGeo();
+  const handleClockSave = async (
+    override?: Partial<{
+    in1: string | null;
+    out1: string | null;
+    in2: string | null;
+    out2: string | null;
+    overtimeMinutes: number | null;
+  }>,
+    opts?: { captureGeo?: boolean }
+  ) => {
+    const geo = opts?.captureGeo ? await tryGetDeviceGeo() : null;
 
     const overtime = overtimeMinutes.trim() ? Number(overtimeMinutes) : null;
     let payload = {
       date: dateStr,
-      in1: in1 || null,
-      out1: out1 || null,
-      in2: in2 || null,
-      out2: out2 || null,
-      overtimeMinutes: Number.isFinite(overtime as number) ? (overtime as number) : null,
+      in1: override?.in1 ?? (in1 || null),
+      out1: override?.out1 ?? (out1 || null),
+      in2: override?.in2 ?? (in2 || null),
+      out2: override?.out2 ?? (out2 || null),
+      overtimeMinutes:
+        override?.overtimeMinutes ??
+        (Number.isFinite(overtime as number) ? (overtime as number) : null),
     } as const;
 
     if (geo) {
@@ -76,6 +88,58 @@ const Index = () => {
     }
 
     upsertDailyRecord.mutate(payload);
+  };
+
+  const isToday = useMemo(() => isSameDay(date, new Date()), [date]);
+
+  const nextPunchField = useMemo(() => {
+    if (!in1) return "in1" as const;
+    if (!out1) return "out1" as const;
+    if (!in2) return "in2" as const;
+    if (!out2) return "out2" as const;
+    return null;
+  }, [in1, out1, in2, out2]);
+
+  const nextPunchLabel = useMemo(() => {
+    switch (nextPunchField) {
+      case "in1":
+        return "Entrada 1";
+      case "out1":
+        return "Saída 1";
+      case "in2":
+        return "Entrada 2";
+      case "out2":
+        return "Saída 2";
+      default:
+        return null;
+    }
+  }, [nextPunchField]);
+
+  const handlePunchNow = async () => {
+    if (!isToday) return;
+    if (!nextPunchField) return;
+
+    const nowTime = format(new Date(), "HH:mm");
+
+    if (nextPunchField === "in1") setIn1(nowTime);
+    if (nextPunchField === "out1") setOut1(nowTime);
+    if (nextPunchField === "in2") setIn2(nowTime);
+    if (nextPunchField === "out2") setOut2(nowTime);
+
+    const override: Partial<{
+      in1: string | null;
+      out1: string | null;
+      in2: string | null;
+      out2: string | null;
+      overtimeMinutes: number | null;
+    }> = {};
+
+    if (nextPunchField === "in1") override.in1 = nowTime;
+    if (nextPunchField === "out1") override.out1 = nowTime;
+    if (nextPunchField === "in2") override.in2 = nowTime;
+    if (nextPunchField === "out2") override.out2 = nowTime;
+
+    await handleClockSave(override, { captureGeo: true });
   };
 
   const projectMap = Object.fromEntries(projects.map(p => [p.id, p]));
@@ -129,6 +193,25 @@ const Index = () => {
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Registro do Dia</span>
           <span className="text-[10px] text-muted-foreground">(opcional)</span>
         </div>
+
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="text-xs text-muted-foreground">
+            {isToday ? (
+              <span>Use <strong>Bater ponto</strong> para salvar a hora atual.</span>
+            ) : (
+              <span>Para bater ponto, selecione o dia de hoje.</span>
+            )}
+          </div>
+          <Button
+            onClick={() => void handlePunchNow()}
+            disabled={!isToday || !nextPunchField || upsertDailyRecord.isPending || editingField !== null}
+            className="shrink-0"
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Bater ponto{nextPunchLabel ? ` (${nextPunchLabel})` : ""}
+          </Button>
+        </div>
+
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex items-center gap-2">
             <LogIn className="h-3.5 w-3.5 text-green-600" />
@@ -138,9 +221,33 @@ const Index = () => {
                 type="time"
                 value={in1}
                 onChange={e => setIn1(e.target.value)}
-                onBlur={() => void handleClockSave()}
+                disabled={editingField !== "in1"}
                 className="w-[110px] h-8 text-sm"
               />
+              <div className="mt-1 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editingField === "in1" ? "secondary" : "outline"}
+                  className="h-7 px-2 text-[11px]"
+                  onClick={() => setEditingField(editingField === "in1" ? null : "in1")}
+                >
+                  {editingField === "in1" ? "Cancelar" : "Editar"}
+                </Button>
+                {editingField === "in1" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => {
+                      setEditingField(null);
+                      void handleClockSave(undefined, { captureGeo: false });
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -151,9 +258,33 @@ const Index = () => {
                 type="time"
                 value={out1}
                 onChange={e => setOut1(e.target.value)}
-                onBlur={() => void handleClockSave()}
+                disabled={editingField !== "out1"}
                 className="w-[110px] h-8 text-sm"
               />
+              <div className="mt-1 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editingField === "out1" ? "secondary" : "outline"}
+                  className="h-7 px-2 text-[11px]"
+                  onClick={() => setEditingField(editingField === "out1" ? null : "out1")}
+                >
+                  {editingField === "out1" ? "Cancelar" : "Editar"}
+                </Button>
+                {editingField === "out1" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => {
+                      setEditingField(null);
+                      void handleClockSave(undefined, { captureGeo: false });
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -165,9 +296,33 @@ const Index = () => {
                 type="time"
                 value={in2}
                 onChange={e => setIn2(e.target.value)}
-                onBlur={() => void handleClockSave()}
+                disabled={editingField !== "in2"}
                 className="w-[110px] h-8 text-sm"
               />
+              <div className="mt-1 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editingField === "in2" ? "secondary" : "outline"}
+                  className="h-7 px-2 text-[11px]"
+                  onClick={() => setEditingField(editingField === "in2" ? null : "in2")}
+                >
+                  {editingField === "in2" ? "Cancelar" : "Editar"}
+                </Button>
+                {editingField === "in2" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => {
+                      setEditingField(null);
+                      void handleClockSave(undefined, { captureGeo: false });
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -178,9 +333,33 @@ const Index = () => {
                 type="time"
                 value={out2}
                 onChange={e => setOut2(e.target.value)}
-                onBlur={() => void handleClockSave()}
+                disabled={editingField !== "out2"}
                 className="w-[110px] h-8 text-sm"
               />
+              <div className="mt-1 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editingField === "out2" ? "secondary" : "outline"}
+                  className="h-7 px-2 text-[11px]"
+                  onClick={() => setEditingField(editingField === "out2" ? null : "out2")}
+                >
+                  {editingField === "out2" ? "Cancelar" : "Editar"}
+                </Button>
+                {editingField === "out2" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => {
+                      setEditingField(null);
+                      void handleClockSave(undefined, { captureGeo: false });
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -194,10 +373,34 @@ const Index = () => {
                 step={1}
                 value={overtimeMinutes}
                 onChange={e => setOvertimeMinutes(e.target.value)}
-                onBlur={() => void handleClockSave()}
+                disabled={editingField !== "overtime"}
                 className="w-[140px] h-8 text-sm"
                 placeholder="0"
               />
+              <div className="mt-1 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editingField === "overtime" ? "secondary" : "outline"}
+                  className="h-7 px-2 text-[11px]"
+                  onClick={() => setEditingField(editingField === "overtime" ? null : "overtime")}
+                >
+                  {editingField === "overtime" ? "Cancelar" : "Editar"}
+                </Button>
+                {editingField === "overtime" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => {
+                      setEditingField(null);
+                      void handleClockSave(undefined, { captureGeo: false });
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
