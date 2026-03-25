@@ -265,7 +265,10 @@ export function useUpsertDailyRecord() {
       geoSource?: string | null;
     }) =>
       apiFetch<DailyRecord>("/api/daily-records", { method: "PUT", body: data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["daily-records"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["daily-records"] });
+      qc.invalidateQueries({ queryKey: ["punch-logs"] });
+    },
   });
 }
 

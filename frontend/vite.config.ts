@@ -64,7 +64,8 @@ export default defineConfig(({ mode }) => ({
             method: "GET",
             options: {
               cacheName: "api-cache",
-              networkTimeoutSeconds: 8,
+              // Render can take >8s on cold start; avoid falling back to stale cache too aggressively.
+              networkTimeoutSeconds: 20,
               expiration: {
                 maxEntries: 150,
                 maxAgeSeconds: 60 * 60, // 1 hour

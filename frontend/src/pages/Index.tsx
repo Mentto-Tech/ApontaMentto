@@ -74,6 +74,15 @@ const Index = () => {
   };
 
   const sendPatch = async (patch: DailyRecordPatch, opts?: { captureGeo?: boolean }) => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast({
+        variant: "destructive",
+        title: "Sem conexão",
+        description: "Você está offline. Conecte-se à internet para salvar a batida.",
+      });
+      return;
+    }
+
     const geo = opts?.captureGeo ? await tryGetDeviceGeo() : null;
     if (opts?.captureGeo && !geo) {
       toast({
@@ -85,7 +94,16 @@ const Index = () => {
       return;
     }
     const payload: DailyRecordPatch = geo ? { ...patch, ...geo } : patch;
-    upsertDailyRecord.mutate(payload);
+    upsertDailyRecord.mutate(payload, {
+      onError: (e) => {
+        const message = e instanceof Error ? e.message : "Falha ao salvar";
+        toast({
+          variant: "destructive",
+          title: "Não foi possível salvar",
+          description: message,
+        });
+      },
+    });
   };
 
   const canUseOut1 = Boolean(in1);
