@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { BarChart3, Clock, FolderOpen, Users, DollarSign, Coffee, Zap, CalendarOff } from "lucide-react";
 import "./Dashboard.css";
+import { formatYmdToBr } from "@/lib/datetime";
 
 const CHART_COLORS = ["#0f766e", "#2563eb", "#9333ea", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#64748b", "#6366f1", "#ec4899"];
 
@@ -457,7 +458,7 @@ const Dashboard = () => {
                     {unattributedData.map((d, i) => (
                       <tr key={i} className="border-b border-border/50">
                         <td className="text-center p-2">{d.userName}</td>
-                        <td className="text-center p-2 text-xs">{d.weekStart}</td>
+                        <td className="text-center p-2 text-xs">{formatYmdToBr(d.weekStart)}</td>
                         <td className="text-center p-2">{d.expected}h</td>
                         <td className="text-center p-2">{d.allocated}h</td>
                         <td className="text-center p-2 text-red-500 font-medium">{d.unattributed}h</td>

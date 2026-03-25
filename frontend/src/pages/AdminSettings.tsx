@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useExportData, useImportData } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
 import { useRef } from "react";
+import { todayBrForFilename } from "@/lib/datetime";
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -19,7 +20,7 @@ export default function AdminSettings() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `apontamentto-export-${new Date().toISOString().split("T")[0]}.json`;
+        a.download = `apontamentto-export-${todayBrForFilename()}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

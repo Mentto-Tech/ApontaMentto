@@ -11,16 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { History } from "lucide-react";
-import { format, parseISO } from "date-fns";
-
-function formatRecordedAt(iso?: string | null) {
-  if (!iso) return "-";
-  try {
-    return format(parseISO(iso), "dd/MM/yyyy HH:mm:ss");
-  } catch {
-    return iso;
-  }
-}
+import { formatIsoDateTimeToBr, formatYmdToBr } from "@/lib/datetime";
 
 function formatLatLng(lat?: number | null, lng?: number | null) {
   if (lat == null || lng == null) return "-";
@@ -105,8 +96,9 @@ const AdminPunchLogs = () => {
       <div className="bg-card border border-border rounded-lg p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
-            <label className="text-[10px] text-muted-foreground block">Mês (YYYY-MM)</label>
+            <label className="text-[10px] text-muted-foreground block">Mês</label>
             <Input
+              type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
               placeholder="2026-03"
@@ -116,8 +108,9 @@ const AdminPunchLogs = () => {
           </div>
 
           <div>
-            <label className="text-[10px] text-muted-foreground block">Ou data (YYYY-MM-DD)</label>
+            <label className="text-[10px] text-muted-foreground block">Data</label>
             <Input
+              type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               placeholder="2026-03-24"
@@ -199,19 +192,19 @@ const AdminPunchLogs = () => {
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                 <div>
                   <div className="text-sm font-semibold">
-                    {who} · {log.date} · {log.field}
+                    {who} · {formatYmdToBr(log.date)} · {log.field}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Registrado em: {formatRecordedAt(log.recordedAt)}
+                    Registrado em: {formatIsoDateTimeToBr(log.recordedAt)}
                   </div>
                 </div>
 
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Valor:</span> {value}
+                  <span className="text-muted-foreground">Horário:</span> {value}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3 text-xs">
                 <div>
                   <div className="text-muted-foreground">Localização</div>
                   <div>

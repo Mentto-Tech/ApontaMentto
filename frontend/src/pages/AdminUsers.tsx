@@ -60,16 +60,16 @@ const AdminUsers = () => {
 
     const changes: Partial<AuthUser> = {};
     if (user.hourlyRate !== originalUser.hourlyRate) {
-      changes.hourlyRate = user.hourlyRate === "" ? null : Number(user.hourlyRate);
+      changes.hourlyRate = user.hourlyRate === null ? null : Number(user.hourlyRate);
     }
     if (user.overtimeHourlyRate !== originalUser.overtimeHourlyRate) {
-      changes.overtimeHourlyRate = user.overtimeHourlyRate === "" ? null : Number(user.overtimeHourlyRate);
+      changes.overtimeHourlyRate = user.overtimeHourlyRate === null ? null : Number(user.overtimeHourlyRate);
     }
     if (user.category !== originalUser.category) {
       changes.category = user.category;
     }
     if (user.weeklyHours !== originalUser.weeklyHours) {
-      changes.weeklyHours = user.weeklyHours === "" ? null : Number(user.weeklyHours);
+      changes.weeklyHours = user.weeklyHours === null ? null : Number(user.weeklyHours);
     }
     
     if (Object.keys(changes).length > 0) {

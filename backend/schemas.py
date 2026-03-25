@@ -1,12 +1,23 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 from pydantic.alias_generators import to_camel
 
 from models import UserCategory
+
+
+def _as_utc_datetime(v: Any):
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        # DB stores naive UTC; make it explicit so clients don't treat it as local time
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v.astimezone(timezone.utc)
+    return v
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +64,11 @@ class UserOut(CamelModel):
     category: Optional[UserCategory] = None
     weekly_hours: Optional[float] = None
     created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
 
     @computed_field(return_type=bool)
     @property
@@ -102,6 +118,11 @@ class ProjectOut(ProjectIn):
     id: str
     created_at: Optional[datetime] = None
 
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
+
 
 # ---------------------------------------------------------------------------
 # Locations
@@ -119,6 +140,11 @@ class LocationIn(CamelModel):
 class LocationOut(LocationIn):
     id: str
     created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +170,11 @@ class TimeEntryOut(TimeEntryIn):
     id: str
     user_id: Optional[str] = None
     created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +208,11 @@ class DailyRecordOut(DailyRecordIn):
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
 
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _datetimes_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
+
 
 # ---------------------------------------------------------------------------
 # Absence Justifications
@@ -191,6 +227,11 @@ class AbsenceJustificationOut(CamelModel):
     user_id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _datetimes_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +252,11 @@ class PunchLogOut(CamelModel):
     geo_source: Optional[str] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
+
+    @field_validator("recorded_at", mode="before")
+    @classmethod
+    def _recorded_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
 
 
 # ---------------------------------------------------------------------------
