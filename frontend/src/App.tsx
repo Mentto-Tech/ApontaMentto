@@ -66,8 +66,8 @@ const AppRoutes = () => (
 );
 
 const App = () => {
-  const { isAwake } = useApiWakeUp();
-  if (!isAwake) return <ApiWakeUpScreen />;
+  const { isAwake, isOffline, forceAwake } = useApiWakeUp();
+  if (!isAwake) return <ApiWakeUpScreen isOffline={isOffline} onContinue={forceAwake} />;
 
   return (
   <QueryClientProvider client={queryClient}>

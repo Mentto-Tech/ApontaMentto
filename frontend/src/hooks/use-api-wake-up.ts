@@ -5,12 +5,31 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function useApiWakeUp() {
   const [isAwake, setIsAwake] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+
+  const forceAwake = () => setIsAwake(true);
 
   useEffect(() => {
+    const updateOnline = () => setIsOffline(typeof navigator !== "undefined" ? !navigator.onLine : false);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+
     // Se não tiver API_URL configurada (Docker local), considera já acordado
     if (!API_URL) {
       setIsAwake(true);
-      return;
+      return () => {
+        window.removeEventListener("online", updateOnline);
+        window.removeEventListener("offline", updateOnline);
+      };
+    }
+
+    // Se estiver offline, não bloqueia a UI com o wake-up
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return () => {
+        window.removeEventListener("online", updateOnline);
+        window.removeEventListener("offline", updateOnline);
+      };
     }
 
     let cancelled = false;
@@ -43,8 +62,12 @@ export function useApiWakeUp() {
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
   }, []);
 
-  return { isAwake, attempt };
+  return { isAwake, attempt, isOffline, forceAwake };
 }
