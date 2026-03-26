@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useApiWakeUp } from "@/hooks/use-api-wake-up";
 import ApiWakeUpScreen from "@/components/ApiWakeUpScreen";
 import AppLayout from "@/components/AppLayout";
+import { InstallBanner } from "./components/InstallBanner";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -77,6 +78,7 @@ const App = () => {
       <AuthProvider>
         <BrowserRouter>
           <AppRoutes />
+          <InstallBanner />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
