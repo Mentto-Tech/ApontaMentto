@@ -115,7 +115,7 @@ const AppLayout = () => {
 
       {/* Mobile bottom nav - show only key items */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex gap-2 px-2 py-2 overflow-x-auto flex-nowrap">
-        {mainNavItems.slice(0, 6).map(({ to, icon: Icon, label }) => (
+        {[...mainNavItems, ...adminNavItems].map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
