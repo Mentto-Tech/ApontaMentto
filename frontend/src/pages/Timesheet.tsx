@@ -311,15 +311,15 @@ const Timesheet = () => {
 
                     return (
                       <tr key={format(day, "yyyy-MM-dd")} className={!hasAny ? "ts-table__row--empty" : ""}>
-                        <td>
+                        <td data-label="Dia">
                           {format(day, "dd")} <span className="text-muted-foreground capitalize">{format(day, "EEE", { locale: ptBR })}</span>
                         </td>
-                        <td>{firstIn || "—"}</td>
-                        <td>{firstOut || "—"}</td>
-                        <td>{secondIn || "—"}</td>
-                        <td>{secondOut || "—"}</td>
-                        <td>{heLabel}</td>
-                        <td>{hasAny ? `${h}h${m > 0 ? `${m}m` : ""}` : "—"}</td>
+                        <td data-label="Entrada 1">{firstIn || "—"}</td>
+                        <td data-label="Saída 1">{firstOut || "—"}</td>
+                        <td data-label="Entrada 2">{secondIn || "—"}</td>
+                        <td data-label="Saída 2">{secondOut || "—"}</td>
+                        <td data-label="HE">{heLabel}</td>
+                        <td data-label="Horas">{hasAny ? `${h}h${m > 0 ? `${m}m` : ""}` : "—"}</td>
                       </tr>
                     );
                   })}

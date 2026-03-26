@@ -46,7 +46,19 @@
   }
 
   .page-index .index-punch-grid {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .page-index .index-punch-grid > div {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .page-index .index-punch-grid > div:last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
   }
 
   .page-index .index-entry-card {

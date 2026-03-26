@@ -157,4 +157,56 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .ts-table-scroll {
+    overflow-x: visible;
+  }
+
+  .ts-table thead {
+    display: none;
+  }
+
+  .ts-table,
+  .ts-table tbody,
+  .ts-table tr,
+  .ts-table td,
+  .ts-table tfoot {
+    display: block;
+    width: 100%;
+  }
+
+  .ts-table tbody tr {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .ts-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    text-align: right;
+  }
+
+  .ts-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    margin-right: 0.75rem;
+    text-align: left;
+  }
+
+  .ts-table tfoot tr {
+    border: 1px solid hsl(var(--primary) / 0.3);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ts-table tfoot td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
