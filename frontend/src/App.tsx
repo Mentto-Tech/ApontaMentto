@@ -18,6 +18,7 @@ import Signup from "./pages/Signup";
 import MonthlyView from "./pages/MonthlyView";
 import Timesheet from "./pages/Timesheet";
 import Justifications from "./pages/Justifications";
+import TimeBank from "./pages/TimeBank";
 import AdminUsers from "./pages/AdminUsers";
 import AdminPunchLogs from "./pages/AdminPunchLogs";
 import AdminSettings from "./pages/AdminSettings";
@@ -55,6 +56,7 @@ const AppRoutes = () => (
       <Route path="/monthly" element={<MonthlyView />} />
       <Route path="/timesheet" element={<Timesheet />} />
       <Route path="/justifications" element={<Justifications />} />
+      <Route path="/time-bank" element={<TimeBank />} />
       <Route path="/projects" element={<Projects />} />
       <Route path="/locations" element={<Locations />} />
       <Route path="/profile" element={<Profile />} />

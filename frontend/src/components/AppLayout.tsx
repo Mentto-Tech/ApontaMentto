@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History } from "lucide-react";
+import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ const AppLayout = () => {
     { to: "/monthly", icon: Calendar, label: "Mensal" },
     { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
     { to: "/timesheet", icon: FileText, label: "Folha" },
+    { to: "/time-bank", icon: Wallet, label: "Banco de Horas" },
     { to: "/justifications", icon: Upload, label: "Justificativas" },
     { to: "/projects", icon: FolderOpen, label: "Projetos" },
     { to: "/locations", icon: MapPin, label: "Locais" },
