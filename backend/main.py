@@ -1,11 +1,12 @@
 import os
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import admin_data, auth, daily_records, geocode, justifications, locations, projects, punch_logs, time_entries, users
+from routers import admin_data, auth, daily_records, geocode, justifications, locations, projects, punch_logs, time_entries, users, time_bank
 
 
 @asynccontextmanager
@@ -52,6 +53,7 @@ app.include_router(daily_records.router, prefix="/api/daily-records", tags=["dai
 app.include_router(justifications.router, prefix="/api/justifications", tags=["justifications"])
 app.include_router(punch_logs.router, prefix="/api/punch-logs", tags=["punch-logs"])
 app.include_router(geocode.router, prefix="/api/geocode", tags=["geocode"])
+app.include_router(time_bank.router, prefix="/api/time-bank", tags=["time-bank"])
 app.include_router(admin_data.router, prefix="/api/admin", tags=["admin"])
 
 

@@ -260,6 +260,37 @@ class PunchLogOut(CamelModel):
 
 
 # ---------------------------------------------------------------------------
+# Time Bank
+# ---------------------------------------------------------------------------
+class TimeBankEntryIn(CamelModel):
+    date: str
+    amount_minutes: int
+    description: str
+    entry_type: str = "manual_add"
+
+
+class TimeBankEntryOut(CamelModel):
+    id: str
+    user_id: str
+    daily_record_id: Optional[str] = None
+    date: str
+    amount_minutes: int
+    description: str
+    entry_type: str
+    created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
+
+
+class TimeBankBalanceOut(CamelModel):
+    total_balance_minutes: int
+    entries: List[TimeBankEntryOut]
+
+
+# ---------------------------------------------------------------------------
 # Admin import/export payloads
 # ---------------------------------------------------------------------------
 class AdminExport(CamelModel):

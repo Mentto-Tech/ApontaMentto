@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user
-from models import DailyRecord, PunchLog, User
+from models import DailyRecord, PunchLog, User, TimeBankEntry
 from schemas import DailyRecordIn, DailyRecordOut
 
 router = APIRouter()
@@ -255,6 +255,32 @@ async def upsert_daily_record(
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
         if "overtime_minutes" in fields_set:
             _log("overtime_minutes", overtime_minutes=data.overtime_minutes, daily_record_id=record.id)
+
+    # --- Sync Time Bank Entry for Overtime ---
+    # We find if there is an existing 'auto' TimeBankEntry for this DailyRecord
+    tb_res = await db.execute(select(TimeBankEntry).where(TimeBankEntry.daily_record_id == record.id, TimeBankEntry.entry_type == "auto"))
+    tb_entry = tb_res.scalar_one_or_none()
+
+    if record.overtime_minutes and record.overtime_minutes > 0:
+        if tb_entry:
+            tb_entry.amount_minutes = record.overtime_minutes
+            tb_entry.description = f"Horas extras geradas no dia {record.date}"
+        else:
+            tb_entry = TimeBankEntry(
+                id=str(uuid.uuid4()),
+                user_id=current_user.id,
+                daily_record_id=record.id,
+                date=record.date,
+                amount_minutes=record.overtime_minutes,
+                description=f"Horas extras geradas no dia {record.date}",
+                entry_type="auto",
+                created_at=datetime.utcnow()
+            )
+            db.add(tb_entry)
+    else:
+        # if overtime is 0 or null, we should remove the auto entry if it exists
+        if tb_entry:
+            await db.delete(tb_entry)
 
     await db.commit()
     await db.refresh(record)

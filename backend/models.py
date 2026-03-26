@@ -232,3 +232,32 @@ class PunchLog(Base):
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     user: Mapped[User] = relationship("User", back_populates="punch_logs")
+
+
+class TimeBankEntry(Base):
+    """
+    Registro no Banco de Horas do usuário.
+    Pode ser automático (via banco de horas extras diárias) ou manual (admin adicionando/removendo).
+    """
+
+    __tablename__ = "time_bank_entries"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    daily_record_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("daily_records.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    date: Mapped[str] = mapped_column(String, nullable=False, index=True)  # YYYY-MM-DD
+    amount_minutes: Mapped[int] = mapped_column(Integer, nullable=False)  # Positivo = crédito, Negativo = débito
+    description: Mapped[str] = mapped_column(Text, nullable=False)  # Comentário ou justificativa automática
+    entry_type: Mapped[str] = mapped_column(String, nullable=False)  # 'auto', 'manual_add', 'manual_subtract'
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow, nullable=False
+    )
+
+    user: Mapped[User] = relationship("User")
+    daily_record: Mapped[Optional[DailyRecord]] = relationship("DailyRecord")
