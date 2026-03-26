@@ -1,7 +1,7 @@
 """time bank entries
 
 Revision ID: 8a2b3c4d5e6f
-Revises: 6c1a2d3f8b1c
+Revises: 7f3c2a1b9d10
 Create Date: 2026-03-26 10:25:00.000000
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "8a2b3c4d5e6f"
-down_revision: Union[str, None] = "6c1a2d3f8b1c"
+down_revision: Union[str, None] = "7f3c2a1b9d10"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
