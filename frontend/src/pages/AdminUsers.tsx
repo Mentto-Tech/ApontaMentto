@@ -12,6 +12,7 @@ import {
 import { Users, DollarSign, Briefcase, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUsers, useUpdateUserAdmin, type AuthUser } from "@/lib/queries";
+import "../styles/AdminUsers.css";
 
 const CATEGORY_LABELS: Record<string, string> = {
   clt: "CLT",
@@ -81,21 +82,21 @@ const AdminUsers = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+    <div className="page-admin-users max-w-2xl mx-auto px-4 py-6 md:py-10">
+      <h1 className="admin-users-header text-2xl font-bold mb-6 flex items-center gap-2">
         <Users className="h-6 w-6 text-primary" />
         Gerenciar Usuários
       </h1>
 
       <div className="space-y-3">
         {localUsers.map((user) => (
-          <div key={user.id} className="bg-card border border-border rounded-lg p-4">
+          <div key={user.id} className="admin-user-card bg-card border border-border rounded-lg p-4">
             <div className="font-semibold text-sm">{user.username}</div>
             <div className="text-xs text-muted-foreground mb-3">{user.email}</div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="admin-users-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {/* Category */}
-              <div className="flex items-center gap-2">
+              <div className="admin-user-field flex items-center gap-2">
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-[10px] text-muted-foreground block">Categoria</label>
@@ -103,7 +104,7 @@ const AdminUsers = () => {
                     value={user.category || "clt"}
                     onValueChange={(val) => handleFieldChange(user.id, "category", val)}
                   >
-                    <SelectTrigger className="w-32 h-8 text-sm">
+                    <SelectTrigger className="admin-user-input w-32 h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -119,7 +120,7 @@ const AdminUsers = () => {
 
               {/* Weekly Hours */}
               {CATEGORIES_WITH_HOURS.includes(user.category || "clt") && (
-                <div className="flex items-center gap-2">
+                <div className="admin-user-field flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <label className="text-[10px] text-muted-foreground block">Horas/semana</label>
@@ -130,14 +131,14 @@ const AdminUsers = () => {
                       placeholder="40"
                       value={user.weeklyHours || ""}
                       onChange={(e) => handleFieldChange(user.id, "weeklyHours", e.target.value)}
-                      className="w-24 h-8 text-sm"
+                      className="admin-user-input w-24 h-8 text-sm"
                     />
                   </div>
                 </div>
               )}
 
               {/* Hourly Rate */}
-              <div className="flex items-center gap-2">
+              <div className="admin-user-field flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-[10px] text-muted-foreground block">Valor/hora</label>
@@ -148,13 +149,13 @@ const AdminUsers = () => {
                     placeholder="N/A"
                     value={user.hourlyRate || ""}
                     onChange={(e) => handleFieldChange(user.id, "hourlyRate", e.target.value)}
-                    className="w-24 h-8 text-sm"
+                    className="admin-user-input w-24 h-8 text-sm"
                   />
                 </div>
               </div>
 
               {/* Overtime Hourly Rate */}
-              <div className="flex items-center gap-2">
+              <div className="admin-user-field flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-[10px] text-muted-foreground block">Valor/hora extra</label>
@@ -165,7 +166,7 @@ const AdminUsers = () => {
                     placeholder="N/A"
                     value={user.overtimeHourlyRate || ""}
                     onChange={(e) => handleFieldChange(user.id, "overtimeHourlyRate", e.target.value)}
-                    className="w-24 h-8 text-sm"
+                    className="admin-user-input w-24 h-8 text-sm"
                   />
                 </div>
               </div>

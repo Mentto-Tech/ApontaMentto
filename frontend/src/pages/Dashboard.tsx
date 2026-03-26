@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import { BarChart3, Clock, FolderOpen, Users, DollarSign, Coffee, Zap, CalendarOff } from "lucide-react";
-import "./Dashboard.css";
+import "../styles/Dashboard.css";
 import { formatYmdToBr } from "@/lib/datetime";
 
 const CHART_COLORS = ["#0f766e", "#2563eb", "#9333ea", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#64748b", "#6366f1", "#ec4899"];

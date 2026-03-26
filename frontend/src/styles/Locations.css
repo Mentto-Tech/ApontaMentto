@@ -1,0 +1,28 @@
+/* Locations page */
+
+.page-locations .locations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.page-locations .locations-item {
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .page-locations h1 {
+    font-size: 1.25rem;
+  }
+
+  .page-locations .locations-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-locations .locations-item-actions {
+    align-self: flex-end;
+  }
+}

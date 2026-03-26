@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, FolderOpen } from "lucide-react";
 import { useProjects, useCreateProject, useUpdateProject, useDeleteProject, type Project } from "@/lib/queries";
+import "../styles/Projects.css";
 
 const COLORS = ["#0f766e", "#2563eb", "#9333ea", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#64748b"];
 
@@ -55,8 +56,8 @@ const Projects = () => {
   const isPending = createProject.isPending || updateProject.isPending;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
-      <div className="flex items-center justify-between mb-6">
+    <div className="page-projects max-w-2xl mx-auto px-4 py-6 md:py-10">
+      <div className="projects-header flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Projetos</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -109,7 +110,7 @@ const Projects = () => {
           {projects.map((p, i) => (
             <div
               key={p.id}
-              className="flex items-center gap-3 bg-card border border-border rounded-lg p-3 animate-fade-in"
+              className="projects-item flex items-center gap-3 bg-card border border-border rounded-lg p-3 animate-fade-in"
               style={{ animationDelay: `${i * 50}ms` }}
             >
               <div className="w-3 h-3 rounded-full shrink-0" style={{ background: p.color }} />
@@ -117,17 +118,19 @@ const Projects = () => {
                 <div className="font-semibold text-sm">{p.name}</div>
                 {p.description && <div className="text-xs text-muted-foreground truncate">{p.description}</div>}
               </div>
-              <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => deleteProject.mutate(p.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="projects-item-actions flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => deleteProject.mutate(p.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

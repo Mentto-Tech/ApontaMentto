@@ -23,12 +23,15 @@ export interface IpGeocodeResult {
 export interface AuthUser {
   id: string;
   username: string;
+  name?: string;
   email: string;
+  role?: string;
   isAdmin: boolean;
   hourlyRate?: number | null;
   overtimeHourlyRate?: number | null;
-  category: "pj" | "clt" | "estagiario" | "dono";
+  category?: "pj" | "clt" | "estagiario" | "dono";
   weeklyHours?: number | null;
+  createdAt?: string | null;
 }
 
 

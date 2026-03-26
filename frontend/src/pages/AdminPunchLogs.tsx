@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { History } from "lucide-react";
 import { formatIsoDateTimeToBr, formatYmdToBr } from "@/lib/datetime";
+import "../styles/AdminPunchLogs.css";
 
 function formatLatLng(lat?: number | null, lng?: number | null) {
   if (lat == null || lng == null) return "-";
@@ -74,7 +75,12 @@ const AdminPunchLogs = () => {
     };
   }, [date, limit, month, userId]);
 
-  const { data: logs = [], isLoading } = usePunchLogs(effectiveParams);
+  const {
+    data: logs = [],
+    isLoading,
+    isError,
+    error,
+  } = usePunchLogs(effectiveParams);
 
   if (!isAdmin) {
     return (
@@ -85,43 +91,43 @@ const AdminPunchLogs = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 md:py-10">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+    <div className="page-admin-punch-logs max-w-5xl mx-auto px-4 py-5 sm:py-6 md:py-10">
+      <div className="apl-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-5">
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
           <History className="h-6 w-6 text-primary" />
           Logs de Batidas
         </h1>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="apl-filters bg-card border border-border rounded-lg p-4 mb-4">
+        <div className="apl-filters-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="text-[10px] text-muted-foreground block">Mês</label>
+            <label className="text-xs text-muted-foreground block">Mês</label>
             <Input
               type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
               placeholder="2026-03"
-              className="h-9"
+              className="h-10"
               disabled={Boolean(date.trim())}
             />
           </div>
 
           <div>
-            <label className="text-[10px] text-muted-foreground block">Data</label>
+            <label className="text-xs text-muted-foreground block">Data</label>
             <Input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               placeholder="2026-03-24"
-              className="h-9"
+              className="h-10"
             />
           </div>
 
           <div>
-            <label className="text-[10px] text-muted-foreground block">Usuário</label>
+            <label className="text-xs text-muted-foreground block">Usuário</label>
             <Select value={userId} onValueChange={setUserId}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-10">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -136,21 +142,22 @@ const AdminPunchLogs = () => {
           </div>
 
           <div>
-            <label className="text-[10px] text-muted-foreground block">Limite</label>
+            <label className="text-xs text-muted-foreground block">Limite</label>
             <Input
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
               placeholder="200"
-              className="h-9"
+              className="h-10"
             />
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="apl-actions mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <Button
             type="button"
             variant="secondary"
             size="sm"
+            className="w-full sm:w-auto"
             onClick={() => {
               setDate("");
               setUserId("all");
@@ -159,13 +166,18 @@ const AdminPunchLogs = () => {
           >
             Limpar filtros
           </Button>
-          <div className="text-xs text-muted-foreground">
+          <div className="apl-count text-xs text-muted-foreground text-center sm:text-left">
             {isLoading ? "Carregando…" : `${logs.length} log(s)`}
           </div>
         </div>
       </div>
 
       <div className="space-y-3">
+        {isError && (
+          <div className="text-sm text-destructive text-center py-3">
+            Erro ao carregar logs: {error instanceof Error ? error.message : "desconhecido"}
+          </div>
+        )}
         {logs.length === 0 && !isLoading && (
           <div className="text-sm text-muted-foreground text-center py-10">
             Nenhum log encontrado.
@@ -188,10 +200,10 @@ const AdminPunchLogs = () => {
               : null;
 
           return (
-            <div key={log.id} className="bg-card border border-border rounded-lg p-4">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+            <div key={log.id} className="apl-log-card bg-card border border-border rounded-lg p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                 <div>
-                  <div className="text-sm font-semibold">
+                  <div className="text-sm sm:text-base font-semibold">
                     {who} · {formatYmdToBr(log.date)} · {log.field}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -199,19 +211,19 @@ const AdminPunchLogs = () => {
                   </div>
                 </div>
 
-                <div className="text-sm">
+                <div className="text-sm sm:text-base sm:text-right">
                   <span className="text-muted-foreground">Horário:</span> {value}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-xs sm:text-sm">
                 <div>
                   <div className="text-muted-foreground">Localização</div>
-                  <div>
-                    {latLng}
+                  <div className="flex flex-wrap items-center gap-2 break-words">
+                    <span>{latLng}</span>
                     {mapsUrl ? (
                       <a
-                        className="ml-2 underline text-primary"
+                        className="underline text-primary"
                         href={mapsUrl}
                         target="_blank"
                         rel="noreferrer"

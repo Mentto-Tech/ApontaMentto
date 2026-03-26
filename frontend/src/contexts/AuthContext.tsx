@@ -4,11 +4,15 @@ import { apiFetch, getToken, removeToken, setToken } from "@/lib/api";
 export interface AuthUser {
   id: string;
   username: string;
+  name?: string;
   email: string;
   isAdmin: boolean;
   hourlyRate?: number | null;
+  overtimeHourlyRate?: number | null;
   category?: "pj" | "clt" | "estagiario" | "dono";
   weeklyHours?: number | null;
+  role?: string;
+  createdAt?: string | null;
 }
 
 interface AuthContextType {
@@ -97,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       login,
       signup,
       logout,
-      isAdmin: user?.role === 'admin',
+      isAdmin: user?.role === "admin",
       refreshUser,
     }}>
       {children}

@@ -4,6 +4,7 @@ import { useExportData, useImportData } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
 import { useRef } from "react";
 import { todayBrForFilename } from "@/lib/datetime";
+import "../styles/AdminSettings.css";
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -59,8 +60,8 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold mt-4 ml-4">Configurações de Administrador</h1>
+    <div className="page-admin-settings">
+      <h1 className="admin-settings-title">Configurações de Administrador</h1>
       <Card>
         <CardHeader>
           <CardTitle>Importar/Exportar Dados</CardTitle>
@@ -68,7 +69,7 @@ export default function AdminSettings() {
             Exporte todos os dados do sistema para um arquivo JSON ou importe dados de um arquivo.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-4">
+        <CardContent className="admin-settings-card-actions flex gap-4">
           <Button onClick={handleExport} disabled={isExporting}>
             {isExporting ? "Exportando..." : "Exportar Dados (JSON)"}
           </Button>

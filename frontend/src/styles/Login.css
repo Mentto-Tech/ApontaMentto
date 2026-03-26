@@ -1,0 +1,23 @@
+/* Login page */
+
+.page-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.page-login .auth-card {
+  padding: 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .page-login h1 {
+    font-size: 1.5rem;
+  }
+
+  .page-login .auth-card {
+    padding: 1.25rem;
+  }
+}

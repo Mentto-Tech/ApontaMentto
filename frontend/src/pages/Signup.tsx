@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Clock } from "lucide-react";
 import { toast } from "sonner";
+import "../styles/Signup.css";
 
 const Signup = () => {
   const { signup } = useAuth();
@@ -32,7 +33,7 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="page-signup min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
@@ -44,7 +45,7 @@ const Signup = () => {
           <p className="text-sm text-muted-foreground mt-1">Crie sua conta</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 bg-card border border-border rounded-xl p-6">
+        <form onSubmit={handleSubmit} className="auth-card space-y-4 bg-card border border-border rounded-xl p-6">
           <div>
             <label className="text-sm font-medium mb-1 block">Nome</label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" required />

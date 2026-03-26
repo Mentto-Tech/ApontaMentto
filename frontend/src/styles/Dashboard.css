@@ -58,6 +58,16 @@
   margin-top: 0.1rem;
 }
 
+@media (max-width: 480px) {
+  .db-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .db-card__value {
+    font-size: 1.25rem;
+  }
+}
+
 /* ─── Colored project/user indicator dot ─────── */
 .color-dot {
   display: inline-block;

@@ -1,0 +1,29 @@
+/* Admin Settings page */
+
+.page-admin-settings {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2rem;
+}
+
+.page-admin-settings .admin-settings-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+}
+
+.page-admin-settings .admin-settings-card-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .page-admin-settings .admin-settings-card-actions {
+    flex-direction: column;
+  }
+
+  .page-admin-settings .admin-settings-card-actions button {
+    width: 100%;
+  }
+}

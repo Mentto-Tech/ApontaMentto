@@ -6,12 +6,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/lib/queries";
 import { toast } from "sonner";
 import { User, LogOut, DollarSign, Zap } from "lucide-react";
+import "../styles/Profile.css";
 
 const Profile = () => {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const updateProfile = useUpdateProfile();
-  const [name, setName] = useState(user?.name || "");
+  const [name, setName] = useState(user?.name ?? user?.username ?? "");
   const [email, setEmail] = useState(user?.email || "");
 
   const handleSave = async (e: React.FormEvent) => {
@@ -35,16 +36,16 @@ const Profile = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6 md:py-10">
+    <div className="page-profile max-w-md mx-auto px-4 py-6 md:py-10">
       <h1 className="text-2xl font-bold mb-6">Perfil</h1>
 
-      <div className="bg-card border border-border rounded-lg p-6">
-        <div className="flex items-center gap-4 mb-6">
+      <div className="profile-card bg-card border border-border rounded-lg p-6">
+        <div className="profile-header flex items-center gap-4 mb-6">
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
             <User className="h-7 w-7 text-primary" />
           </div>
           <div>
-            <div className="font-semibold">{user?.name}</div>
+            <div className="font-semibold">{user?.name ?? user?.username}</div>
             <div className="text-xs text-muted-foreground capitalize px-2 py-0.5 rounded-full bg-muted inline-block mt-1">
               {user?.role}
             </div>
@@ -68,9 +69,9 @@ const Profile = () => {
 
       {/* Rates section (read-only) */}
       {(user?.hourlyRate != null || user?.overtimeHourlyRate != null) && (
-        <div className="bg-card border border-border rounded-lg p-6 mt-4">
+        <div className="profile-card bg-card border border-border rounded-lg p-6 mt-4">
           <h2 className="text-sm font-semibold mb-3">Taxas</h2>
-          <div className="flex flex-wrap gap-4">
+          <div className="profile-rates flex flex-wrap gap-4">
             {user?.hourlyRate != null && (
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />

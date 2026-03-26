@@ -56,30 +56,8 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: "/index.html",
         cleanupOutdatedCaches: true,
         runtimeCaching: [
-          // App shell + SPA navigation is handled by navigateFallback.
-          // Cache API GETs with NetworkFirst, but avoid caching auth endpoints.
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/auth/"),
-            handler: "NetworkFirst",
-            method: "GET",
-            options: {
-              cacheName: "api-cache",
-              // Render can take >8s on cold start; avoid falling back to stale cache too aggressively.
-              networkTimeoutSeconds: 20,
-              expiration: {
-                maxEntries: 150,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/auth/"),
-            handler: "NetworkOnly",
-            method: "GET",
-          },
+          // IMPORTANT: do NOT cache authenticated API responses at the service worker level.
+          // It can serve stale data across sessions/users and make the UI look like it "didn't save".
         ],
       },
     }),

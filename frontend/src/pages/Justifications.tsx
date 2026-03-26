@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetchBlob } from "@/lib/api";
 import { useCreateJustification, useDeleteJustification, useJustifications, useUsers } from "@/lib/queries";
+import "../styles/Justifications.css";
 
 const Justifications = () => {
   const { user, isAdmin } = useAuth();
@@ -99,14 +100,14 @@ const Justifications = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+    <div className="page-justifications max-w-3xl mx-auto px-4 py-6 md:py-10">
+      <h1 className="justifications-header text-2xl font-bold mb-6 flex items-center gap-2">
         <FileText className="h-6 w-6 text-primary" />
         Justificativas
       </h1>
 
       <div className="bg-card border border-border rounded-lg p-3 mb-4">
-        <div className="flex items-center justify-between">
+        <div className="justifications-month flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={prevMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -150,7 +151,7 @@ const Justifications = () => {
         </div>
 
         <form onSubmit={handleCreateJustification} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="justifications-form-grid grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Data</label>
               <Input type="date" value={justDate} onChange={(e) => setJustDate(e.target.value)} required />
@@ -185,7 +186,7 @@ const Justifications = () => {
             justifications.map((j) => (
               <div
                 key={j.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-border rounded-lg p-3"
+                className="justifications-card flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-border rounded-lg p-3"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-semibold flex flex-wrap items-center gap-2">
@@ -201,7 +202,7 @@ const Justifications = () => {
                     <div className="text-xs text-muted-foreground">Arquivo: {j.originalFilename}</div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="justifications-card-actions flex items-center gap-2">
                   {j.originalFilename && (
                     <Button
                       type="button"

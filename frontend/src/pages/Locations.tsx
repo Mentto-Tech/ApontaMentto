@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, MapPin } from "lucide-react";
 import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation, type Location } from "@/lib/queries";
+import "../styles/Locations.css";
 
 const Locations = () => {
   const [open, setOpen] = useState(false);
@@ -49,8 +50,8 @@ const Locations = () => {
   const isPending = createLocation.isPending || updateLocation.isPending;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
-      <div className="flex items-center justify-between mb-6">
+    <div className="page-locations max-w-2xl mx-auto px-4 py-6 md:py-10">
+      <div className="locations-header flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Locais</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -89,7 +90,7 @@ const Locations = () => {
           {locations.map((l, i) => (
             <div
               key={l.id}
-              className="flex items-center gap-3 bg-card border border-border rounded-lg p-3 animate-fade-in"
+              className="locations-item flex items-center gap-3 bg-card border border-border rounded-lg p-3 animate-fade-in"
               style={{ animationDelay: `${i * 50}ms` }}
             >
               <MapPin className="h-4 w-4 text-primary shrink-0" />
@@ -97,17 +98,19 @@ const Locations = () => {
                 <div className="font-semibold text-sm">{l.name}</div>
                 {l.address && <div className="text-xs text-muted-foreground truncate">{l.address}</div>}
               </div>
-              <Button variant="ghost" size="icon" onClick={() => openEdit(l)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => deleteLocation.mutate(l.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="locations-item-actions flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={() => openEdit(l)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => deleteLocation.mutate(l.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

@@ -1,0 +1,33 @@
+/* Profile page */
+
+.page-profile .profile-card {
+  padding: 1.5rem;
+}
+
+.page-profile .profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-profile .profile-rates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .page-profile h1 {
+    font-size: 1.25rem;
+  }
+
+  .page-profile .profile-card {
+    padding: 1.25rem;
+  }
+
+  .page-profile .profile-rates {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -139,3 +139,22 @@
 .sig-identity__date {
   color: hsl(var(--muted-foreground));
 }
+
+@media (max-width: 640px) {
+  .month-nav {
+    padding: 0.75rem;
+  }
+
+  .month-nav__label {
+    font-size: 1rem;
+  }
+
+  .ts-table {
+    font-size: 0.7rem;
+  }
+
+  .sig-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

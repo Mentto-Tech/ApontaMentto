@@ -1,0 +1,40 @@
+/* Admin Users page */
+
+.page-admin-users .admin-users-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.page-admin-users .admin-user-card {
+  padding: 1rem;
+}
+
+.page-admin-users .admin-users-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.page-admin-users .admin-user-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .page-admin-users h1 {
+    font-size: 1.25rem;
+  }
+
+  .page-admin-users .admin-users-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-admin-users .admin-user-field,
+  .page-admin-users .admin-user-input {
+    width: 100%;
+  }
+}

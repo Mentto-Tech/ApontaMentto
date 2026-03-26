@@ -38,9 +38,13 @@ export async function apiFetch<T>(
   if (token) headers["Authorization"] = `Bearer ${token}`;
   if (body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
 
+  const method = (rest.method || "GET").toUpperCase();
+  const cache = rest.cache ?? (method === "GET" ? "no-store" : undefined);
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...rest,
     headers,
+    cache,
     body:
       body === undefined
         ? undefined

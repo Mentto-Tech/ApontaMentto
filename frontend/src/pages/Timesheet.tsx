@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDailyRecords, useUsers } from "@/lib/queries";
 import jsPDF from "jspdf";
-import "./Timesheet.css";
+import "../styles/Timesheet.css";
 
 const Timesheet = () => {
   const { user, isAdmin } = useAuth();

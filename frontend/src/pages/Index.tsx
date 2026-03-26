@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import TimeEntryForm from "@/components/TimeEntryForm";
 import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
+import "../styles/Index.css";
 
 const Index = () => {
   const { toast } = useToast();
@@ -195,15 +196,15 @@ const Index = () => {
   const breakM = breakMinutes % 60;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
+    <div className="page-index max-w-2xl mx-auto px-4 py-6 md:py-10">
       <h1 className="text-2xl font-bold mb-6">Registros do Dia</h1>
 
       {/* Date navigator */}
-      <div className="flex items-center justify-between mb-6 bg-card rounded-lg border border-border p-3">
+      <div className="index-date-nav flex items-center justify-between mb-6 bg-card rounded-lg border border-border p-3">
         <Button variant="ghost" size="icon" onClick={() => setDate(d => subDays(d, 1))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div className="text-center">
+        <div className="index-date-text text-center">
           <div className="text-sm font-semibold capitalize">
             {format(date, "EEEE", { locale: ptBR })}
           </div>
@@ -223,7 +224,7 @@ const Index = () => {
           <span className="text-[10px] text-muted-foreground">(opcional)</span>
         </div>
 
-        <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="index-punch-actions flex items-center justify-between gap-3 mb-3">
           <div className="text-xs text-muted-foreground">
             <span>Digite a hora (opcional) e clique em <strong>Bater ponto</strong> para salvar.</span>
           </div>
@@ -237,7 +238,7 @@ const Index = () => {
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="index-punch-grid flex flex-wrap items-end gap-3">
           <div className="flex items-center gap-2">
             <LogIn className="h-3.5 w-3.5 text-green-600" />
             <div>
@@ -344,7 +345,7 @@ const Index = () => {
               return (
                 <div
                   key={entry.id}
-                  className={`flex items-center gap-3 bg-card border rounded-lg p-3 animate-fade-in ${
+                  className={`index-entry-card flex items-center gap-3 bg-card border rounded-lg p-3 animate-fade-in ${
                     isBrk ? "border-orange-200 bg-orange-50/50 dark:border-orange-900/40 dark:bg-orange-950/20" : "border-border"
                   }`}
                   style={{ animationDelay: `${i * 50}ms` }}
@@ -380,7 +381,7 @@ const Index = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    className="index-entry-actions shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => deleteEntry.mutate(entry.id)}
                   >
                     <Trash2 className="h-4 w-4" />

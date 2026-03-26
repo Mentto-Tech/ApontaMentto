@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useTimeEntries, useProjects, useLocations, useUsers } from "@/lib/queries";
 import { useNavigate } from "react-router-dom";
+import "../styles/MonthlyView.css";
 
 const MonthlyView = () => {
   const { user, isAdmin } = useAuth();
@@ -68,7 +69,7 @@ const MonthlyView = () => {
   const totalM = totalMonthMins % 60;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
+    <div className="page-monthly-view max-w-3xl mx-auto px-4 py-6 md:py-10">
       <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
         <Calendar className="h-6 w-6 text-primary" />
         Visão Mensal
@@ -76,7 +77,7 @@ const MonthlyView = () => {
 
       {/* Month nav + filters */}
       <div className="bg-card border border-border rounded-lg p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mv-month-nav flex items-center justify-between mb-3">
           <Button variant="ghost" size="icon" onClick={prevMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -87,7 +88,7 @@ const MonthlyView = () => {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="mv-filters flex flex-wrap gap-2">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -106,7 +107,7 @@ const MonthlyView = () => {
                 <SelectItem value="mine">Meus registros</SelectItem>
                 <SelectItem value="all">Todos os usuários</SelectItem>
                 {allUsers.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  <SelectItem key={u.id} value={u.id}>{u.username}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -128,11 +129,11 @@ const MonthlyView = () => {
           return (
             <div
               key={dateStr}
-              className={`bg-card border border-border rounded-lg p-3 transition-colors ${
+              className={`mv-day-card bg-card border border-border rounded-lg p-3 transition-colors ${
                 dayEntries.length > 0 ? "" : "opacity-50"
               }`}
             >
-              <div className="flex items-center justify-between mb-1">
+              <div className="mv-day-header flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold w-6 text-center">{format(day, "dd")}</span>
                   <span className="text-xs text-muted-foreground capitalize">
@@ -144,7 +145,7 @@ const MonthlyView = () => {
                 </div>
               </div>
               {dayEntries.length > 0 && (
-                <div className="ml-8 space-y-1">
+                <div className="mv-day-list ml-8 space-y-1">
                   {dayEntries.map(entry => {
                     const project = projectMap[entry.projectId];
                     const location = locationMap[entry.locationId];
@@ -172,7 +173,7 @@ const MonthlyView = () => {
                             </>
                           )}
                           {isAdmin && selectedUserId === "all" && entry.userId && (
-                            <> · {userMap[entry.userId]?.name}</>
+                            <> · {userMap[entry.userId]?.username}</>
                           )}
                         </span>
                       </div>
