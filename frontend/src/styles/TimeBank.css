@@ -2,10 +2,10 @@
 
 /* Hover effect for time bank entries */
 .hover-bg-gray {
-  background-color: rgba(0, 0, 0, 0.05); /* Light gray */
+  background-color: rgba(0, 0, 0, 0.05) !important; /* Light gray */
   transition: background-color 0.3s ease;
 }
 
 .hover-bg-gray:hover {
-  background-color: rgba(0, 0, 0, 0.1); /* Slightly darker gray */
+  background-color: rgba(0, 0, 0, 0.1) !important; /* Slightly darker gray */
 }
