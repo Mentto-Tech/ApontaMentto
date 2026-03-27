@@ -208,7 +208,7 @@ const Timesheet = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text(
-      `Total: ${totalH}h ${totalM > 0 ? `${totalM}min` : ""}  |  HE: ${Math.floor(totalMonthOvertimeMins / 60)}h${
+      `Total: ${totalH}h ${totalM > 0 ? `${totalM}min` : ""}  |  Hora Extra: ${Math.floor(totalMonthOvertimeMins / 60)}h${
         totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}min` : ""
       }`,
       margin,
@@ -221,16 +221,15 @@ const Timesheet = () => {
       doc.text("Assinaturas:", margin, y);
       y += 3;
       const sigData = canvasRef.current.toDataURL("image/png");
-      doc.addImage(sigData, "PNG", margin, y, 60, 20);
-      doc.addImage(sigData, "PNG", margin + 80, y, 60, 20); // Add second signature field
+      doc.addImage(sigData, "PNG", margin, y, 60, 20); // Assign drawn signature to Tiago Goulart
       y += 25;
       doc.line(margin, y, margin + 60, y);
-      doc.line(margin + 80, y, margin + 140, y); // Add line for second signature
+      doc.line(margin + 80, y, margin + 140, y); // Add line for selected user signature
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       const today = format(new Date(), "dd/MM/yyyy");
       doc.text(`Tiago Goulart  —  ${today}`, margin, y + 4);
-      doc.text(`${targetUser?.username || "—"}  —  ${today}`, margin + 80, y + 4); // Add selected user signature
+      doc.text(`${targetUser?.username || "—"}  —  ${today}`, margin + 80, y + 4); // Selected user signature remains empty
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
