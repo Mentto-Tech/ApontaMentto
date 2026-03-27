@@ -227,7 +227,7 @@ const Timesheet = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       const today = format(new Date(), "dd/MM/yyyy");
-      doc.text(`${user?.username || ""}  —  ${today}`, margin, y + 4);
+      doc.text(`Tiago Goulart || ""}  —  ${today}`, margin, y + 4);
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
@@ -331,7 +331,7 @@ const Timesheet = () => {
                       {Math.floor(totalMonthAllMins / 60)}h{totalMonthAllMins % 60 > 0 ? ` ${totalMonthAllMins % 60}m` : ""}
                       {totalMonthOvertimeMins > 0 && (
                         <span className="ml-2 text-[11px] text-amber-600 dark:text-amber-400">
-                          HE: {Math.floor(totalMonthOvertimeMins / 60)}h{totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}m` : ""}
+                          Hora Extra: {Math.floor(totalMonthOvertimeMins / 60)}h{totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}m` : ""}
                         </span>
                       )}
                     </td>
