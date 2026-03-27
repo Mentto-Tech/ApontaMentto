@@ -16,7 +16,6 @@ const AppLayout = () => {
     { to: "/justifications", icon: Upload, label: "Justificativas" },
     { to: "/projects", icon: FolderOpen, label: "Projetos" },
     { to: "/locations", icon: MapPin, label: "Locais" },
-    { to: "/profile", icon: User, label: "Perfil" },
   ];
 
   const adminNavItems = isAdmin
@@ -92,7 +91,10 @@ const AppLayout = () => {
           </div>
 
           <div className="mt-auto px-3 py-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-2 px-3 mb-2">
+          <div
+            className="flex items-center gap-2 px-3 mb-2 cursor-pointer"
+            onClick={() => navigate("/profile")}
+          >
             <div className="w-7 h-7 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-bold text-sidebar-primary">
               {user?.username?.charAt(0).toUpperCase()}
             </div>
