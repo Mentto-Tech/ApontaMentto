@@ -218,7 +218,7 @@ const Timesheet = () => {
     // Signature
     if (hasSignature && canvasRef.current) {
       y += 8;
-      doc.text("Assinatura:", margin, y);
+      doc.text("Assinaturas:", margin, y);
       y += 3;
       const sigData = canvasRef.current.toDataURL("image/png");
       doc.addImage(sigData, "PNG", margin, y, 60, 20);
@@ -227,7 +227,7 @@ const Timesheet = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       const today = format(new Date(), "dd/MM/yyyy");
-      doc.text(`Tiago Goulart || ""}  —  ${today}`, margin, y + 4);
+      doc.text(`Tiago Goulart  —  ${today}`, margin, y + 4);
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
