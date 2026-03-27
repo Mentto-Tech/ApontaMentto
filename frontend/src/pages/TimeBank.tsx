@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Clock, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import { formatYmdToBr } from "@/lib/datetime";
+import "@/styles/TimeBank.css";
 
 interface TimeBankEntry {
   id: string;
