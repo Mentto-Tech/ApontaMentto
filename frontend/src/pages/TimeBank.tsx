@@ -266,7 +266,7 @@ const TimeBank = () => {
             {timeBank.entries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-gray"
               >
                 <div className="flex items-center gap-3 flex-1">
                   <div className={`p-2 rounded-full ${entry.amountMinutes > 0 ? "bg-green-100" : "bg-red-100"}`}>
