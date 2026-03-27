@@ -220,7 +220,7 @@ const Justifications = () => {
                     className="hover-bg-gray"
                     onClick={() => deleteJustification.mutate(j.id)}
                   >
-                    <Trash2 className="h-4 w-4 text-muted-foreground mr-2" /> Excluir
+                    <Trash2 className="h-4 w-4 text-destructive mr-2" /> Excluir
                   </Button>
                 </div>
               </div>

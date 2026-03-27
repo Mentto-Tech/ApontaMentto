@@ -384,7 +384,7 @@ const Index = () => {
                     className="index-entry-actions shrink-0 hover-bg-gray"
                     onClick={() => deleteEntry.mutate(entry.id)}
                   >
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               );
