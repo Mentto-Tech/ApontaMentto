@@ -153,7 +153,7 @@ const Timesheet = () => {
 
     // Table header
     const colWidths = [12, 20, 18, 18, 18, 18, 16];
-    const headers = ["Dia", "Semana", "Entrada", "Saída", "Entrada", "Saída", "Hora extra (min)"];
+    const headers = ["Dia", "Semana", "Entrada 1", "Saída 1", "Almoço", "Entrada 2", "Saída 2", "Hora extra (min)"];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     let x = margin;
@@ -290,6 +290,7 @@ const Timesheet = () => {
                     <th>Dia</th>
                     <th>Entrada 1</th>
                     <th>Saída 1</th>
+                    <th>Almoço</th>
                     <th>Entrada 2</th>
                     <th>Saída 2</th>
                     <th>Hora Extra</th>
@@ -307,6 +308,8 @@ const Timesheet = () => {
                     const secondIn = dailyRecord?.in2 ?? null;
                     const secondOut = dailyRecord?.out2 ?? dailyRecord?.clockOut ?? null;
 
+                    const lunchBreak = firstOut && secondIn ? `${firstOut} - ${secondIn}` : "—";
+
                     const heLabel = overtimeMins ? `${Math.floor(overtimeMins / 60)}h${overtimeMins % 60 > 0 ? ` ${overtimeMins % 60}m` : ""}` : "—";
 
                     const hasAny = Boolean(firstIn || firstOut || secondIn || secondOut || overtimeMins);
@@ -318,6 +321,7 @@ const Timesheet = () => {
                         </td>
                         <td data-label="Entrada 1">{firstIn || "—"}</td>
                         <td data-label="Saída 1">{firstOut || "—"}</td>
+                        <td data-label="Almoço">{lunchBreak}</td>
                         <td data-label="Entrada 2">{secondIn || "—"}</td>
                         <td data-label="Saída 2">{secondOut || "—"}</td>
                         <td data-label="Hora Extra">{heLabel}</td>

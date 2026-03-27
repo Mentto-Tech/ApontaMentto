@@ -19,10 +19,10 @@ const AppLayout = () => {
 
   const adminNavItems = isAdmin
     ? [
+        { to: "/timesheet", icon: FileText, label: "Folha" },
         { to: "/admin/users", icon: Users, label: "Usuários" },
         { to: "/admin/logs", icon: History, label: "Logs" },
         { to: "/admin/settings", icon: Settings, label: "Backup" },
-        { to: "/timesheet", icon: FileText, label: "Folha" },
       ]
     : [];
 
