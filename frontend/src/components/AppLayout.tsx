@@ -11,7 +11,6 @@ const AppLayout = () => {
     { to: "/", icon: Clock, label: "Registros" },
     { to: "/monthly", icon: Calendar, label: "Mensal" },
     { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
-    { to: "/timesheet", icon: FileText, label: "Folha" },
     { to: "/time-bank", icon: Wallet, label: "Banco de Horas" },
     { to: "/justifications", icon: Upload, label: "Justificativas" },
     { to: "/projects", icon: FolderOpen, label: "Projetos" },
@@ -23,6 +22,7 @@ const AppLayout = () => {
         { to: "/admin/users", icon: Users, label: "Usuários" },
         { to: "/admin/logs", icon: History, label: "Logs" },
         { to: "/admin/settings", icon: Settings, label: "Backup" },
+        { to: "/timesheet", icon: FileText, label: "Folha" },
       ]
     : [];
 

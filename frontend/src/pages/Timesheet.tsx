@@ -318,7 +318,7 @@ const Timesheet = () => {
                         <td data-label="Saída 1">{firstOut || "—"}</td>
                         <td data-label="Entrada 2">{secondIn || "—"}</td>
                         <td data-label="Saída 2">{secondOut || "—"}</td>
-                        <td data-label="HE">{heLabel}</td>
+                        <td data-label="Hora Extra">{heLabel}</td>
                         <td data-label="Horas">{hasAny ? `${h}h${m > 0 ? `${m}m` : ""}` : "—"}</td>
                       </tr>
                     );
