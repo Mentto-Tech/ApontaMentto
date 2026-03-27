@@ -217,7 +217,7 @@ const Justifications = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground hover:text-destructive"
+                    className="text-muted-foreground hover-bg-gray"
                     onClick={() => deleteJustification.mutate(j.id)}
                   >
                     <Trash2 className="h-4 w-4 mr-2" /> Excluir

@@ -125,7 +125,7 @@ const Projects = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover-bg-gray"
                   onClick={() => deleteProject.mutate(p.id)}
                 >
                   <Trash2 className="h-4 w-4" />
