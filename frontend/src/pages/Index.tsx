@@ -25,6 +25,7 @@ const Index = () => {
   const todayRecord = dailyRecords.find(r => r.date === dateStr);
   const [in1, setIn1] = useState("");
   const [out1, setOut1] = useState("");
+  const [lunch, setLunch] = useState(""); 
   const [in2, setIn2] = useState("");
   const [out2, setOut2] = useState("");
   const [overtimeMinutes, setOvertimeMinutes] = useState("");
@@ -32,6 +33,7 @@ const Index = () => {
   useEffect(() => {
     setIn1(todayRecord?.in1 || todayRecord?.clockIn || "");
     setOut1(todayRecord?.out1 || "");
+    setLunch(todayRecord?.lunch || ""); 
     setIn2(todayRecord?.in2 || "");
     setOut2(todayRecord?.out2 || todayRecord?.clockOut || "");
     setOvertimeMinutes(
@@ -109,15 +111,16 @@ const Index = () => {
 
   const canUseOut1 = Boolean(in1);
   const canUseIn2 = Boolean(in1 && out1);
-  const canUseOut2 = Boolean(in1 && out1 && in2);
+  const canUseOut2 = Boolean(in1 && out1 && lunch);
 
   const nextPunchField = useMemo(() => {
     if (!in1) return "in1" as const;
     if (!out1) return "out1" as const;
+    if (!lunch) return "lunch" as const; // Add lunch to the sequence
     if (!in2) return "in2" as const;
     if (!out2) return "out2" as const;
     return null;
-  }, [in1, out1, in2, out2]);
+  }, [in1, out1, lunch, in2, out2]);
 
   const nextPunchLabel = useMemo(() => {
     switch (nextPunchField) {
@@ -125,6 +128,8 @@ const Index = () => {
         return "Entrada 1";
       case "out1":
         return "Saída 1";
+      case "lunch": // Add label for lunch
+        return "Almoço";
       case "in2":
         return "Entrada 2";
       case "out2":
@@ -146,10 +151,12 @@ const Index = () => {
       nextPunchField === "in1"
         ? in1
         : nextPunchField === "out1"
-          ? out1
-          : nextPunchField === "in2"
-            ? in2
-            : out2;
+        ? out1
+        : nextPunchField === "lunch" // Handle lunch
+        ? lunch
+        : nextPunchField === "in2"
+        ? in2
+        : out2;
 
     const timeToSave = (currentValue || "").trim() || nowTime;
     if (!isValidTime(timeToSave)) return;
@@ -157,6 +164,7 @@ const Index = () => {
     // Keep UI in sync (in case we auto-filled with now).
     if (nextPunchField === "in1") setIn1(timeToSave);
     if (nextPunchField === "out1") setOut1(timeToSave);
+    if (nextPunchField === "lunch") setLunch(timeToSave); // Update lunch
     if (nextPunchField === "in2") setIn2(timeToSave);
     if (nextPunchField === "out2") setOut2(timeToSave);
 
@@ -221,13 +229,9 @@ const Index = () => {
       <div className="mb-4 bg-card border border-border rounded-lg p-3">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Registro do Dia</span>
-          <span className="text-[10px] text-muted-foreground">(opcional)</span>
         </div>
 
         <div className="index-punch-actions flex items-center justify-between gap-3 mb-3">
-          <div className="text-xs text-muted-foreground">
-            <span>Digite a hora (opcional) e clique em <strong>Bater ponto</strong> para salvar.</span>
-          </div>
           <Button
             onClick={() => void handleCommitNextPunch()}
             disabled={!nextPunchField || upsertDailyRecord.isPending}
@@ -265,7 +269,19 @@ const Index = () => {
               />
             </div>
           </div>
-
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-yellow-500" />
+            <div>
+              <label className="text-xs text-muted-foreground block">Almoço</label>
+              <Input
+                type="time"
+                value={lunch}
+                onChange={e => setLunch(e.target.value)}
+                disabled={nextPunchField !== "lunch"}
+                className="w-[110px] h-8 text-sm"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <LogIn className="h-3.5 w-3.5 text-green-600" />
             <div>
@@ -290,35 +306,6 @@ const Index = () => {
                 disabled={nextPunchField !== "out2"}
                 className="w-[110px] h-8 text-sm"
               />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-amber-600" />
-            <div>
-              <label className="text-xs text-muted-foreground block">Hora extra (min)</label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={overtimeMinutes}
-                onChange={e => setOvertimeMinutes(e.target.value)}
-                disabled={upsertDailyRecord.isPending}
-                className="w-[140px] h-8 text-sm"
-                placeholder="0"
-              />
-              <div className="mt-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-[11px]"
-                  onClick={() => void handleSaveOvertime()}
-                  disabled={upsertDailyRecord.isPending}
-                >
-                  Salvar HE
-                </Button>
-              </div>
             </div>
           </div>
         </div>
