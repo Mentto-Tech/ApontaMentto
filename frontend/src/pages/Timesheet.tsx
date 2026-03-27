@@ -290,7 +290,7 @@ const Timesheet = () => {
                     <th>Saída 1</th>
                     <th>Entrada 2</th>
                     <th>Saída 2</th>
-                    <th>HE</th>
+                    <th>Hora Extra</th>
                     <th>Horas</th>
                   </tr>
                 </thead>
