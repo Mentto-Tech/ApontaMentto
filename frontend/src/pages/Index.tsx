@@ -381,10 +381,10 @@ const Index = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="index-entry-actions shrink-0 text-muted-foreground hover-bg-gray"
+                    className="index-entry-actions shrink-0 hover-bg-gray"
                     onClick={() => deleteEntry.mutate(entry.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </div>
               );
