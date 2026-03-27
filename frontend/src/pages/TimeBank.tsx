@@ -293,6 +293,7 @@ const TimeBank = () => {
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="hover-bg-gray"
                     onClick={() => {
                       if (confirm("Deseja remover este lançamento?")) {
                         deleteEntryMutation.mutate(entry.id);
