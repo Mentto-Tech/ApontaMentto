@@ -222,28 +222,15 @@ const Timesheet = () => {
       y += 3;
       const sigData = canvasRef.current.toDataURL("image/png");
       doc.addImage(sigData, "PNG", margin, y, 60, 20);
+      doc.addImage(sigData, "PNG", margin + 80, y, 60, 20); // Add second signature field
       y += 25;
       doc.line(margin, y, margin + 60, y);
+      doc.line(margin + 80, y, margin + 140, y); // Add line for second signature
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       const today = format(new Date(), "dd/MM/yyyy");
       doc.text(`Tiago Goulart  —  ${today}`, margin, y + 4);
-
-      // Add signature fields
-      y += 15;
-      doc.setFont("helvetica", "bold");
-      doc.text("Assinaturas:", margin, y);
-
-      // Tiago's signature
-      y += 10;
-      doc.setFont("helvetica", "normal");
-      doc.text("Tiago Goulart:", margin, y);
-      doc.line(margin, y + 5, margin + 60, y + 5);
-
-      // Selected user's signature
-      const selectedUserName = targetUser?.username || "________________";
-      doc.text(`${selectedUserName}:`, margin + 80, y);
-      doc.line(margin + 80, y + 5, margin + 140, y + 5);
+      doc.text(`${targetUser?.username || "—"}  —  ${today}`, margin + 80, y + 4); // Add selected user signature
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
