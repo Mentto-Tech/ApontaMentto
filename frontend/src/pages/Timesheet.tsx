@@ -17,6 +17,7 @@ const Timesheet = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [dynamicName, setDynamicName] = useState("");
 
   const monthStr = format(currentMonth, "yyyy-MM");
   const targetUserId = isAdmin ? selectedUserId : user?.id || "";
@@ -229,6 +230,24 @@ const Timesheet = () => {
       const today = format(new Date(), "dd/MM/yyyy");
       doc.text(`${user?.username || ""}  —  ${today}`, margin, y + 4);
     }
+
+    // Add signature fields
+    y += 15;
+    doc.setFont("helvetica", "bold");
+    doc.text("Assinaturas:", margin, y);
+
+    // Tiago's signature
+    y += 10;
+    doc.setFont("helvetica", "normal");
+    doc.text("Tiago:", margin, y);
+    y += 20;
+    doc.line(margin, y, margin + 60, y);
+
+    // Dynamic signature
+    y += 10;
+    doc.text(`Outro: ${dynamicName || "________________"}`, margin, y);
+    y += 20;
+    doc.line(margin, y, margin + 60, y);
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
   }, [dayData, currentMonth, targetUser, totalMonthAllMins, totalMonthOvertimeMins, hasSignature, user?.username]);
