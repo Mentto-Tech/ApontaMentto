@@ -83,8 +83,8 @@ async def upsert_daily_record(
     existing_ot = record.overtime_minutes if record else None
     existing_clock_in = record.clock_in if record else None
     existing_clock_out = record.clock_out if record else None
+    existing_lunch = record.lunch if record else None
 
-    # Determine incoming changes (partial update semantics)
     incoming_in1 = None
     if "in1" in fields_set:
         incoming_in1 = data.in1
@@ -100,13 +100,14 @@ async def upsert_daily_record(
     incoming_out1 = data.out1 if "out1" in fields_set else None
     incoming_in2 = data.in2 if "in2" in fields_set else None
     incoming_ot = data.overtime_minutes if "overtime_minutes" in fields_set else None
+    incoming_lunch = data.lunch if "lunch" in fields_set else None
 
-    # Candidate (post-update) values for validation
     cand_in1 = incoming_in1 if incoming_in1 is not None else existing_in1
     cand_out1 = incoming_out1 if "out1" in fields_set else existing_out1
     cand_in2 = incoming_in2 if "in2" in fields_set else existing_in2
     cand_out2 = incoming_out2 if incoming_out2 is not None else existing_out2
     cand_ot = incoming_ot if "overtime_minutes" in fields_set else existing_ot
+    cand_lunch = incoming_lunch if "lunch" in fields_set else existing_lunch
 
     # Keep legacy clock_in/out aligned when those are sent/derived
     cand_clock_in = existing_clock_in
@@ -191,6 +192,8 @@ async def upsert_daily_record(
             record.out2 = incoming_out2
         if "overtime_minutes" in fields_set:
             record.overtime_minutes = data.overtime_minutes
+        if "lunch" in fields_set:
+            record.lunch = data.lunch
 
         # Always capture request metadata
         record.ip_address = ip_address
@@ -217,6 +220,8 @@ async def upsert_daily_record(
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
         if "overtime_minutes" in fields_set:
             _log("overtime_minutes", overtime_minutes=data.overtime_minutes, daily_record_id=record.id)
+        if incoming_lunch is not None:
+            _log("lunch", time_value=incoming_lunch, daily_record_id=record.id if record else None)
     else:
         record = DailyRecord(
             id=str(uuid.uuid4()),
@@ -255,6 +260,8 @@ async def upsert_daily_record(
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
         if "overtime_minutes" in fields_set:
             _log("overtime_minutes", overtime_minutes=data.overtime_minutes, daily_record_id=record.id)
+        if incoming_lunch is not None:
+            _log("lunch", time_value=incoming_lunch, daily_record_id=record.id if record else None)
 
     # --- Sync Time Bank Entry for Overtime ---
     # We find if there is an existing 'auto' TimeBankEntry for this DailyRecord
