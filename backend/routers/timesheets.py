@@ -9,11 +9,13 @@ Timesheet signing flow:
   GET  /api/timesheets/my-sign-requests      — employee: list own pending requests
 """
 
+import asyncio
 import hashlib
 import io
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
+from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -129,19 +131,27 @@ async def create_sign_request(
     await db.commit()
     await db.refresh(req)
 
-    # Send email
+    # Send email in thread (SMTP is blocking)
     sign_url = f"{FRONTEND_URL}/assinar/{raw_token}"
     from calendar import month_name
     year, mon = body.month.split("-")
     month_label = f"{month_name[int(mon)]} {year}"
     target_email = body.override_email or employee.email
-    EmailService.send_sign_request(
-        to_email=target_email,
-        employee_name=employee.username,
-        manager_name=admin.username,
-        month_label=month_label,
-        sign_url=sign_url,
-    )
+
+    def _send():
+        try:
+            EmailService.send_sign_request(
+                to_email=target_email,
+                employee_name=employee.username,
+                manager_name=admin.username,
+                month_label=month_label,
+                sign_url=sign_url,
+            )
+        except Exception as e:
+            print(f"[email error] {e}")
+
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, _send)
 
     return req
 

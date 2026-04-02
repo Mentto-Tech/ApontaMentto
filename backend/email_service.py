@@ -3,10 +3,10 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME", "mentto.tech@gmail.com")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_SERVER = os.getenv("SMTP_SERVER") or os.getenv("MAIL_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT") or os.getenv("MAIL_PORT", 587))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME", "mentto.tech@gmail.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", SMTP_USERNAME)
 
 
@@ -29,19 +29,16 @@ class EmailService:
 
     @staticmethod
     def send_html_email(to_email: str, subject: str, html: str):
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["From"] = DEFAULT_FROM_EMAIL
-            msg["To"] = to_email
-            msg["Subject"] = subject
-            msg.attach(MIMEText(html, "html"))
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_USERNAME, SMTP_PASSWORD)
-                server.sendmail(DEFAULT_FROM_EMAIL, to_email, msg.as_string())
-            print(f"HTML email sent to {to_email}")
-        except Exception as e:
-            print(f"Failed to send HTML email: {e}")
+        msg = MIMEMultipart("alternative")
+        msg["From"] = DEFAULT_FROM_EMAIL
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(DEFAULT_FROM_EMAIL, to_email, msg.as_string())
+        print(f"HTML email sent to {to_email}")
 
     @staticmethod
     def send_sign_request(to_email: str, employee_name: str, manager_name: str, month_label: str, sign_url: str):
