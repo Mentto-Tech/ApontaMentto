@@ -134,8 +134,9 @@ async def create_sign_request(
     from calendar import month_name
     year, mon = body.month.split("-")
     month_label = f"{month_name[int(mon)]} {year}"
+    target_email = body.override_email or employee.email
     EmailService.send_sign_request(
-        to_email=employee.email,
+        to_email=target_email,
         employee_name=employee.username,
         manager_name=admin.username,
         month_label=month_label,

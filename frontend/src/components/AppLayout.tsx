@@ -24,7 +24,9 @@ const AppLayout = () => {
         { to: "/admin/logs", icon: History, label: "Logs" },
         { to: "/admin/settings", icon: Settings, label: "Backup" },
       ]
-    : [];
+    : [
+        { to: "/minhas-folhas", icon: FileText, label: "Minhas Folhas" },
+      ];
 
   const handleLogout = () => {
     logout();
@@ -65,7 +67,7 @@ const AppLayout = () => {
               <>
                 <div className="pt-3 mt-2 border-t border-sidebar-border">
                   <div className="px-3 pb-2 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wide">
-                    Admin
+                    {isAdmin ? "Admin" : "Documentos"}
                   </div>
                   <div className="space-y-1">
                     {adminNavItems.map(({ to, icon: Icon, label }) => (

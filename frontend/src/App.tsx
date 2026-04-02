@@ -25,6 +25,7 @@ import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 
 import SignTimesheet from "./pages/SignTimesheet";
+import MySignedTimesheets from "./pages/MySignedTimesheets";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ const AppRoutes = () => (
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/monthly" element={<MonthlyView />} />
       <Route path="/timesheet" element={<Timesheet />} />
+      <Route path="/minhas-folhas" element={<MySignedTimesheets />} />
       <Route path="/justifications" element={<Justifications />} />
       <Route path="/time-bank" element={<TimeBank />} />
       <Route path="/projects" element={<Projects />} />

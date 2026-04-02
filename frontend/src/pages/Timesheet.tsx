@@ -250,6 +250,18 @@ const Timesheet = () => {
   const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetSignRequest[]>([]);
   const [filterUserId, setFilterUserId] = useState<string>("all");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailInput, setEmailInput] = useState<string>("");
+  const [showEmailSuggestions, setShowEmailSuggestions] = useState(false);
+
+  const RECENT_EMAILS_KEY = "ts_recent_emails";
+  const getRecentEmails = (): string[] => {
+    try { return JSON.parse(localStorage.getItem(RECENT_EMAILS_KEY) || "[]"); } catch { return []; }
+  };
+  const saveRecentEmail = (email: string) => {
+    const list = [email, ...getRecentEmails().filter(e => e !== email)].slice(0, 8);
+    localStorage.setItem(RECENT_EMAILS_KEY, JSON.stringify(list));
+  };
+  const recentEmails = getRecentEmails().filter(e => !emailInput || e.toLowerCase().includes(emailInput.toLowerCase()));
 
   const loadSignedData = useCallback(() => {
     const params = isAdmin && filterUserId !== "all" ? `?user_id=${filterUserId}` : "";
@@ -267,21 +279,29 @@ const Timesheet = () => {
       return;
     }
     if (!targetUserId) return;
+    const trimmed = emailInput.trim();
+    if (!trimmed) {
+      toast({ title: "Informe o email", description: "Digite o email do destinatário.", variant: "destructive" });
+      return;
+    }
     const managerSignature = canvasRef.current.toDataURL("image/png");
     setSendingEmail(true);
     try {
       await apiFetch("/api/timesheets/sign-request", {
         method: "POST",
-        body: { user_id: targetUserId, month: monthStr, manager_signature: managerSignature },
+        body: { user_id: targetUserId, month: monthStr, manager_signature: managerSignature, override_email: trimmed },
       });
-      toast({ title: "Email enviado!", description: "O funcionário receberá um link para assinar a folha." });
+      saveRecentEmail(trimmed);
+      toast({ title: "Email enviado!", description: `Link de assinatura enviado para ${trimmed}.` });
+      setEmailInput("");
       loadSignedData();
     } catch (e: unknown) {
       toast({ title: "Erro ao enviar", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
     } finally {
       setSendingEmail(false);
     }
-  }, [hasSignature, targetUserId, monthStr, loadSignedData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasSignature, targetUserId, monthStr, emailInput, loadSignedData]);
 
   const handleDownload = useCallback(async (id: string) => {
     const blob = await apiFetchBlob(`/api/timesheets/signed-pdfs/${id}/download`);
@@ -444,19 +464,43 @@ const Timesheet = () => {
 
       {/* Send for signature (admin only) */}
       {isAdmin && (
-        <div className="mt-4 border rounded-lg p-4 bg-card space-y-2">
+        <div className="mt-4 border rounded-lg p-4 bg-card space-y-3">
           <p className="text-sm font-medium">Enviar para assinatura do funcionário</p>
           <p className="text-xs text-muted-foreground">
-            Assine na aba "Assinar" acima e clique no botão para enviar o link por email para <strong>{targetUser?.username || "—"}</strong>.
+            Assine na aba "Assinar" acima, informe o email e envie o link para <strong>{targetUser?.username || "—"}</strong>.
           </p>
+          <div className="relative">
+            <input
+              type="email"
+              className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Email do destinatário"
+              value={emailInput}
+              onChange={e => { setEmailInput(e.target.value); setShowEmailSuggestions(true); }}
+              onFocus={() => setShowEmailSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowEmailSuggestions(false), 150)}
+            />
+            {showEmailSuggestions && recentEmails.length > 0 && (
+              <ul className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 max-h-40 overflow-auto">
+                {recentEmails.map(e => (
+                  <li
+                    key={e}
+                    className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
+                    onMouseDown={() => { setEmailInput(e); setShowEmailSuggestions(false); }}
+                  >
+                    {e}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <Button
             variant="outline"
             className="w-full"
             onClick={handleSendEmail}
-            disabled={sendingEmail || !targetUserId}
+            disabled={sendingEmail || !targetUserId || !emailInput.trim()}
           >
             {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-            Enviar email para assinar — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+            Enviar link — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
           </Button>
         </div>
       )}

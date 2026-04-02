@@ -345,6 +345,7 @@ class CreateSignRequestIn(CamelModel):
     user_id: str
     month: str                  # YYYY-MM
     manager_signature: str      # dataURL base64 PNG
+    override_email: str | None = None  # se preenchido, envia para este email em vez do cadastrado
 
 
 class EmployeeSignIn(BaseModel):
