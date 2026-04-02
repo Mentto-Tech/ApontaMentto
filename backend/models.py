@@ -170,6 +170,7 @@ class DailyRecord(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="daily_records")
+    lunch: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm-HH:mm format for lunch break
 
 
 class AbsenceJustification(Base):
@@ -261,3 +262,30 @@ class TimeBankEntry(Base):
 
     user: Mapped[User] = relationship("User")
     daily_record: Mapped[Optional[DailyRecord]] = relationship("DailyRecord")
+
+
+class TimesheetSignRequest(Base):
+    __tablename__ = "timesheet_sign_requests"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    token_hash = Column(String, nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=3))
+    signed_at = Column(DateTime, nullable=True)
+    created_by_admin_id = Column(String, ForeignKey("users.id"), nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+    created_by_admin = relationship("User", foreign_keys=[created_by_admin_id])
+
+
+class TimesheetSignedPdf(Base):
+    __tablename__ = "timesheet_signed_pdfs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    month = Column(String, nullable=False)  # Format: YYYY-MM
+    pdf_data = Column(LargeBinary, nullable=False)
+    mime_type = Column(String, nullable=False, default="application/pdf")
+    signed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    user = relationship("User")

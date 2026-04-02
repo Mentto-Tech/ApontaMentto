@@ -198,6 +198,7 @@ class DailyRecordIn(CamelModel):
     geo_lng: Optional[float] = None
     geo_accuracy: Optional[float] = None
     geo_source: Optional[str] = None
+    lunch: Optional[str] = None  # HH:mm-HH:mm format for lunch break
 
 
 class DailyRecordOut(DailyRecordIn):

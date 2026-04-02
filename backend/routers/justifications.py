@@ -1,16 +1,17 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user
-from models import AbsenceJustification, User
+from models import AbsenceJustification, User, TimesheetSignRequest, TimesheetSignedPdf
 from schemas import AbsenceJustificationOut
 
 router = APIRouter()
@@ -153,3 +154,102 @@ async def delete_justification(
     await db.delete(record)
     await db.commit()
     return {"ok": True}
+
+
+@router.post("/timesheet-sign-requests")
+def create_sign_request(
+    user_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    # Generate a secure token
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    # Create the sign request
+    sign_request = TimesheetSignRequest(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires_at=datetime.utcnow() + timedelta(days=3),
+        created_by_admin_id="admin-id-placeholder",  # Replace with actual admin ID from auth
+    )
+    db.add(sign_request)
+    db.commit()
+
+    # Send email with the token link
+    sign_link = f"https://your-production-url/sign/{token}"
+    background_tasks.add_task(
+        EmailService.send_email,
+        to_email="user-email-placeholder",  # Replace with actual user email
+        subject="Please Sign Your Timesheet",
+        body=f"Click the link to sign your timesheet: {sign_link}",
+    )
+
+    return {"message": "Sign request created and email sent."}
+
+
+@router.post("/sign/{token}")
+def sign_timesheet(
+    token: str,
+    pdf_data: bytes,
+    db: Session = Depends(get_db),
+):
+    # Validate the token
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    sign_request = db.query(TimesheetSignRequest).filter(
+        TimesheetSignRequest.token_hash == token_hash,
+        TimesheetSignRequest.expires_at > datetime.utcnow(),
+        TimesheetSignRequest.signed_at.is_(None),
+    ).first()
+
+    if not sign_request:
+        raise HTTPException(status_code=400, detail="Invalid or expired token.")
+
+    # Save the signed PDF
+    signed_pdf = TimesheetSignedPdf(
+        user_id=sign_request.user_id,
+        month="2026-04",  # Replace with actual month logic
+        pdf_data=pdf_data,
+        signed_at=datetime.utcnow(),
+    )
+    db.add(signed_pdf)
+
+    # Mark the request as signed
+    sign_request.signed_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "Timesheet signed successfully."}
+
+
+@router.get("/signed-pdfs")
+def list_signed_pdfs(user_id: str = None, db: Session = Depends(get_db)):
+    # Admin can filter by user_id, regular users see only their own
+    signed_pdfs_query = db.query(TimesheetSignedPdf)
+
+    if user_id:
+        signed_pdfs_query = signed_pdfs_query.filter(TimesheetSignedPdf.user_id == user_id)
+
+    signed_pdfs = signed_pdfs_query.all()
+    return [
+        {
+            "id": pdf.id,
+            "user_id": pdf.user_id,
+            "month": pdf.month,
+            "signed_at": pdf.signed_at,
+        }
+        for pdf in signed_pdfs
+    ]
+
+
+@router.get("/signed-pdfs/{pdf_id}")
+def download_signed_pdf(pdf_id: str, db: Session = Depends(get_db)):
+    signed_pdf = db.query(TimesheetSignedPdf).filter(TimesheetSignedPdf.id == pdf_id).first()
+
+    if not signed_pdf:
+        raise HTTPException(status_code=404, detail="Signed PDF not found.")
+
+    return Response(
+        content=signed_pdf.pdf_data,
+        media_type=signed_pdf.mime_type,
+        headers={"Content-Disposition": f"attachment; filename=timesheet_{signed_pdf.month}.pdf"},
+    )

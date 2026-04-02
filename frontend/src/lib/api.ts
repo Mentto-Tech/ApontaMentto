@@ -1,4 +1,3 @@
-// Base URL: empty for Docker/nginx proxy, or set VITE_API_URL for Vercel → Render
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 const TOKEN_KEY = "apontamentto_token";
@@ -100,3 +99,21 @@ export async function apiFetchBlob(
 
   return res.blob();
 }
+
+export const fetchSignedPdfs = async (userId: string): Promise<any[]> => {
+    const params = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+    const response = await apiFetch<any[]>(`/api/signed-pdfs${params}`);
+    return response;
+};
+
+export const downloadSignedPdf = async (pdfId: string): Promise<void> => {
+    const blob = await apiFetchBlob(`/api/signed-pdfs/${pdfId}`);
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `signed_timesheet_${pdfId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+};
