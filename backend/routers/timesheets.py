@@ -237,19 +237,26 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
     await db.commit()
     await db.refresh(signed_pdf)
 
-    # Notify manager
+    # Notify manager (non-blocking)
     from calendar import month_name as _mn
     year, mon = req.month.split("-")
     month_label = f"{_mn[int(mon)]} {year}"
     download_url = f"{FRONTEND_URL}/timesheet"
     if manager:
-        EmailService.send_employee_signed_notification(
-            to_email=manager.email,
-            manager_name=manager.username,
-            employee_name=employee.username if employee else "",
-            month_label=month_label,
-            download_url=download_url,
-        )
+        _mgr = manager
+        _emp_name = employee.username if employee else ""
+        def _notify():
+            try:
+                EmailService.send_employee_signed_notification(
+                    to_email=_mgr.email,
+                    manager_name=_mgr.username,
+                    employee_name=_emp_name,
+                    month_label=month_label,
+                    download_url=download_url,
+                )
+            except Exception as e:
+                print(f"[email error] {e}")
+        asyncio.get_event_loop().run_in_executor(None, _notify)
 
     return {"ok": True, "pdfId": signed_pdf.id}
 

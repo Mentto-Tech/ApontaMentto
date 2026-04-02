@@ -22,6 +22,7 @@ const Timesheet = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>(user?.id || "");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const isDrawingRef = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
 
   const monthStr = format(currentMonth, "yyyy-MM");
@@ -92,8 +93,8 @@ const Timesheet = () => {
   const totalMonthOvertimeMins = dayData.reduce((s, d) => s + (d.overtimeMins || 0), 0);
   const totalMonthAllMins = totalMonthMins + totalMonthOvertimeMins;
 
-  // Canvas drawing
-  const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
+  // Canvas drawing — touch events registered as non-passive to allow preventDefault
+  const getCanvasCoords = (e: MouseEvent | TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -105,31 +106,79 @@ const Timesheet = () => {
     };
   };
 
-  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      isDrawingRef.current = true;
+      const { x, y } = getCanvasCoords(e);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDrawingRef.current) return;
+      e.preventDefault();
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const { x, y } = getCanvasCoords(e);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#000";
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      setHasSignature(true);
+    };
+
+    const onTouchEnd = () => { isDrawingRef.current = false; };
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd);
+    return () => {
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startDraw = (e: React.MouseEvent) => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
+    isDrawingRef.current = true;
     setIsDrawing(true);
-    const { x, y } = getCanvasCoords(e);
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(
+      (e.clientX - rect.left) * (canvas.width / rect.width),
+      (e.clientY - rect.top) * (canvas.height / rect.height),
+    );
   };
 
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing) return;
-    e.preventDefault();
+  const draw = (e: React.MouseEvent) => {
+    if (!isDrawingRef.current) return;
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
-    const { x, y } = getCanvasCoords(e);
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#000";
-    ctx.lineTo(x, y);
+    ctx.lineTo(
+      (e.clientX - rect.left) * (canvas.width / rect.width),
+      (e.clientY - rect.top) * (canvas.height / rect.height),
+    );
     ctx.stroke();
     setHasSignature(true);
   };
 
-  const stopDraw = () => setIsDrawing(false);
+  const stopDraw = () => { isDrawingRef.current = false; setIsDrawing(false); };
 
   const clearSignature = () => {
     const canvas = canvasRef.current;
@@ -436,9 +485,6 @@ const Timesheet = () => {
                 onMouseMove={draw}
                 onMouseUp={stopDraw}
                 onMouseLeave={stopDraw}
-                onTouchStart={startDraw}
-                onTouchMove={draw}
-                onTouchEnd={stopDraw}
               />
             </div>
             <div className="sig-controls">
