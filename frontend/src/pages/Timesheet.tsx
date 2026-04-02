@@ -9,8 +9,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDailyRecords, useUsers } from "@/lib/queries";
 import jsPDF from "jspdf";
 import "../styles/Timesheet.css";
-import React, { useEffect } from 'react';
+import React from 'react';
 import { apiFetch, apiFetchBlob } from '../lib/api';
+
+interface TimesheetEntry { id: string; month: string; user_id: string; }
 
 const Timesheet = () => {
   const { user, isAdmin } = useAuth();
@@ -32,7 +34,7 @@ const Timesheet = () => {
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const daysInMonth = useMemo(() => eachDayOfInterval({ start: monthStart, end: monthEnd }), [monthStart, monthEnd]);
 
   const targetDailyRecords = useMemo(() => {
     return dailyRecords.filter(r => r.date.startsWith(monthStr) && r.userId === targetUserId);
@@ -90,7 +92,8 @@ const Timesheet = () => {
 
   // Canvas drawing
   const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -235,10 +238,33 @@ const Timesheet = () => {
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
-  }, [dayData, currentMonth, targetUser, totalMonthAllMins, totalMonthOvertimeMins, hasSignature, user?.username]);
+  }, [dayData, currentMonth, targetUser, totalMonthAllMins, totalMonthOvertimeMins, hasSignature]);
 
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+
+  // Signed & pending timesheets
+  const [signedTimesheets, setSignedTimesheets] = useState<TimesheetEntry[]>([]);
+  const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetEntry[]>([]);
+
+  React.useEffect(() => {
+    apiFetch<TimesheetEntry[]>("/api/timesheets/signed").then(setSignedTimesheets).catch(() => {});
+    apiFetch<TimesheetEntry[]>("/api/timesheets/pending").then(setPendingTimesheets).catch(() => {});
+  }, []);
+
+  const handleDownload = useCallback(async (id: string) => {
+    const blob = await apiFetchBlob(`/api/signed-pdfs/${id}`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `timesheet_${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleSendEmail = useCallback(async (id: string) => {
+    await apiFetch(`/api/timesheets/${id}/send-email`, { method: "POST" });
+  }, []);
 
 
   return (
@@ -334,7 +360,7 @@ const Timesheet = () => {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={6}>Total</td>
+                    <td colSpan={7}>Total</td>
                     <td>
                       {Math.floor(totalMonthAllMins / 60)}h{totalMonthAllMins % 60 > 0 ? ` ${totalMonthAllMins % 60}m` : ""}
                       {totalMonthOvertimeMins > 0 && (
@@ -390,24 +416,24 @@ const Timesheet = () => {
       </Button>
 
       <div className="mt-6">
-        <h2>Pending Timesheets</h2>
+        <h2>Folhas Pendentes</h2>
         <ul>
-          {timesheets.map((timesheet) => (
+          {pendingTimesheets.map((timesheet) => (
             <li key={timesheet.id}>
               {timesheet.month} - {timesheet.user_id}
-              <button onClick={() => handleSendEmail(timesheet.id)}>Send Email</button>
+              <button onClick={() => handleSendEmail(timesheet.id)}>Enviar Email</button>
             </li>
           ))}
         </ul>
       </div>
 
       <div className="mt-6">
-        <h2>Signed Timesheets</h2>
+        <h2>Folhas Assinadas</h2>
         <ul>
           {signedTimesheets.map((pdf) => (
             <li key={pdf.id}>
               {pdf.month} - {pdf.user_id}
-              <button onClick={() => handleDownload(pdf.id)}>Download</button>
+              <button onClick={() => handleDownload(pdf.id)}>Baixar</button>
             </li>
           ))}
         </ul>
