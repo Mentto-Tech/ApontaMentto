@@ -309,3 +309,46 @@ class AdminImportResult(CamelModel):
     imported: Dict[str, int]
 
 
+# ---------------------------------------------------------------------------
+# Timesheet signing
+# ---------------------------------------------------------------------------
+class TimesheetSignRequestOut(CamelModel):
+    id: str
+    user_id: str
+    month: str
+    status: str
+    expires_at: Optional[datetime] = None
+    manager_signed_at: Optional[datetime] = None
+    employee_signed_at: Optional[datetime] = None
+    created_by_admin_id: str
+
+    @field_validator("expires_at", "manager_signed_at", "employee_signed_at", mode="before")
+    @classmethod
+    def _dt_utc(cls, v: Any):
+        return _as_utc_datetime(v)
+
+
+class TimesheetSignedPdfOut(CamelModel):
+    id: str
+    user_id: str
+    month: str
+    signed_at: Optional[datetime] = None
+    sign_request_id: Optional[str] = None
+
+    @field_validator("signed_at", mode="before")
+    @classmethod
+    def _dt_utc(cls, v: Any):
+        return _as_utc_datetime(v)
+
+
+class CreateSignRequestIn(CamelModel):
+    user_id: str
+    month: str                  # YYYY-MM
+    manager_signature: str      # dataURL base64 PNG
+
+
+class EmployeeSignIn(BaseModel):
+    token: str
+    employee_signature: str     # dataURL base64 PNG
+
+

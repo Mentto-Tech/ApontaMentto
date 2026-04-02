@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, FileText, Pen } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Pen, Send, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,8 +11,10 @@ import jsPDF from "jspdf";
 import "../styles/Timesheet.css";
 import React from 'react';
 import { apiFetch, apiFetchBlob } from '../lib/api';
+import { toast } from "@/hooks/use-toast";
 
-interface TimesheetEntry { id: string; month: string; user_id: string; }
+interface TimesheetSignRequest { id: string; month: string; userId: string; status: string; managerSignedAt?: string; employeeSignedAt?: string; }
+interface TimesheetSignedPdf { id: string; month: string; userId: string; signedAt?: string; }
 
 const Timesheet = () => {
   const { user, isAdmin } = useAuth();
@@ -244,26 +246,51 @@ const Timesheet = () => {
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   // Signed & pending timesheets
-  const [signedTimesheets, setSignedTimesheets] = useState<TimesheetEntry[]>([]);
-  const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetEntry[]>([]);
+  const [signedTimesheets, setSignedTimesheets] = useState<TimesheetSignedPdf[]>([]);
+  const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetSignRequest[]>([]);
+  const [filterUserId, setFilterUserId] = useState<string>("all");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
-  React.useEffect(() => {
-    apiFetch<TimesheetEntry[]>("/api/timesheets/signed").then(setSignedTimesheets).catch(() => {});
-    apiFetch<TimesheetEntry[]>("/api/timesheets/pending").then(setPendingTimesheets).catch(() => {});
-  }, []);
+  const loadSignedData = useCallback(() => {
+    const params = isAdmin && filterUserId !== "all" ? `?user_id=${filterUserId}` : "";
+    apiFetch<TimesheetSignedPdf[]>(`/api/timesheets/signed-pdfs${params}`).then(setSignedTimesheets).catch(() => {});
+    apiFetch<TimesheetSignRequest[]>(isAdmin ? "/api/timesheets/sign-requests" : "/api/timesheets/my-sign-requests")
+      .then(r => setPendingTimesheets(r.filter(x => x.status !== "complete")))
+      .catch(() => {});
+  }, [isAdmin, filterUserId]);
+
+  React.useEffect(() => { loadSignedData(); }, [loadSignedData]);
+
+  const handleSendEmail = useCallback(async () => {
+    if (!hasSignature || !canvasRef.current) {
+      toast({ title: "Assine primeiro", description: "Vá para a aba 'Assinar' e desenhe sua assinatura antes de enviar.", variant: "destructive" });
+      return;
+    }
+    if (!targetUserId) return;
+    const managerSignature = canvasRef.current.toDataURL("image/png");
+    setSendingEmail(true);
+    try {
+      await apiFetch("/api/timesheets/sign-request", {
+        method: "POST",
+        body: { user_id: targetUserId, month: monthStr, manager_signature: managerSignature },
+      });
+      toast({ title: "Email enviado!", description: "O funcionário receberá um link para assinar a folha." });
+      loadSignedData();
+    } catch (e: unknown) {
+      toast({ title: "Erro ao enviar", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [hasSignature, targetUserId, monthStr, loadSignedData]);
 
   const handleDownload = useCallback(async (id: string) => {
-    const blob = await apiFetchBlob(`/api/signed-pdfs/${id}`);
+    const blob = await apiFetchBlob(`/api/timesheets/signed-pdfs/${id}/download`);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `timesheet_${id}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
-
-  const handleSendEmail = useCallback(async (id: string) => {
-    await apiFetch(`/api/timesheets/${id}/send-email`, { method: "POST" });
   }, []);
 
 
@@ -415,28 +442,80 @@ const Timesheet = () => {
         Gerar PDF da Folha de Ponto
       </Button>
 
-      <div className="mt-6">
-        <h2>Folhas Pendentes</h2>
-        <ul>
-          {pendingTimesheets.map((timesheet) => (
-            <li key={timesheet.id}>
-              {timesheet.month} - {timesheet.user_id}
-              <button onClick={() => handleSendEmail(timesheet.id)}>Enviar Email</button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Send for signature (admin only) */}
+      {isAdmin && (
+        <div className="mt-4 border rounded-lg p-4 bg-card space-y-2">
+          <p className="text-sm font-medium">Enviar para assinatura do funcionário</p>
+          <p className="text-xs text-muted-foreground">
+            Assine na aba "Assinar" acima e clique no botão para enviar o link por email para <strong>{targetUser?.username || "—"}</strong>.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleSendEmail}
+            disabled={sendingEmail || !targetUserId}
+          >
+            {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+            Enviar email para assinar — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+          </Button>
+        </div>
+      )}
 
-      <div className="mt-6">
-        <h2>Folhas Assinadas</h2>
-        <ul>
-          {signedTimesheets.map((pdf) => (
-            <li key={pdf.id}>
-              {pdf.month} - {pdf.user_id}
-              <button onClick={() => handleDownload(pdf.id)}>Baixar</button>
-            </li>
-          ))}
-        </ul>
+      {/* Pending sign requests */}
+      {pendingTimesheets.length > 0 && (
+        <div className="mt-6 border rounded-lg p-4 bg-card space-y-2">
+          <h2 className="font-semibold text-sm">Aguardando assinatura</h2>
+          <ul className="space-y-1">
+            {pendingTimesheets.map((req) => {
+              const emp = allUsers.find(u => u.id === req.userId);
+              return (
+                <li key={req.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                  <span>{req.month} — {emp?.username ?? req.userId}</span>
+                  <span className="text-xs text-amber-600 capitalize">{req.status.replace("_", " ")}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* Signed PDFs */}
+      <div className="mt-6 border rounded-lg p-4 bg-card space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-semibold text-sm">Folhas Assinadas</h2>
+          {isAdmin && (
+            <Select value={filterUserId} onValueChange={v => setFilterUserId(v)}>
+              <SelectTrigger className="w-44 h-8 text-xs">
+                <SelectValue placeholder="Filtrar por funcionário" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {allUsers.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.username}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        {signedTimesheets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma folha assinada ainda.</p>
+        ) : (
+          <ul className="space-y-1">
+            {signedTimesheets
+              .filter(pdf => filterUserId === "all" || pdf.userId === filterUserId)
+              .map((pdf) => {
+                const emp = allUsers.find(u => u.id === pdf.userId);
+                return (
+                  <li key={pdf.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                    <span>{pdf.month}{emp ? ` — ${emp.username}` : ""}</span>
+                    <Button variant="ghost" size="sm" onClick={() => handleDownload(pdf.id)}>
+                      <Download className="h-4 w-4 mr-1" /> Baixar
+                    </Button>
+                  </li>
+                );
+              })}
+          </ul>
+        )}
       </div>
     </div>
   );

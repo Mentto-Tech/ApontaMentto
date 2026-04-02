@@ -1,5 +1,7 @@
 import datetime
 import enum
+import uuid
+from datetime import timedelta
 from typing import List, Optional
 
 from sqlalchemy import (
@@ -270,10 +272,17 @@ class TimesheetSignRequest(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    month = Column(String, nullable=False)  # YYYY-MM
+    status = Column(String, nullable=False, default="pending")  # pending | manager_signed | employee_signed | complete
     token_hash = Column(String, nullable=False, unique=True)
-    expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=3))
-    signed_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    # PDF com assinatura do gestor (base64 PNG da assinatura embutida no PDF)
+    manager_signature = Column(Text, nullable=True)   # dataURL base64 PNG
+    manager_signed_at = Column(DateTime, nullable=True)
     created_by_admin_id = Column(String, ForeignKey("users.id"), nullable=False)
+    # Assinatura do funcionário
+    employee_signature = Column(Text, nullable=True)  # dataURL base64 PNG
+    employee_signed_at = Column(DateTime, nullable=True)
 
     user = relationship("User", foreign_keys=[user_id])
     created_by_admin = relationship("User", foreign_keys=[created_by_admin_id])
@@ -284,9 +293,10 @@ class TimesheetSignedPdf(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    month = Column(String, nullable=False)  # Format: YYYY-MM
+    month = Column(String, nullable=False)  # YYYY-MM
     pdf_data = Column(LargeBinary, nullable=False)
     mime_type = Column(String, nullable=False, default="application/pdf")
     signed_at = Column(DateTime, nullable=False, default=lambda: dt.utcnow())
+    sign_request_id = Column(String, ForeignKey("timesheet_sign_requests.id"), nullable=True)
 
     user = relationship("User")

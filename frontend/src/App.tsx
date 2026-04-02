@@ -24,6 +24,8 @@ import AdminPunchLogs from "./pages/AdminPunchLogs";
 import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 
+import SignTimesheet from "./pages/SignTimesheet";
+
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -50,6 +52,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
     <Route path="/signup" element={<GuestRoute><Signup /></GuestRoute>} />
+    <Route path="/assinar/:token" element={<SignTimesheet />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/" element={<Index />} />
       <Route path="/dashboard" element={<Dashboard />} />
