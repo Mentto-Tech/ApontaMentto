@@ -9,6 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDailyRecords, useUsers } from "@/lib/queries";
 import jsPDF from "jspdf";
 import "../styles/Timesheet.css";
+import React, { useEffect } from 'react';
+import { apiFetch, apiFetchBlob } from '../lib/api';
 
 const Timesheet = () => {
   const { user, isAdmin } = useAuth();
@@ -386,6 +388,30 @@ const Timesheet = () => {
         <FileText className="h-4 w-4 mr-2" />
         Gerar PDF da Folha de Ponto
       </Button>
+
+      <div className="mt-6">
+        <h2>Pending Timesheets</h2>
+        <ul>
+          {timesheets.map((timesheet) => (
+            <li key={timesheet.id}>
+              {timesheet.month} - {timesheet.user_id}
+              <button onClick={() => handleSendEmail(timesheet.id)}>Send Email</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-6">
+        <h2>Signed Timesheets</h2>
+        <ul>
+          {signedTimesheets.map((pdf) => (
+            <li key={pdf.id}>
+              {pdf.month} - {pdf.user_id}
+              <button onClick={() => handleDownload(pdf.id)}>Download</button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };
