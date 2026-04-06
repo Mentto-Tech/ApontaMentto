@@ -12,10 +12,10 @@ def _clean(val: str) -> str:
     """Remove surrounding quotes that some env injection methods leave in."""
     return val.strip('"').strip("'").strip()
 
-SMTP_SERVER = _clean(os.getenv("SMTP_SERVER") or os.getenv("MAIL_SERVER") or "smtp.gmail.com")
-SMTP_PORT = int(_clean(os.getenv("SMTP_PORT") or os.getenv("MAIL_PORT") or "587"))
-SMTP_USERNAME = _clean(os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME") or "mentto.tech@gmail.com")
-SMTP_PASSWORD = _clean(os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD") or "")
+SMTP_SERVER = _clean(os.getenv("MAIL_SERVER") or "smtp.gmail.com")
+SMTP_PORT = int(_clean(os.getenv("MAIL_PORT") or "587"))
+SMTP_USERNAME = _clean(os.getenv("MAIL_USERNAME") or "mentto.tech@gmail.com")
+SMTP_PASSWORD = _clean(os.getenv("MAIL_PASSWORD") or "")
 DEFAULT_FROM_EMAIL = _clean(os.getenv("DEFAULT_FROM_EMAIL") or SMTP_USERNAME)
 
 # Log configuration on startup (without password)
