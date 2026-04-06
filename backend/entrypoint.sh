@@ -1,8 +1,26 @@
 #!/bin/sh
-set -e
 
 echo "Running database migrations..."
 alembic upgrade head
+MIGRATION_EXIT=$?
+
+if [ $MIGRATION_EXIT -ne 0 ]; then
+    echo "Migration upgrade failed. Checking current state..."
+    CURRENT=$(alembic current 2>&1 || echo "unknown")
+    echo "Current alembic state: $CURRENT"
+
+    if echo "$CURRENT" | grep -q "add_timesheet_sign_models"; then
+        echo "Stamping to 9f1a2b3c4d5e (tables already exist in DB)..."
+        alembic stamp 9f1a2b3c4d5e
+        echo "Stamp done. Running upgrade head again..."
+        alembic upgrade head || { echo "Migration still failing after stamp. Aborting."; exit 1; }
+    else
+        echo "Unknown migration state, aborting."
+        exit 1
+    fi
+fi
+
+set -e
 
 echo "Creating admin user if not exists..."
 python - <<'EOF'

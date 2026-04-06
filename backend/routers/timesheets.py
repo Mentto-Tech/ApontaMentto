@@ -14,6 +14,7 @@ import hashlib
 import io
 import os
 import uuid
+import logging
 from datetime import datetime, timedelta, timezone
 from functools import partial
 
@@ -33,6 +34,7 @@ from schemas import (
     TimesheetSignRequestOut,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -138,8 +140,12 @@ async def create_sign_request(
     month_label = f"{month_name[int(mon)]} {year}"
     target_email = body.override_email or employee.email
 
+    logger.info(f"Preparing to send sign request email to {target_email} for {month_label}")
+    logger.info(f"Sign URL: {sign_url}")
+
     def _send():
         try:
+            logger.info(f"Starting email send to {target_email}")
             EmailService.send_sign_request(
                 to_email=target_email,
                 employee_name=employee.username,
@@ -147,8 +153,9 @@ async def create_sign_request(
                 month_label=month_label,
                 sign_url=sign_url,
             )
+            logger.info(f"Email send completed successfully to {target_email}")
         except Exception as e:
-            print(f"[email error] {e}")
+            logger.error(f"[email error] Failed to send to {target_email}: {type(e).__name__}: {e}", exc_info=True)
 
     loop = asyncio.get_event_loop()
     loop.run_in_executor(None, _send)
@@ -245,8 +252,11 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
     if manager:
         _mgr = manager
         _emp_name = employee.username if employee else ""
+        logger.info(f"Preparing to send notification to manager {_mgr.email} about employee signature")
+        
         def _notify():
             try:
+                logger.info(f"Starting notification email to manager {_mgr.email}")
                 EmailService.send_employee_signed_notification(
                     to_email=_mgr.email,
                     manager_name=_mgr.username,
@@ -254,8 +264,9 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
                     month_label=month_label,
                     download_url=download_url,
                 )
+                logger.info(f"Notification email sent successfully to manager {_mgr.email}")
             except Exception as e:
-                print(f"[email error] {e}")
+                logger.error(f"[email error] Failed to notify manager {_mgr.email}: {type(e).__name__}: {e}", exc_info=True)
         asyncio.get_event_loop().run_in_executor(None, _notify)
 
     return {"ok": True, "pdfId": signed_pdf.id}
@@ -314,6 +325,48 @@ async def list_signed_pdfs(
 # ---------------------------------------------------------------------------
 # Download signed PDF
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Admin: test email config (diagnostic)
+# ---------------------------------------------------------------------------
+@router.post("/test-email")
+async def test_email(
+    to_email: str,
+    admin: User = Depends(get_admin_user),
+):
+    """Send a test email to verify SMTP config is working on the server."""
+    import smtplib
+    from email_service import SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, DEFAULT_FROM_EMAIL
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    info = {
+        "smtp_server": SMTP_SERVER,
+        "smtp_port": SMTP_PORT,
+        "smtp_user": SMTP_USERNAME,
+        "password_len": len(SMTP_PASSWORD),
+        "from": DEFAULT_FROM_EMAIL,
+        "to": to_email,
+    }
+
+    def _send():
+        msg = MIMEMultipart("alternative")
+        msg["From"] = DEFAULT_FROM_EMAIL
+        msg["To"] = to_email
+        msg["Subject"] = "Teste SMTP - ApontaMentto"
+        msg.attach(MIMEText("<p>Configuração de email funcionando!</p>", "html"))
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(SMTP_USERNAME, SMTP_PASSWORD)
+            s.sendmail(DEFAULT_FROM_EMAIL, to_email, msg.as_string())
+
+    try:
+        _send()
+        return {"ok": True, "config": info}
+    except Exception as e:
+        raise HTTPException(500, detail=f"{type(e).__name__}: {e} | config: {info}")
+
+
 @router.get("/signed-pdfs/{pdf_id}/download")
 async def download_signed_pdf(
     pdf_id: str,
