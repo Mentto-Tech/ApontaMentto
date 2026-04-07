@@ -50,51 +50,179 @@ def _build_pdf_bytes(
     manager_name: str,
     manager_sig_dataurl: str | None,
     employee_sig_dataurl: str | None,
+    daily_records: list = None
 ) -> bytes:
-    """Generate a minimal PDF with both signatures using jsPDF-equivalent via reportlab."""
+    """Generate a PDF with the timesheet data and both signatures using reportlab."""
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas as rl_canvas
         import base64
         from PIL import Image as PILImage
+        import calendar
+        from datetime import date
 
         buf = io.BytesIO()
         c = rl_canvas.Canvas(buf, pagesize=A4)
         w, h = A4
+        margin = 40
 
+        y = h - 60
         c.setFont("Helvetica-Bold", 16)
-        c.drawCentredString(w / 2, h - 60, "FOLHA DE PONTO ASSINADA")
-        c.setFont("Helvetica", 11)
-        c.drawString(40, h - 90, f"Funcionário: {employee_name}")
-        c.drawString(40, h - 108, f"Mês: {month}")
-        c.drawString(40, h - 126, f"Gestor: {manager_name}")
+        c.drawCentredString(w / 2, y, "FOLHA DE PONTO ASSINADA")
+        y -= 30
 
-        def _draw_sig(dataurl: str | None, label: str, x: float, y: float):
+        c.setFont("Helvetica", 10)
+        c.drawString(margin, y, f"Funcionário: {employee_name}")
+        y -= 15
+        
+        # Parse month string YYYY-MM
+        try:
+            year, mon = map(int, month.split("-"))
+        except:
+            year, mon = 2024, 1
+            
+        c.drawString(margin, y, f"Mês: {month} | Gestor: {manager_name}")
+        y -= 40
+
+        # Data rows
+        headers = ["Dia", "Semana", "Entrada 1", "Saída 1", "Almoço", "Entrada 2", "Saída 2", "Hora extra"]
+        col_widths = [30, 45, 45, 45, 45, 45, 45, 60]
+        
+        c.setFont("Helvetica-Bold", 9)
+        x = margin
+        for i, head in enumerate(headers):
+            c.drawString(x, y, head)
+            x += col_widths[i]
+        y -= 5
+        c.line(margin, y, w - margin, y)
+        y -= 15
+
+        c.setFont("Helvetica", 9)
+
+        records_map = {r.date: r for r in daily_records} if daily_records else {}
+        _, days_in_month = calendar.monthrange(year, mon)
+        
+        total_worked_mins = 0
+        total_overtime_mins = 0
+
+        def mins_between(start, end):
+            if not start or not end: return 0
+            try:
+                sh, sm = map(int, start.split(":"))
+                eh, em = map(int, end.split(":"))
+                diff = (eh * 60 + em) - (sh * 60 + sm)
+                return diff if diff > 0 else 0
+            except: return 0
+
+        weekdays_pt = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+
+        for d in range(1, days_in_month + 1):
+            if y < 60:
+                c.showPage()
+                y = h - 60
+                c.setFont("Helvetica", 9)
+            
+            current_date_obj = date(year, mon, d)
+            date_str = current_date_obj.strftime("%Y-%m-%d")
+            record = records_map.get(date_str)
+            
+            first_in = getattr(record, "in1", None) or getattr(record, "clock_in", None) or "—"
+            first_out = getattr(record, "out1", None) or "—"
+            second_in = getattr(record, "in2", None) or "—"
+            second_out = getattr(record, "out2", None) or getattr(record, "clock_out", None) or "—"
+            
+            lunch_break = f"{first_out} - {second_in}" if first_out != "—" and second_in != "—" else "—"
+            overtime = int(getattr(record, "overtime_minutes", 0) or 0)
+            
+            if first_in != "—" and second_out != "—" and first_out == "—" and second_in == "—":
+                worked = mins_between(first_in, second_out)
+            else:
+                worked = mins_between(first_in, first_out) + mins_between(second_in, second_out)
+                
+            total_worked_mins += worked
+            total_overtime_mins += overtime
+            
+            x = margin
+            c.drawString(x, y, str(d).zfill(2))
+            x += col_widths[0]
+            c.drawString(x, y, weekdays_pt[current_date_obj.weekday()])
+            x += col_widths[1]
+            c.drawString(x, y, first_in)
+            x += col_widths[2]
+            c.drawString(x, y, first_out)
+            x += col_widths[3]
+            c.drawString(x, y, lunch_break)
+            x += col_widths[4]
+            c.drawString(x, y, second_in)
+            x += col_widths[5]
+            c.drawString(x, y, second_out)
+            x += col_widths[6]
+            c.drawString(x, y, f"{overtime}m" if overtime else "—")
+            
+            y -= 15
+
+        y -= 5
+        c.line(margin, y, w - margin, y)
+        y -= 15
+        
+        total_all_mins = total_worked_mins + total_overtime_mins
+        total_h = total_all_mins // 60
+        total_m = total_all_mins % 60
+        oh = total_overtime_mins // 60
+        om = total_overtime_mins % 60
+        
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margin, y, f"Total: {total_h}h {total_m}m  |  Hora Extra: {oh}h {om}m")
+        y -= 40
+
+        if y < 100:
+            c.showPage()
+            y = h - 60
+
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margin, y, "Assinaturas:")
+        y -= 10
+        
+        def _draw_sig(dataurl: str | None, label: str, sig_x: float, sig_y: float):
             if not dataurl:
                 return
             try:
+                from reportlab.lib.utils import ImageReader
                 header, b64 = dataurl.split(",", 1)
                 img_bytes = base64.b64decode(b64)
-                img_buf = io.BytesIO(img_bytes)
-                img = PILImage.open(img_buf)
+                img = PILImage.open(io.BytesIO(img_bytes))
+                
+                # Resolve background issue for transparent PNGs
+                if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                    background = PILImage.new('RGB', img.size, (255, 255, 255))
+                    alpha = img.split()[-1] if img.mode in ('RGBA', 'LA') else None
+                    if alpha:
+                        background.paste(img, mask=alpha)
+                    else:
+                        background.paste(img)
+                    img = background
+                else:
+                    img = img.convert('RGB')
+                    
                 tmp = io.BytesIO()
                 img.save(tmp, format="PNG")
                 tmp.seek(0)
-                from reportlab.lib.utils import ImageReader
-                c.drawImage(ImageReader(tmp), x, y, width=160, height=50, preserveAspectRatio=True)
-            except Exception:
-                pass
+                
+                c.drawImage(ImageReader(tmp), sig_x, sig_y - 45, width=150, height=45, preserveAspectRatio=True)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error("PDF image err: " + str(e))
+                
             c.setFont("Helvetica", 9)
-            c.drawString(x, y - 12, label)
-            c.line(x, y - 2, x + 160, y - 2)
+            c.line(sig_x, sig_y - 45, sig_x + 150, sig_y - 45)
+            c.drawString(sig_x, sig_y - 58, label)
 
-        _draw_sig(manager_sig_dataurl, f"{manager_name} (Gestor)", 40, h - 220)
-        _draw_sig(employee_sig_dataurl, f"{employee_name} (Funcionário)", 280, h - 220)
+        _draw_sig(manager_sig_dataurl, f"{manager_name} (Gestor)", margin, y)
+        _draw_sig(employee_sig_dataurl, f"{employee_name} (Funcionário)", margin + 200, y)
 
         c.save()
         return buf.getvalue()
     except ImportError:
-        # Fallback: plain text PDF-like bytes (won't render as real PDF without reportlab)
         return b"%PDF-1.4 placeholder - install reportlab and pillow"
 
 
@@ -224,12 +352,22 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
     adm_result = await db.execute(select(User).where(User.id == req.created_by_admin_id))
     manager = adm_result.scalar_one_or_none()
 
+    from models import DailyRecord
+    records_result = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == req.user_id,
+            DailyRecord.date.like(f"{req.month}%")
+        )
+    )
+    daily_records = records_result.scalars().all()
+
     pdf_bytes = _build_pdf_bytes(
         month=req.month,
         employee_name=employee.username if employee else "",
         manager_name=manager.username if manager else "",
         manager_sig_dataurl=req.manager_signature,
         employee_sig_dataurl=body.employee_signature,
+        daily_records=daily_records,
     )
 
     signed_pdf = TimesheetSignedPdf(
