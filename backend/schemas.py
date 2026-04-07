@@ -302,6 +302,10 @@ class AdminExport(CamelModel):
     locations: List[LocationOut]
     time_entries: List[TimeEntryOut]
     daily_records: List[DailyRecordOut]
+    absence_justifications: List[AbsenceJustificationOut] = []
+    punch_logs: List[PunchLogOut] = []
+    time_bank_entries: List[TimeBankEntryOut] = []
+    timesheet_sign_requests: List[TimesheetSignRequestOut] = []
 
 
 class AdminImportResult(CamelModel):

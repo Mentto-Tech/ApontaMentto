@@ -213,6 +213,10 @@ export function useImportData() {
       qc.invalidateQueries({ queryKey: ["time-entries"] });
       qc.invalidateQueries({ queryKey: ["daily-records"] });
       qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["justifications"] });
+      qc.invalidateQueries({ queryKey: ["punch-logs"] });
+      qc.invalidateQueries({ queryKey: ["time-bank"] });
+      qc.invalidateQueries({ queryKey: ["timesheet-sign-requests"] });
     },
   });
 }

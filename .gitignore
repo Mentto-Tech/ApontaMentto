@@ -6,6 +6,8 @@
 # Scripts de seed (contêm credenciais locais)
 # backend/seed.py
 # backend/seed_test.py
+backend/seed_test.json
+backend/generate_seed_json.py
 
 # Python
 __pycache__/
