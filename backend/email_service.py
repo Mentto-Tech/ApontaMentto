@@ -1,8 +1,6 @@
-import smtplib
 import os
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -10,66 +8,63 @@ logger = logging.getLogger(__name__)
 
 def _clean(val: str) -> str:
     """Remove surrounding quotes that some env injection methods leave in."""
+    if not val:
+        return ""
     return val.strip('"').strip("'").strip()
 
-SMTP_SERVER = _clean(os.getenv("MAIL_SERVER") or "smtp.gmail.com")
-SMTP_PORT = int(_clean(os.getenv("MAIL_PORT") or "587"))
-SMTP_USERNAME = _clean(os.getenv("MAIL_USERNAME") or "mentto.tech@gmail.com")
-SMTP_PASSWORD = _clean(os.getenv("MAIL_PASSWORD") or "")
-DEFAULT_FROM_EMAIL = _clean(os.getenv("DEFAULT_FROM_EMAIL") or SMTP_USERNAME)
+RESEND_API_KEY = _clean(os.getenv("RESEND_API_KEY", ""))
+RESEND_FROM = _clean(os.getenv("RESEND_FROM", ""))
 
-# Log configuration on startup (without password)
-logger.info(f"Email config: SMTP_SERVER={SMTP_SERVER}, SMTP_PORT={SMTP_PORT}, SMTP_USERNAME={SMTP_USERNAME}, FROM={DEFAULT_FROM_EMAIL}")
-
+# Log configuration on startup
+logger.info(f"Email config: RESEND_API_KEY={'configured' if RESEND_API_KEY else 'missing'}, RESEND_FROM={RESEND_FROM}")
 
 class EmailService:
     @staticmethod
-    def send_email(to_email: str, subject: str, body: str):
+    def _send_via_resend(to_email: str, subject: str, text: str = None, html: str = None):
+        if not RESEND_API_KEY:
+            logger.error("RESEND_API_KEY not configured - cannot send email")
+            raise ValueError("RESEND_API_KEY not configured")
+        if not RESEND_FROM:
+            logger.error("RESEND_FROM not configured - cannot send email")
+            raise ValueError("RESEND_FROM not configured")
+
+        headers = {
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "from": RESEND_FROM,
+            "to": [to_email],
+            "subject": subject,
+        }
+        if html:
+            payload["html"] = html
+        if text:
+            payload["text"] = text
+
         try:
-            if not SMTP_PASSWORD:
-                logger.error("SMTP_PASSWORD not configured - cannot send email")
-                raise ValueError("SMTP_PASSWORD not configured")
+            logger.info(f"Attempting to send email to {to_email} with subject: {subject} via Resend")
+            response = httpx.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=10.0)
             
-            logger.info(f"Attempting to send email to {to_email} with subject: {subject}")
-            msg = MIMEMultipart()
-            msg["From"] = DEFAULT_FROM_EMAIL
-            msg["To"] = to_email
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body, "plain"))
+            # Raise exception if status is not 2xx
+            response.raise_for_status()
             
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-                server.starttls()
-                server.login(SMTP_USERNAME, SMTP_PASSWORD)
-                server.sendmail(DEFAULT_FROM_EMAIL, to_email, msg.as_string())
-            
-            logger.info(f"✓ Email sent successfully to {to_email}")
+            logger.info(f"✓ Email sent successfully to {to_email} via Resend")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"✗ Failed to send email via Resend API: {e.response.status_code} {e.response.text}")
+            raise
         except Exception as e:
             logger.error(f"✗ Failed to send email to {to_email}: {type(e).__name__}: {e}", exc_info=True)
             raise
 
     @staticmethod
+    def send_email(to_email: str, subject: str, body: str):
+        EmailService._send_via_resend(to_email=to_email, subject=subject, text=body)
+
+    @staticmethod
     def send_html_email(to_email: str, subject: str, html: str):
-        try:
-            if not SMTP_PASSWORD:
-                logger.error("SMTP_PASSWORD not configured - cannot send email")
-                raise ValueError("SMTP_PASSWORD not configured")
-            
-            logger.info(f"Attempting to send HTML email to {to_email} with subject: {subject}")
-            msg = MIMEMultipart("alternative")
-            msg["From"] = DEFAULT_FROM_EMAIL
-            msg["To"] = to_email
-            msg["Subject"] = subject
-            msg.attach(MIMEText(html, "html"))
-            
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-                server.starttls()
-                server.login(SMTP_USERNAME, SMTP_PASSWORD)
-                server.sendmail(DEFAULT_FROM_EMAIL, to_email, msg.as_string())
-            
-            logger.info(f"✓ HTML email sent successfully to {to_email}")
-        except Exception as e:
-            logger.error(f"✗ Failed to send HTML email to {to_email}: {type(e).__name__}: {e}", exc_info=True)
-            raise
+        EmailService._send_via_resend(to_email=to_email, subject=subject, html=html)
 
     @staticmethod
     def send_sign_request(to_email: str, employee_name: str, manager_name: str, month_label: str, sign_url: str):
@@ -109,3 +104,4 @@ class EmailService:
         </div>
         """
         EmailService.send_html_email(to_email, subject, html)
+
