@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Clock, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Clock, Plus, Trash2, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { formatYmdToBr } from "@/lib/datetime";
 import "@/styles/TimeBank.css";
@@ -103,6 +103,24 @@ const TimeBank = () => {
     },
   });
 
+  // Sync time bank from daily records
+  const syncMutation = useMutation({
+    mutationFn: () => {
+      const params = new URLSearchParams();
+      if (selectedUserId) params.append("userId", selectedUserId);
+      return apiFetch<{ created: number; updated: number }>(`/api/time-bank/sync?${params.toString()}`, {
+        method: "POST",
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["timeBank"] });
+      toast.success(`Sincronizado: ${data.created} criados, ${data.updated} atualizados`);
+    },
+    onError: () => {
+      toast.error("Erro ao sincronizar banco de horas");
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amountMinutes = parseInt(formAmount);
@@ -137,7 +155,17 @@ const TimeBank = () => {
     <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Banco de Horas</h1>
-        {isAdmin && (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+            Sincronizar
+          </Button>
+          {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -202,6 +230,7 @@ const TimeBank = () => {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       {/* Filters */}

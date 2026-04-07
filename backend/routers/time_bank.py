@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user
-from models import TimeBankEntry, User
+from models import TimeBankEntry, User, DailyRecord
 from schemas import TimeBankBalanceOut, TimeBankEntryIn, TimeBankEntryOut
 
 router = APIRouter()
@@ -104,3 +104,65 @@ async def delete_manual_entry(
     await db.delete(entry)
     await db.commit()
     return {"ok": True}
+
+
+@router.post("/sync", response_model=dict)
+async def sync_time_bank_from_daily_records(
+    userId: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Sincroniza entradas automáticas do banco de horas a partir dos DailyRecords existentes.
+    Útil para retroativamente criar entradas 'auto' para registros que já tinham overtime_minutes.
+    Apenas admins podem sincronizar outros usuários.
+    """
+    target_user_id = current_user.id
+    if userId:
+        if current_user.role != "admin" and userId != current_user.id:
+            raise HTTPException(403, "Sem permissão")
+        target_user_id = userId
+
+    # Busca todos os DailyRecords com overtime > 0 para o usuário
+    records_result = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == target_user_id,
+            DailyRecord.overtime_minutes > 0,
+        )
+    )
+    records = records_result.scalars().all()
+
+    created = 0
+    updated = 0
+
+    for record in records:
+        tb_res = await db.execute(
+            select(TimeBankEntry).where(
+                TimeBankEntry.daily_record_id == record.id,
+                TimeBankEntry.entry_type == "auto",
+            )
+        )
+        tb_entry = tb_res.scalar_one_or_none()
+
+        if tb_entry:
+            if tb_entry.amount_minutes != record.overtime_minutes:
+                tb_entry.amount_minutes = record.overtime_minutes
+                tb_entry.description = f"Horas extras geradas no dia {record.date}"
+                updated += 1
+        else:
+            db.add(
+                TimeBankEntry(
+                    id=str(uuid.uuid4()),
+                    user_id=target_user_id,
+                    daily_record_id=record.id,
+                    date=record.date,
+                    amount_minutes=record.overtime_minutes,
+                    description=f"Horas extras geradas no dia {record.date}",
+                    entry_type="auto",
+                    created_at=datetime.utcnow(),
+                )
+            )
+            created += 1
+
+    await db.commit()
+    return {"created": created, "updated": updated}

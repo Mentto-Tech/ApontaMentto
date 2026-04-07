@@ -260,7 +260,7 @@ class TimeBankEntry(Base):
     entry_type: Mapped[str] = mapped_column(String, nullable=False)  # 'auto', 'manual_add', 'manual_subtract'
 
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow, nullable=False
+        DateTime, default=lambda: dt.utcnow(), nullable=False
     )
 
     user: Mapped[User] = relationship("User")
