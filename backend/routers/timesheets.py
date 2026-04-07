@@ -83,12 +83,12 @@ def _build_pdf_bytes(
 
         MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
                      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-        c.drawString(margin, y, f"Mês: {MONTHS_PT[mon]} {year} | Gestor: {manager_name}")
+        c.drawString(margin, y, f"Mês: {MONTHS_PT[mon]} {year} | Gestor: Tiago Goulart")
         y -= 40
 
         # Data rows — same columns as the preview table
         headers = ["Dia", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora Extra", "Horas Totais"]
-        col_widths = [50, 45, 45, 100, 45, 45, 55, 65]
+        col_widths = [55, 45, 45, 110, 45, 45, 55, 55]
         
         c.setFont("Helvetica-Bold", 9)
         x = margin
@@ -145,7 +145,7 @@ def _build_pdf_bytes(
             total_overtime_mins += overtime
             
             x = margin
-            day_label = f"{str(d).zfill(2)} {weekdays_pt[current_date_obj.weekday()]}"
+            day_label = f"{str(d).zfill(2)} - {weekdays_pt[current_date_obj.weekday()]}"
             c.drawString(x, y, day_label)
             x += col_widths[0]
             c.drawString(x, y, first_in)

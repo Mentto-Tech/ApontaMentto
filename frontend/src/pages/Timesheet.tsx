@@ -208,7 +208,7 @@ const Timesheet = () => {
     y += 10;
 
     // Table header
-    const colWidths = [20, 18, 18, 45, 18, 18, 20, 23];
+    const colWidths = [22, 18, 18, 52, 18, 18, 20, 14];
     const headers = ["Dia", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora Extra", "Horas Totais"];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
@@ -245,7 +245,7 @@ const Timesheet = () => {
       const totalLabel = hasAny ? `${Math.floor(dayTotalMins / 60)}h${dayTotalMins % 60 > 0 ? ` ${dayTotalMins % 60}m` : ""}` : "—";
 
       x = margin;
-      doc.text(`${dayNum} ${dayName}`, x + 1, y);
+      doc.text(`${dayNum} - ${dayName}`, x + 1, y);
       x += colWidths[0];
       doc.text(firstIn, x + 1, y);
       x += colWidths[1];
