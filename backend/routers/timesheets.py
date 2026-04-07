@@ -76,16 +76,19 @@ def _build_pdf_bytes(
         y -= 15
         
         try:
-            mon, year = map(int, month.split("-"))
+            year_str, mon_str = month.split("-")
+            year, mon = int(year_str), int(mon_str)
         except:
-            mon, year = 1, 2024
-            
-        c.drawString(margin, y, f"Mês: {mon}/{year} | Gestor: Tiago Goulart")
+            year, mon = 2024, 1
+
+        MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+        c.drawString(margin, y, f"Mês: {MONTHS_PT[mon]} {year} | Gestor: {manager_name}")
         y -= 40
 
-        # Data rows
-        headers = ["Dia", "Semana", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora extra"]
-        col_widths = [30, 45, 45, 45, 90, 45, 45, 60]
+        # Data rows — same columns as the preview table
+        headers = ["Dia", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora Extra", "Horas Totais"]
+        col_widths = [50, 45, 45, 100, 45, 45, 55, 65]
         
         c.setFont("Helvetica-Bold", 9)
         x = margin
@@ -142,21 +145,26 @@ def _build_pdf_bytes(
             total_overtime_mins += overtime
             
             x = margin
-            c.drawString(x, y, str(d).zfill(2))
+            day_label = f"{str(d).zfill(2)} {weekdays_pt[current_date_obj.weekday()]}"
+            c.drawString(x, y, day_label)
             x += col_widths[0]
-            c.drawString(x, y, weekdays_pt[current_date_obj.weekday()])
-            x += col_widths[1]
             c.drawString(x, y, first_in)
-            x += col_widths[2]
+            x += col_widths[1]
             c.drawString(x, y, first_out)
-            x += col_widths[3]
+            x += col_widths[2]
             c.drawString(x, y, lunch_break)
-            x += col_widths[4]
+            x += col_widths[3]
             c.drawString(x, y, second_in)
-            x += col_widths[5]
+            x += col_widths[4]
             c.drawString(x, y, second_out)
+            x += col_widths[5]
+            he_label = f"{overtime // 60}h{f' {overtime % 60}m' if overtime % 60 else ''}" if overtime else "—"
+            c.drawString(x, y, he_label)
             x += col_widths[6]
-            c.drawString(x, y, f"{overtime}m" if overtime else "—")
+            day_total = worked + overtime
+            has_any = worked > 0 or overtime > 0
+            total_label = f"{day_total // 60}h{f' {day_total % 60}m' if day_total % 60 else ''}" if has_any else "—"
+            c.drawString(x, y, total_label)
             
             y -= 15
 
@@ -264,7 +272,9 @@ async def create_sign_request(
     sign_url = f"{FRONTEND_URL}/assinar/{raw_token}"
     from calendar import month_name
     year, mon = body.month.split("-")
-    month_label = f"{month_name[int(mon)]} {year}"
+    MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    month_label = f"{MONTHS_PT[int(mon)]} {year}"
     target_email = body.override_email or employee.email
 
     logger.info(f"Preparing to send sign request email to {target_email} for {month_label}")
@@ -303,7 +313,7 @@ async def create_sign_request(
         except Exception as e:
             logger.error(f"[email error] Failed to send to {target_email}: {type(e).__name__}: {e}", exc_info=True)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     loop.run_in_executor(None, _send)
 
     return req
@@ -403,7 +413,9 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
     # Notify manager (non-blocking)
     from calendar import month_name as _mn
     year, mon = req.month.split("-")
-    month_label = f"{_mn[int(mon)]} {year}"
+    MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    month_label = f"{MONTHS_PT[int(mon)]} {year}"
     download_url = f"{FRONTEND_URL}/timesheet"
     if manager:
         _mgr = manager
@@ -423,7 +435,7 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
                 logger.info(f"Notification email sent successfully to manager {_mgr.email}")
             except Exception as e:
                 logger.error(f"[email error] Failed to notify manager {_mgr.email}: {type(e).__name__}: {e}", exc_info=True)
-        asyncio.get_event_loop().run_in_executor(None, _notify)
+        asyncio.get_running_loop().run_in_executor(None, _notify)
 
     return {"ok": True, "pdfId": signed_pdf.id}
 

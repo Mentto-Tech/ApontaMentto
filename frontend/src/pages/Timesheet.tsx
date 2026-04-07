@@ -208,8 +208,8 @@ const Timesheet = () => {
     y += 10;
 
     // Table header
-    const colWidths = [12, 20, 18, 18, 18, 18, 16];
-    const headers = ["Dia", "Semana", "Entrada 1", "Saída 1", "Almoço", "Entrada 2", "Saída 2", "Hora extra (min)"];
+    const colWidths = [20, 18, 18, 45, 18, 18, 20, 23];
+    const headers = ["Dia", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora Extra", "Horas Totais"];
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     let x = margin;
@@ -224,7 +224,7 @@ const Timesheet = () => {
     // Table rows
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    dayData.forEach(({ day, dailyRecord, overtimeMins }) => {
+    dayData.forEach(({ day, dailyRecord, overtimeMins, workedMins }) => {
       if (y > 270) {
         doc.addPage();
         y = 20;
@@ -238,20 +238,28 @@ const Timesheet = () => {
       const secondIn = dailyRecord?.in2 ?? "—";
       const secondOut = dailyRecord?.out2 ?? dailyRecord?.clockOut ?? "—";
 
+      const lunchBreak = firstOut !== "—" && secondIn !== "—" ? `${firstOut} - ${secondIn}` : "—";
+      const heLabel = overtimeMins ? `${Math.floor(overtimeMins / 60)}h${overtimeMins % 60 > 0 ? ` ${overtimeMins % 60}m` : ""}` : "—";
+      const dayTotalMins = workedMins + (overtimeMins || 0);
+      const hasAny = Boolean(dailyRecord?.in1 || dailyRecord?.clockIn || dailyRecord?.out1 || dailyRecord?.in2 || dailyRecord?.out2 || dailyRecord?.clockOut || overtimeMins);
+      const totalLabel = hasAny ? `${Math.floor(dayTotalMins / 60)}h${dayTotalMins % 60 > 0 ? ` ${dayTotalMins % 60}m` : ""}` : "—";
+
       x = margin;
-      doc.text(dayNum, x + 1, y);
+      doc.text(`${dayNum} ${dayName}`, x + 1, y);
       x += colWidths[0];
-      doc.text(dayName, x + 1, y);
+      doc.text(firstIn, x + 1, y);
       x += colWidths[1];
-      doc.text(firstIn || "—", x + 1, y);
+      doc.text(firstOut, x + 1, y);
       x += colWidths[2];
-      doc.text(firstOut || "—", x + 1, y);
+      doc.text(lunchBreak, x + 1, y);
       x += colWidths[3];
-      doc.text(secondIn || "—", x + 1, y);
+      doc.text(secondIn, x + 1, y);
       x += colWidths[4];
-      doc.text(secondOut || "—", x + 1, y);
+      doc.text(secondOut, x + 1, y);
       x += colWidths[5];
-      doc.text(overtimeMins ? String(overtimeMins) : "—", x + 1, y);
+      doc.text(heLabel, x + 1, y);
+      x += colWidths[6];
+      doc.text(totalLabel, x + 1, y);
       y += 5;
     });
 
@@ -284,8 +292,8 @@ const Timesheet = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       const today = format(new Date(), "dd/MM/yyyy");
-      doc.text(`Tiago Goulart  —  ${today}`, margin, y + 4);
-      doc.text(`${targetUser?.username || "—"}  —  ${today}`, margin + 80, y + 4); // Selected user signature remains empty
+      doc.text(`Tiago Goulart (Gestor)`, margin, y + 4);
+      doc.text(`${targetUser?.username || "—"} (Funcionário)`, margin + 80, y + 4); // Selected user signature remains empty
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
@@ -414,11 +422,11 @@ const Timesheet = () => {
                     <th>Dia</th>
                     <th>Entrada 1</th>
                     <th>Saída 1</th>
-                    <th>Almoço</th>
+                    <th>Almoço (Saída - Retorno)</th>
                     <th>Entrada 2</th>
                     <th>Saída 2</th>
                     <th>Hora Extra</th>
-                    <th>Horas</th>
+                    <th>Horas Totais</th>
                   </tr>
                 </thead>
                 <tbody>
