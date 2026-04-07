@@ -83,7 +83,7 @@ def _build_pdf_bytes(
 
         MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
                      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-        c.drawString(margin, y, f"Mês: {MONTHS_PT[mon]} {year} | Gestor: Tiago Goulart")
+        c.drawString(margin, y, f"Mês: {MONTHS_PT[mon]} {year} | Tiago Goulart")
         y -= 40
 
         # Data rows — same columns as the preview table
