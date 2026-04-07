@@ -75,18 +75,17 @@ def _build_pdf_bytes(
         c.drawString(margin, y, f"Funcionário: {employee_name}")
         y -= 15
         
-        # Parse month string YYYY-MM
         try:
-            year, mon = map(int, month.split("-"))
+            mon, year = map(int, month.split("-"))
         except:
-            year, mon = 2024, 1
+            mon, year = 1, 2024
             
-        c.drawString(margin, y, f"Mês: {month} | Gestor: {manager_name}")
+        c.drawString(margin, y, f"Mês: {mon}/{year} | Gestor: Tiago Goulart")
         y -= 40
 
         # Data rows
-        headers = ["Dia", "Semana", "Entrada 1", "Saída 1", "Almoço", "Entrada 2", "Saída 2", "Hora extra"]
-        col_widths = [30, 45, 45, 45, 45, 45, 45, 60]
+        headers = ["Dia", "Semana", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora extra"]
+        col_widths = [30, 45, 45, 45, 90, 45, 45, 60]
         
         c.setFont("Helvetica-Bold", 9)
         x = margin
@@ -217,7 +216,7 @@ def _build_pdf_bytes(
             c.line(sig_x, sig_y - 45, sig_x + 150, sig_y - 45)
             c.drawString(sig_x, sig_y - 58, label)
 
-        _draw_sig(manager_sig_dataurl, f"{manager_name} (Gestor)", margin, y)
+        _draw_sig(manager_sig_dataurl, f"Tiago Goulart (Gestor)", margin, y)
         _draw_sig(employee_sig_dataurl, f"{employee_name} (Funcionário)", margin + 200, y)
 
         c.save()
@@ -271,6 +270,24 @@ async def create_sign_request(
     logger.info(f"Preparing to send sign request email to {target_email} for {month_label}")
     logger.info(f"Sign URL: {sign_url}")
 
+    from models import DailyRecord
+    records_result = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == body.user_id,
+            DailyRecord.date.like(f"{body.month}%")
+        )
+    )
+    daily_records = records_result.scalars().all()
+
+    pdf_bytes = _build_pdf_bytes(
+        month=body.month,
+        employee_name=employee.username,
+        manager_name=admin.username,
+        manager_sig_dataurl=body.manager_signature,
+        employee_sig_dataurl=None,
+        daily_records=daily_records,
+    )
+
     def _send():
         try:
             logger.info(f"Starting email send to {target_email}")
@@ -280,6 +297,7 @@ async def create_sign_request(
                 manager_name=admin.username,
                 month_label=month_label,
                 sign_url=sign_url,
+                pdf_bytes=pdf_bytes,
             )
             logger.info(f"Email send completed successfully to {target_email}")
         except Exception as e:

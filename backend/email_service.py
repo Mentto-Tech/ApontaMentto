@@ -20,7 +20,7 @@ logger.info(f"Email config: RESEND_API_KEY={'configured' if RESEND_API_KEY else 
 
 class EmailService:
     @staticmethod
-    def _send_via_resend(to_email: str, subject: str, text: str = None, html: str = None):
+    def _send_via_resend(to_email: str, subject: str, text: str = None, html: str = None, attachments: list = None):
         if not RESEND_API_KEY:
             logger.error("RESEND_API_KEY not configured - cannot send email")
             raise ValueError("RESEND_API_KEY not configured")
@@ -42,6 +42,8 @@ class EmailService:
             payload["html"] = html
         if text:
             payload["text"] = text
+        if attachments:
+            payload["attachments"] = attachments
 
         try:
             logger.info(f"Attempting to send email to {to_email} with subject: {subject} via Resend")
@@ -63,11 +65,11 @@ class EmailService:
         EmailService._send_via_resend(to_email=to_email, subject=subject, text=body)
 
     @staticmethod
-    def send_html_email(to_email: str, subject: str, html: str):
-        EmailService._send_via_resend(to_email=to_email, subject=subject, html=html)
+    def send_html_email(to_email: str, subject: str, html: str, attachments: list = None):
+        EmailService._send_via_resend(to_email=to_email, subject=subject, html=html, attachments=attachments)
 
     @staticmethod
-    def send_sign_request(to_email: str, employee_name: str, manager_name: str, month_label: str, sign_url: str):
+    def send_sign_request(to_email: str, employee_name: str, manager_name: str, month_label: str, sign_url: str, pdf_bytes: bytes = None):
         subject = f"Folha de Ponto {month_label} — Aguardando sua assinatura"
         html = f"""
         <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px">
@@ -75,6 +77,7 @@ class EmailService:
           <p>Olá <strong>{employee_name}</strong>,</p>
           <p>O gestor <strong>{manager_name}</strong> assinou a folha de ponto referente a <strong>{month_label}</strong>
           e está aguardando a sua assinatura.</p>
+          <p>Em anexo, você encontra a prévia da folha com os cálculos e a assinatura do gestor para sua conferência.</p>
           <p style="margin:32px 0">
             <a href="{sign_url}"
                style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
@@ -84,7 +87,14 @@ class EmailService:
           <p style="color:#64748b;font-size:13px">O link expira em 3 dias. Caso tenha dúvidas, entre em contato com seu gestor.</p>
         </div>
         """
-        EmailService.send_html_email(to_email, subject, html)
+        attachments = None
+        if pdf_bytes:
+            import base64
+            b64_content = base64.b64encode(pdf_bytes).decode('utf-8')
+            filename = f"folha_de_ponto_{month_label}.pdf".replace(" ", "_").lower()
+            attachments = [{"filename": filename, "content": b64_content}]
+            
+        EmailService.send_html_email(to_email, subject, html, attachments=attachments)
 
     @staticmethod
     def send_employee_signed_notification(to_email: str, manager_name: str, employee_name: str, month_label: str, download_url: str):
