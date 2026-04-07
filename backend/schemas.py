@@ -266,7 +266,7 @@ class PunchLogOut(CamelModel):
 class TimeBankEntryIn(CamelModel):
     date: str
     amount_minutes: int
-    description: str
+    description: Optional[str] = None
     entry_type: str = "manual_add"
 
 

@@ -72,7 +72,7 @@ async def create_manual_entry(
         user_id=userId,
         date=data.date,
         amount_minutes=data.amount_minutes,
-        description=data.description,
+        description=data.description or ("Adição manual" if data.entry_type == "manual_add" else "Subtração manual"),
         entry_type=data.entry_type,
         created_at=datetime.utcnow()
     )
@@ -113,29 +113,27 @@ async def sync_time_bank_from_daily_records(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Sincroniza entradas automáticas do banco de horas a partir dos DailyRecords existentes.
-    Útil para retroativamente criar entradas 'auto' para registros que já tinham overtime_minutes.
-    Apenas admins podem sincronizar outros usuários.
+    Sincroniza entradas automáticas do banco de horas a partir dos DailyRecords e TimeEntries existentes.
     """
+    from models import TimeEntry
+
     target_user_id = current_user.id
     if userId:
         if current_user.role != "admin" and userId != current_user.id:
             raise HTTPException(403, "Sem permissão")
         target_user_id = userId
 
-    # Busca todos os DailyRecords com overtime > 0 para o usuário
+    created = 0
+    updated = 0
+
+    # 1. Sync from DailyRecords (overtime_minutes field)
     records_result = await db.execute(
         select(DailyRecord).where(
             DailyRecord.user_id == target_user_id,
             DailyRecord.overtime_minutes > 0,
         )
     )
-    records = records_result.scalars().all()
-
-    created = 0
-    updated = 0
-
-    for record in records:
+    for record in records_result.scalars().all():
         tb_res = await db.execute(
             select(TimeBankEntry).where(
                 TimeBankEntry.daily_record_id == record.id,
@@ -143,25 +141,77 @@ async def sync_time_bank_from_daily_records(
             )
         )
         tb_entry = tb_res.scalar_one_or_none()
-
         if tb_entry:
             if tb_entry.amount_minutes != record.overtime_minutes:
                 tb_entry.amount_minutes = record.overtime_minutes
-                tb_entry.description = f"Horas extras geradas no dia {record.date}"
+                tb_entry.description = "Hora extra"
                 updated += 1
         else:
-            db.add(
-                TimeBankEntry(
-                    id=str(uuid.uuid4()),
-                    user_id=target_user_id,
-                    daily_record_id=record.id,
-                    date=record.date,
-                    amount_minutes=record.overtime_minutes,
-                    description=f"Horas extras geradas no dia {record.date}",
-                    entry_type="auto",
-                    created_at=datetime.utcnow(),
-                )
+            db.add(TimeBankEntry(
+                id=str(uuid.uuid4()),
+                user_id=target_user_id,
+                daily_record_id=record.id,
+                date=record.date,
+                amount_minutes=record.overtime_minutes,
+                description="Hora extra",
+                entry_type="auto",
+                created_at=datetime.utcnow(),
+            ))
+            created += 1
+
+    # 2. Sync from TimeEntries (is_overtime=True)
+    ot_entries_result = await db.execute(
+        select(TimeEntry.date).where(
+            TimeEntry.user_id == target_user_id,
+            TimeEntry.is_overtime == True,
+            TimeEntry.entry_type != "break",
+        ).distinct()
+    )
+    overtime_dates = [row[0] for row in ot_entries_result.all()]
+
+    for date in overtime_dates:
+        day_entries_result = await db.execute(
+            select(TimeEntry).where(
+                TimeEntry.user_id == target_user_id,
+                TimeEntry.date == date,
+                TimeEntry.is_overtime == True,
+                TimeEntry.entry_type != "break",
             )
+        )
+        day_entries = day_entries_result.scalars().all()
+        total_minutes = sum(
+            max(0, (int(e.end_time.split(":")[0]) * 60 + int(e.end_time.split(":")[1])) -
+                   (int(e.start_time.split(":")[0]) * 60 + int(e.start_time.split(":")[1])))
+            for e in day_entries
+        )
+        if total_minutes <= 0:
+            continue
+
+        tb_res = await db.execute(
+            select(TimeBankEntry).where(
+                TimeBankEntry.user_id == target_user_id,
+                TimeBankEntry.date == date,
+                TimeBankEntry.entry_type == "auto",
+                TimeBankEntry.daily_record_id == None,
+            )
+        )
+        tb_entry = tb_res.scalar_one_or_none()
+        if tb_entry:
+            if tb_entry.amount_minutes != total_minutes:
+                tb_entry.amount_minutes = total_minutes
+                tb_entry.description = "Hora extra"
+                updated += 1
+        else:
+            db.add(TimeBankEntry(
+                id=str(uuid.uuid4()),
+                user_id=target_user_id,
+                daily_record_id=None,
+                date=date,
+                amount_minutes=total_minutes,
+                description="Hora extra",
+                entry_type="auto",
+                created_at=datetime.utcnow(),
+            ))
             created += 1
 
     await db.commit()

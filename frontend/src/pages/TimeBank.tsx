@@ -70,7 +70,7 @@ const TimeBank = () => {
 
   // Create manual entry mutation
   const createEntryMutation = useMutation({
-    mutationFn: (data: { date: string; amountMinutes: number; description: string; entryType: string }) => {
+    mutationFn: (data: { date: string; amountMinutes: number; description?: string; entryType: string }) => {
       return apiFetch(`/api/time-bank?userId=${selectedUserId}`, {
         method: "POST",
         body: data,
@@ -124,14 +124,14 @@ const TimeBank = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amountMinutes = parseInt(formAmount);
-    if (!formDate || isNaN(amountMinutes) || !formDescription) {
-      toast.error("Preencha todos os campos");
+    if (!formDate || isNaN(amountMinutes)) {
+      toast.error("Preencha data e quantidade");
       return;
     }
     createEntryMutation.mutate({
       date: formDate,
       amountMinutes: formType === "manual_subtract" ? -Math.abs(amountMinutes) : Math.abs(amountMinutes),
-      description: formDescription,
+      description: formDescription || undefined,
       entryType: formType,
     });
   };
@@ -210,12 +210,11 @@ const TimeBank = () => {
                   />
                 </div>
                 <div>
-                  <Label>Descrição</Label>
+                  <Label>Descrição (opcional)</Label>
                   <Textarea
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Motivo do lançamento"
-                    required
+                    placeholder="Motivo do lançamento (opcional)"
                   />
                 </div>
                 <div className="flex gap-2">
