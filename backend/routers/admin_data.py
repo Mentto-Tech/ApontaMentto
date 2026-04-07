@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends
@@ -17,6 +17,7 @@ from models import (
     PunchLog,
     TimeBankEntry,
     TimeEntry,
+    TimesheetSignedPdf,
     TimesheetSignRequest,
     User,
 )
@@ -35,6 +36,25 @@ from schemas import (
 )
 
 router = APIRouter()
+
+
+def _naive(dt: datetime | None) -> datetime | None:
+    """Converte datetime aware (UTC) para naive UTC, que é o que o banco espera."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _strip_tz(obj: Any) -> None:
+    """Remove tzinfo de todos os campos datetime de um objeto SQLAlchemy."""
+    for attr in vars(obj):
+        if attr.startswith("_"):
+            continue
+        val = getattr(obj, attr, None)
+        if isinstance(val, datetime) and val.tzinfo is not None:
+            setattr(obj, attr, val.astimezone(timezone.utc).replace(tzinfo=None))
 
 
 @router.get("/export", response_model=AdminExport)
@@ -81,11 +101,12 @@ async def import_data(
 ) -> AdminImportResult:
     """Full replace import.
 
-    Deletes and recreates all transactional data.
-    Users are exported for reference but are NOT imported.
-    TimesheetSignedPdf (binary PDFs) are not included in backup/restore.
+    - Usuários: upsert por ID (cria se não existe, atualiza metadados se já existe, preserva senha).
+    - Todo o resto: delete + recreate.
+    - TimesheetSignedPdf (PDFs binários) não são incluídos no backup/restore.
     """
 
+    users_raw = data.get("users", [])
     projects_raw = data.get("projects", [])
     locations_raw = data.get("locations", [])
     time_entries_raw = data.get("timeEntries") or data.get("time_entries") or []
@@ -95,7 +116,8 @@ async def import_data(
     time_bank_raw = data.get("timeBankEntries") or data.get("time_bank_entries") or []
     sign_requests_raw = data.get("timesheetSignRequests") or data.get("timesheet_sign_requests") or []
 
-    # --- Delete existing data (children first to respect FK constraints) ---
+    # --- Delete transactional data (children first) ---
+    await db.execute(delete(TimesheetSignedPdf))
     await db.execute(delete(TimesheetSignRequest))
     await db.execute(delete(TimeBankEntry))
     await db.execute(delete(PunchLog))
@@ -104,8 +126,10 @@ async def import_data(
     await db.execute(delete(TimeEntry))
     await db.execute(delete(Location))
     await db.execute(delete(Project))
+    await db.flush()
 
     counts: Dict[str, int] = {
+        "users": 0,
         "projects": 0,
         "locations": 0,
         "timeEntries": 0,
@@ -116,11 +140,44 @@ async def import_data(
         "timesheetSignRequests": 0,
     }
 
+    # --- Upsert Users (preserva senha se já existe) ---
+    for u in users_raw:
+        user_model = UserOut.model_validate(u)
+        existing = await db.get(User, user_model.id)
+        if existing is None:
+            # Novo usuário: usa hashed_password do JSON se disponível, senão placeholder
+            hashed_pw = u.get("hashedPassword") or u.get("hashed_password") or ""
+            new_user = User(
+                id=user_model.id,
+                username=user_model.username,
+                email=user_model.email,
+                hashed_password=hashed_pw,
+                role=user_model.role,
+                hourly_rate=user_model.hourly_rate,
+                overtime_hourly_rate=user_model.overtime_hourly_rate,
+                category=user_model.category or "clt",
+                weekly_hours=user_model.weekly_hours,
+                created_at=_naive(user_model.created_at) or datetime.utcnow(),
+            )
+            db.add(new_user)
+            counts["users"] += 1
+        else:
+            # Usuário já existe: atualiza metadados mas preserva senha e email
+            existing.username = user_model.username
+            existing.hourly_rate = user_model.hourly_rate
+            existing.overtime_hourly_rate = user_model.overtime_hourly_rate
+            if user_model.category:
+                existing.category = user_model.category
+            existing.weekly_hours = user_model.weekly_hours
+
+    await db.flush()  # garante que users existem antes dos FKs abaixo
+
     for p in projects_raw:
         proj = ProjectOut.model_validate(p)
         project = Project(**proj.model_dump(exclude_none=True))
         if project.created_at is None:
             project.created_at = datetime.utcnow()
+        _strip_tz(project)
         db.add(project)
         counts["projects"] += 1
 
@@ -129,16 +186,18 @@ async def import_data(
         location = Location(**loc_model.model_dump(exclude_none=True))
         if location.created_at is None:
             location.created_at = datetime.utcnow()
+        _strip_tz(location)
         db.add(location)
         counts["locations"] += 1
 
-    await db.flush()  # ensure FK targets (projects, locations) exist
+    await db.flush()  # garante projects/locations antes de time_entries
 
     for e in time_entries_raw:
         entry_model = TimeEntryOut.model_validate(e)
         entry = TimeEntry(**entry_model.model_dump(exclude_none=True))
         if entry.created_at is None:
             entry.created_at = datetime.utcnow()
+        _strip_tz(entry)
         db.add(entry)
         counts["timeEntries"] += 1
 
@@ -147,16 +206,18 @@ async def import_data(
         record = DailyRecord(**rec_model.model_dump(exclude_none=True))
         if record.created_at is None:
             record.created_at = datetime.utcnow()
+        _strip_tz(record)
         db.add(record)
         counts["dailyRecords"] += 1
 
-    await db.flush()  # ensure daily_records exist before punch_logs / time_bank reference them
+    await db.flush()  # garante daily_records antes de punch_logs / time_bank
 
     for j in justifications_raw:
         just_model = AbsenceJustificationOut.model_validate(j)
         justification = AbsenceJustification(**just_model.model_dump(exclude_none=True))
         if justification.created_at is None:
             justification.created_at = datetime.utcnow()
+        _strip_tz(justification)
         db.add(justification)
         counts["absenceJustifications"] += 1
 
@@ -165,6 +226,7 @@ async def import_data(
         punch_log = PunchLog(**pl_model.model_dump(exclude_none=True))
         if punch_log.recorded_at is None:
             punch_log.recorded_at = datetime.utcnow()
+        _strip_tz(punch_log)
         db.add(punch_log)
         counts["punchLogs"] += 1
 
@@ -173,12 +235,14 @@ async def import_data(
         tb_entry = TimeBankEntry(**tb_model.model_dump(exclude_none=True))
         if tb_entry.created_at is None:
             tb_entry.created_at = datetime.utcnow()
+        _strip_tz(tb_entry)
         db.add(tb_entry)
         counts["timeBankEntries"] += 1
 
     for sr in sign_requests_raw:
         sr_model = TimesheetSignRequestOut.model_validate(sr)
         sign_req = TimesheetSignRequest(**sr_model.model_dump(exclude_none=True))
+        _strip_tz(sign_req)
         db.add(sign_req)
         counts["timesheetSignRequests"] += 1
 
