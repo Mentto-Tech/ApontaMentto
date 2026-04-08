@@ -34,8 +34,10 @@
 
 .ts-table {
   width: 100%;
+  min-width: 680px;
   font-size: 0.75rem;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .ts-table thead tr {
@@ -45,7 +47,17 @@
 .ts-table thead th {
   padding: 0.5rem 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
 }
+
+.ts-table thead th:nth-child(1) { width: 110px; }
+.ts-table thead th:nth-child(2) { width: 80px; }
+.ts-table thead th:nth-child(3) { width: 70px; }
+.ts-table thead th:nth-child(4) { width: 160px; }
+.ts-table thead th:nth-child(5) { width: 80px; }
+.ts-table thead th:nth-child(6) { width: 70px; }
+.ts-table thead th:nth-child(7) { width: 80px; }
+.ts-table thead th:nth-child(8) { width: 90px; }
 
 .ts-table thead th:last-child {
   text-align: right;
@@ -61,6 +73,7 @@
 
 .ts-table tbody td {
   padding: 0.375rem 0.75rem;
+  white-space: nowrap;
 }
 
 .ts-table tbody td:last-child {

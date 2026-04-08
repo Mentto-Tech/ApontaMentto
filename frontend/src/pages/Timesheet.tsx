@@ -372,7 +372,7 @@ const Timesheet = () => {
 
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
+    <div className="max-w-5xl mx-auto px-4 py-6 md:py-10">
       <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
         <FileText className="h-6 w-6 text-primary" />
         Folha de Ponto
