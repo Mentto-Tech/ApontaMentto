@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -40,7 +41,11 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         category=data.category,
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Nome de usuário já cadastrado")
     await db.refresh(user)
     token = create_access_token({"sub": user.id})
     return TokenResponse(access_token=token, user=UserOut.model_validate(user))
