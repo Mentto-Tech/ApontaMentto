@@ -26,6 +26,7 @@ export function useApiWakeUp() {
 
     // Se estiver offline, não bloqueia a UI com o wake-up
     if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setIsAwake(true);
       return () => {
         window.removeEventListener("online", updateOnline);
         window.removeEventListener("offline", updateOnline);
@@ -51,14 +52,25 @@ export function useApiWakeUp() {
       const ok = await ping();
       if (ok || cancelled) return;
 
+      // Timeout máximo de 30s — libera o app mesmo sem resposta
+      const maxTimeout = setTimeout(() => {
+        if (!cancelled) setIsAwake(true);
+      }, 30000);
+
       // Tenta a cada 3 segundos até acordar
       const interval = setInterval(async () => {
         setAttempt(a => a + 1);
         const ok = await ping();
-        if (ok) clearInterval(interval);
+        if (ok) {
+          clearInterval(interval);
+          clearTimeout(maxTimeout);
+        }
       }, 3000);
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        clearTimeout(maxTimeout);
+      };
     };
 
     run();

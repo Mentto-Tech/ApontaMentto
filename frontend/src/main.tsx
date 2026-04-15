@@ -8,4 +8,9 @@ registerSW({
 	immediate: true,
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
+const rootEl = document.getElementById("root")!;
+// Remove o loader inline antes do React montar
+const loader = document.getElementById("initial-loader");
+if (loader) loader.remove();
+
+createRoot(rootEl).render(<App />);
