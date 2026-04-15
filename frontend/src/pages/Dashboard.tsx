@@ -131,7 +131,11 @@ const Dashboard = () => {
     if (!isAdmin) return [];
     // Only users with a weekly_hours target (CLT, Estagiário)
     const eligibleUsers = allUsers.filter(
-      (u) => u.weeklyHours && u.weeklyHours > 0 && ["clt", "estagiario"].includes(u.category || "")
+      (u) =>
+        u.weeklyHours &&
+        u.weeklyHours > 0 &&
+        ["clt", "estagiario"].includes(u.category || "") &&
+        (selectedUserId === "all" || u.id === selectedUserId)
     );
     if (eligibleUsers.length === 0) return [];
 
@@ -197,7 +201,7 @@ const Dashboard = () => {
     return results.sort(
       (a, b) => a.weekStart.localeCompare(b.weekStart) || a.userName.localeCompare(b.userName)
     );
-  }, [isAdmin, allUsers, filteredEntries, workEntries]);
+  }, [isAdmin, allUsers, filteredEntries, workEntries, selectedUserId]);
 
   const totalUnattributed = unattributedData.reduce((sum, d) => sum + d.unattributed, 0);
 
