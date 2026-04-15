@@ -110,7 +110,7 @@ const TimeEntryForm = ({ date }: Props) => {
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   {projects.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
+                    <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
                         {p.name}
@@ -126,7 +126,7 @@ const TimeEntryForm = ({ date }: Props) => {
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   {locations.map(l => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                    <SelectItem key={l.id} value={l.id} className="pl-2 [&>span:first-child]:hidden">{l.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

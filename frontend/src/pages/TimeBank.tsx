@@ -123,11 +123,12 @@ const TimeBank = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const amountMinutes = parseInt(formAmount);
-    if (!formDate || isNaN(amountMinutes)) {
-      toast.error("Preencha data e quantidade");
+    const amountHours = parseFloat(formAmount);
+    if (!formDate || isNaN(amountHours)) {
+      toast.error("Preencha data e quantidade em horas");
       return;
     }
+    const amountMinutes = Math.round(Math.abs(amountHours) * 60);
     createEntryMutation.mutate({
       date: formDate,
       amountMinutes: formType === "manual_subtract" ? -Math.abs(amountMinutes) : Math.abs(amountMinutes),
@@ -200,12 +201,14 @@ const TimeBank = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label>Quantidade (minutos)</Label>
+                  <Label>Quantidade (horas)</Label>
                   <Input
                     type="number"
+                    step="0.25"
+                    min="0"
                     value={formAmount}
                     onChange={(e) => setFormAmount(e.target.value)}
-                    placeholder="Ex: 60 para 1 hora"
+                    placeholder="Ex: 1.5 para 1h30"
                     required
                   />
                 </div>
