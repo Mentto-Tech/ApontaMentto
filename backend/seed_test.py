@@ -27,16 +27,18 @@ USERS = [
 ]
 
 PROJECTS = [
-    {"name": "Desenvolvimento Web",    "color": "#0f766e", "description": "Frontend e backend do portal"},
-    {"name": "App Mobile",             "color": "#7c3aed", "description": "Aplicativo iOS / Android"},
-    {"name": "Suporte ao Cliente",     "color": "#b45309", "description": "Atendimento e tickets"},
-    {"name": "Reuniões & Planejamento","color": "#1d4ed8", "description": "Sprints, retrospectivas e 1:1"},
+    {"name": "MenttoSys", "color": "#0f766e", "description": ""},
+    {"name": "InovaSys", "color": "#7c3aed", "description": ""},
+    {"name": "ApontaMentto", "color": "#b45309", "description": ""},
+    {"name": "SentinelaAPP", "color": "#b45309", "description": ""},
+    {"name": "InovaSkill","color": "#1d4ed8", "description": ""},
+    {"name": "CCDs","color": "#1d4ed8", "description": ""},
 ]
 
 LOCATIONS = [
-    {"name": "Escritório Centro",  "address": "Av. Paulista, 1000 - São Paulo/SP"},
-    {"name": "Home Office",        "address": ""},
-    {"name": "Cliente - Pinheiros","address": "Rua dos Pinheiros, 200 - São Paulo/SP"},
+    {"name": "CITAP",  "address": "Av. Shunji Nishimura, 605 - Pompéia, SP"},
+    {"name": "Mentto House","address": "R. Dázio Ferreira Lessa, 166 - Jardim São Luiz, Pompéia - SP"},
+    {"name": "Home Office", "address": ""},
 ]
 
 NOTES = [
