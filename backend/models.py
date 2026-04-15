@@ -57,7 +57,7 @@ class User(Base):
     )
     weekly_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow
+        DateTime, default=lambda: dt.utcnow()
     )
 
     time_entries: Mapped[List["TimeEntry"]] = relationship(
@@ -83,7 +83,7 @@ class Project(Base):
     color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow
+        DateTime, default=lambda: dt.utcnow()
     )
 
     time_entries: Mapped[List["TimeEntry"]] = relationship(
@@ -98,7 +98,7 @@ class Location(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow
+        DateTime, default=lambda: dt.utcnow()
     )
 
     time_entries: Mapped[List["TimeEntry"]] = relationship(
@@ -126,7 +126,7 @@ class TimeEntry(Base):
         String, ForeignKey("locations.id"), nullable=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow
+        DateTime, default=lambda: dt.utcnow()
     )
 
     user: Mapped[User] = relationship("User", back_populates="time_entries")
@@ -169,7 +169,7 @@ class DailyRecord(Base):
         String, ForeignKey("users.id"), nullable=False, index=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow
+        DateTime, default=lambda: dt.utcnow()
     )
 
     user: Mapped[User] = relationship("User", back_populates="daily_records")
@@ -198,7 +198,7 @@ class AbsenceJustification(Base):
         String, ForeignKey("users.id"), nullable=False, index=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow
+        DateTime, default=lambda: dt.utcnow()
     )
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -224,7 +224,7 @@ class PunchLog(Base):
     overtime_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     recorded_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=lambda: dt.utcnow, nullable=False, index=True
+        DateTime, default=lambda: dt.utcnow(), nullable=False, index=True
     )
 
     # Localização/metadados no momento do registro
@@ -300,3 +300,4 @@ class TimesheetSignedPdf(Base):
     sign_request_id = Column(String, ForeignKey("timesheet_sign_requests.id"), nullable=True)
 
     user = relationship("User")
+
