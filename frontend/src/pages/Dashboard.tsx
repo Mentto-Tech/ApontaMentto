@@ -213,7 +213,7 @@ const Dashboard = () => {
       <div className="bg-card border border-border rounded-lg p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end">
           {isAdmin && (
-            <div className="min-w-[180px]">
+            <div className="w-full sm:w-auto sm:min-w-[180px]">
               <label className="text-xs text-muted-foreground mb-1 block">Usuário</label>
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                 <SelectTrigger>
@@ -230,13 +230,13 @@ const Dashboard = () => {
               </Select>
             </div>
           )}
-          <div>
+          <div className="flex-1 min-w-0">
             <label className="text-xs text-muted-foreground mb-1 block">De</label>
-            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-auto" />
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <label className="text-xs text-muted-foreground mb-1 block">Até</label>
-            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-auto" />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full" />
           </div>
         </div>
       </div>
@@ -305,7 +305,7 @@ const Dashboard = () => {
       </div>
 
       <Tabs defaultValue="projects">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="hours">Horas</TabsTrigger>
           {isAdmin ? <TabsTrigger value="cost">Custo por Projeto</TabsTrigger> : null}
           {isAdmin && unattributedData.length > 0 ? <TabsTrigger value="unattributed">Não Atribuídas</TabsTrigger> : null}
@@ -402,7 +402,7 @@ const Dashboard = () => {
 
                   {/* Cost breakdown table */}
                   <div className="mt-4 border-t border-border pt-4">
-                    <div className="max-h-[420px] overflow-y-auto pr-2">
+                    <div className="max-h-[420px] overflow-y-auto overflow-x-auto pr-2">
                       <table className="breakdown-table">
                         <thead>
                           <tr>

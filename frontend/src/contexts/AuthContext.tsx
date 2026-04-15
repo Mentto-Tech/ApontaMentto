@@ -19,7 +19,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string, category: string) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
   refreshUser: () => Promise<void>;
@@ -63,11 +63,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  const signup = useCallback(async (name: string, email: string, password: string): Promise<boolean> => {
+  const signup = useCallback(async (name: string, email: string, password: string, category: string): Promise<boolean> => {
     try {
       const data = await apiFetch<TokenResponse>("/api/auth/register", {
         method: "POST",
-        body: { name, email, password },
+        body: { name, email, password, category },
       });
       setToken(data.access_token);
       setUser(data.user);

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Clock } from "lucide-react";
 import { toast } from "sonner";
 import "../styles/Signup.css";
@@ -13,6 +14,7 @@ const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [category, setCategory] = useState("clt");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,7 +24,7 @@ const Signup = () => {
       return;
     }
     setLoading(true);
-    const ok = await signup(name, email, password);
+    const ok = await signup(name, email, password, category);
     setLoading(false);
     if (ok) {
       toast.success("Conta criada com sucesso!");
@@ -57,6 +59,19 @@ const Signup = () => {
           <div>
             <label className="text-sm font-medium mb-1 block">Senha</label>
             <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Tipo de contrato</label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="clt">CLT</SelectItem>
+                <SelectItem value="pj">PJ</SelectItem>
+                <SelectItem value="estagiario">Estagiário</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <Button type="submit" className="w-full bg-primary" disabled={loading}>
             {loading ? "Criando conta..." : "Criar Conta"}

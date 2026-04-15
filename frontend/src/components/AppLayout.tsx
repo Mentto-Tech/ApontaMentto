@@ -137,7 +137,7 @@ const AppLayout = () => {
         ))}
       </nav>
 
-      <main className="flex-1 pb-20 md:pb-0 md:ml-56">
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0 md:ml-56">
         <Outlet />
       </main>
     </div>

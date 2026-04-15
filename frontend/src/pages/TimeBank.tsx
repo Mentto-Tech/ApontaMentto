@@ -154,9 +154,9 @@ const TimeBank = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Banco de Horas</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Banco de Horas</h1>
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -239,7 +239,7 @@ const TimeBank = () => {
       <Card className="p-4 mb-6">
         <div className="flex flex-wrap gap-3 items-end">
           {isAdmin && (
-            <div className="min-w-[180px]">
+            <div className="w-full sm:w-auto sm:min-w-[180px]">
               <Label className="text-xs mb-1">Usuário</Label>
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                 <SelectTrigger>
@@ -255,13 +255,13 @@ const TimeBank = () => {
               </Select>
             </div>
           )}
-          <div>
+          <div className="flex-1 min-w-0">
             <Label className="text-xs mb-1">Mês (filtro)</Label>
             <Input
               type="month"
               value={monthFilter}
               onChange={(e) => setMonthFilter(e.target.value)}
-              className="w-auto"
+              className="w-full"
             />
           </div>
         </div>

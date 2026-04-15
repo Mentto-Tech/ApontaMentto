@@ -85,6 +85,7 @@
   body {
     @apply bg-background text-foreground font-sans;
     font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
   }
 }
 

@@ -89,7 +89,7 @@ const MonthlyView = () => {
           </Button>
         </div>
         <div className="mv-filters flex flex-wrap gap-2">
-          <div className="relative flex-1 min-w-[180px]">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Pesquisar dia..."
@@ -100,7 +100,7 @@ const MonthlyView = () => {
           </div>
           {isAdmin && (
             <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

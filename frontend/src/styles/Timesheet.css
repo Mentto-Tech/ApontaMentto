@@ -172,7 +172,7 @@
   }
 
   .ts-table-scroll {
-    overflow-x: visible;
+    overflow-x: auto;
   }
 
   .ts-table thead {

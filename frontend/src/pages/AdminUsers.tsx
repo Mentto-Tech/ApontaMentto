@@ -17,8 +17,7 @@ import "../styles/AdminUsers.css";
 const CATEGORY_LABELS: Record<string, string> = {
   clt: "CLT",
   pj: "PJ",
-  estagiario: "Estagiário",
-  dono: "Dono",
+  estagiario: "Estagiário"
 };
 
 const CATEGORIES_WITH_HOURS = ["clt", "estagiario"];
@@ -97,14 +96,14 @@ const AdminUsers = () => {
             <div className="admin-users-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {/* Category */}
               <div className="admin-user-field flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-                <div>
+                <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
                   <label className="text-[10px] text-muted-foreground block">Categoria</label>
                   <Select
                     value={user.category || "clt"}
                     onValueChange={(val) => handleFieldChange(user.id, "category", val)}
                   >
-                    <SelectTrigger className="admin-user-input w-32 h-8 text-sm">
+                    <SelectTrigger className="admin-user-input w-full h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -121,8 +120,8 @@ const AdminUsers = () => {
               {/* Weekly Hours */}
               {CATEGORIES_WITH_HOURS.includes(user.category || "clt") && (
                 <div className="admin-user-field flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
                     <label className="text-[10px] text-muted-foreground block">Horas/semana</label>
                     <Input
                       type="number"
@@ -131,7 +130,7 @@ const AdminUsers = () => {
                       placeholder="40"
                       value={user.weeklyHours || ""}
                       onChange={(e) => handleFieldChange(user.id, "weeklyHours", e.target.value)}
-                      className="admin-user-input w-24 h-8 text-sm"
+                      className="admin-user-input w-full h-8 text-sm"
                     />
                   </div>
                 </div>
@@ -139,8 +138,8 @@ const AdminUsers = () => {
 
               {/* Hourly Rate */}
               <div className="admin-user-field flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <div>
+                <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
                   <label className="text-[10px] text-muted-foreground block">Valor/hora</label>
                   <Input
                     type="number"
@@ -149,15 +148,15 @@ const AdminUsers = () => {
                     placeholder="N/A"
                     value={user.hourlyRate || ""}
                     onChange={(e) => handleFieldChange(user.id, "hourlyRate", e.target.value)}
-                    className="admin-user-input w-24 h-8 text-sm"
+                    className="admin-user-input w-full h-8 text-sm"
                   />
                 </div>
               </div>
 
               {/* Overtime Hourly Rate */}
               <div className="admin-user-field flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <div>
+                <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
                   <label className="text-[10px] text-muted-foreground block">Valor/hora extra</label>
                   <Input
                     type="number"
@@ -166,7 +165,7 @@ const AdminUsers = () => {
                     placeholder="N/A"
                     value={user.overtimeHourlyRate || ""}
                     onChange={(e) => handleFieldChange(user.id, "overtimeHourlyRate", e.target.value)}
-                    className="admin-user-input w-24 h-8 text-sm"
+                    className="admin-user-input w-full h-8 text-sm"
                   />
                 </div>
               </div>

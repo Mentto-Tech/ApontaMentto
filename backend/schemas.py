@@ -44,6 +44,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: str
     password: str
+    category: Optional[UserCategory] = UserCategory.clt
 
 
 class TokenResponse(BaseModel):
