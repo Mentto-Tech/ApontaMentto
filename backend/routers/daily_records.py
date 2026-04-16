@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date as date_type
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -12,6 +12,90 @@ from models import DailyRecord, PunchLog, User, TimeBankEntry
 from schemas import DailyRecordIn, DailyRecordOut
 
 router = APIRouter()
+
+# ---------------------------------------------------------------------------
+# Jornada padrão por categoria (em minutos)
+# ---------------------------------------------------------------------------
+_DAILY_THRESHOLD = {
+    "clt": 480,       # 8h
+    "estagiario": 360, # 6h
+}
+
+
+def _to_mins(t: Optional[str]) -> Optional[int]:
+    """Converte 'HH:MM' para minutos desde meia-noite. Retorna None se inválido."""
+    if not t:
+        return None
+    try:
+        h, m = map(int, t.split(":"))
+        return h * 60 + m
+    except Exception:
+        return None
+
+
+def _auto_overtime_minutes(
+    category: str,
+    date_str: str,
+    in1: Optional[str],
+    out1: Optional[str],
+    in2: Optional[str],
+    out2: Optional[str],
+) -> int:
+    """
+    Calcula horas extras automaticamente com base nos horários de ponto.
+
+    Regras:
+    - CLT (8h/dia):       (out1-in1) + (out2-in2). Requer todos os 4 horários.
+                          Fallback legacy: apenas in1+out2 sem almoço → out2-in1.
+    - Estagiário (6h/dia): out2 - in1 (almoço está incluso nas 6h).
+    - Fim de semana:       todo tempo trabalhado vira HE (threshold=0).
+    - PJ / dono:           sem cálculo automático (retorna 0).
+    """
+    threshold = _DAILY_THRESHOLD.get(category)
+    if threshold is None:
+        return 0  # pj, dono
+
+    # Verifica se é final de semana
+    try:
+        d = date_type.fromisoformat(date_str)
+        is_weekend = d.weekday() >= 5  # 5=Sáb, 6=Dom
+    except Exception:
+        is_weekend = False
+
+    effective_threshold = 0 if is_weekend else threshold
+
+    m_in1  = _to_mins(in1)
+    m_out1 = _to_mins(out1)
+    m_in2  = _to_mins(in2)
+    m_out2 = _to_mins(out2)
+
+    if category == "estagiario":
+        # Jornada completa = span total (in1 → out2). Almoço incluso.
+        if m_in1 is None or m_out2 is None:
+            return 0
+        worked = m_out2 - m_in1
+        if worked <= 0:
+            return 0
+        return max(0, worked - effective_threshold)
+
+    elif category == "clt":
+        if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
+            # Caso completo: dois blocos descontando almoço
+            block1 = max(0, m_out1 - m_in1)
+            block2 = max(0, m_out2 - m_in2)
+            worked = block1 + block2
+        elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
+            # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
+            worked = max(0, m_out2 - m_in1)
+        else:
+            # Dados incompletos → não calcula ainda
+            return 0
+
+        if worked <= 0:
+            return 0
+        return max(0, worked - effective_threshold)
+
+    return 0
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
@@ -99,15 +183,23 @@ async def upsert_daily_record(
 
     incoming_out1 = data.out1 if "out1" in fields_set else None
     incoming_in2 = data.in2 if "in2" in fields_set else None
-    incoming_ot = data.overtime_minutes if "overtime_minutes" in fields_set else None
     incoming_lunch = data.lunch if "lunch" in fields_set else None
 
     cand_in1 = incoming_in1 if incoming_in1 is not None else existing_in1
     cand_out1 = incoming_out1 if "out1" in fields_set else existing_out1
     cand_in2 = incoming_in2 if "in2" in fields_set else existing_in2
     cand_out2 = incoming_out2 if incoming_out2 is not None else existing_out2
-    cand_ot = incoming_ot if "overtime_minutes" in fields_set else existing_ot
     cand_lunch = incoming_lunch if "lunch" in fields_set else existing_lunch
+
+    # Hora extra é sempre calculada automaticamente — não aceitamos valor manual
+    cand_ot = _auto_overtime_minutes(
+        category=str(current_user.category.value if hasattr(current_user.category, 'value') else current_user.category),
+        date_str=data.date,
+        in1=cand_in1,
+        out1=cand_out1,
+        in2=cand_in2,
+        out2=cand_out2,
+    )
 
     # Keep legacy clock_in/out aligned when those are sent/derived
     cand_clock_in = existing_clock_in
@@ -136,8 +228,6 @@ async def upsert_daily_record(
     if cand_out2 and (cand_out1 or cand_in2) and not cand_in2:
         raise HTTPException(status_code=400, detail="out2 requires in2")
 
-    if cand_ot is not None and cand_ot < 0:
-        raise HTTPException(status_code=400, detail="overtimeMinutes must be >= 0")
 
     ip_address = _extract_client_ip(request)
     user_agent = request.headers.get("user-agent")
@@ -190,8 +280,8 @@ async def upsert_daily_record(
             record.in2 = data.in2
         if incoming_out2 is not None:
             record.out2 = incoming_out2
-        if "overtime_minutes" in fields_set:
-            record.overtime_minutes = data.overtime_minutes
+        # Hora extra é sempre recalculada automaticamente
+        record.overtime_minutes = cand_ot
         if "lunch" in fields_set:
             record.lunch = data.lunch
 
@@ -218,8 +308,8 @@ async def upsert_daily_record(
             _log("in2", time_value=data.in2, daily_record_id=record.id)
         if incoming_out2 is not None:
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
-        if "overtime_minutes" in fields_set:
-            _log("overtime_minutes", overtime_minutes=data.overtime_minutes, daily_record_id=record.id)
+        # Log overtime auto-calculado (sempre que houver mudança em qualquer ponto)
+        _log("overtime_minutes", overtime_minutes=cand_ot, daily_record_id=record.id)
         if incoming_lunch is not None:
             _log("lunch", time_value=incoming_lunch, daily_record_id=record.id if record else None)
     else:
@@ -258,8 +348,8 @@ async def upsert_daily_record(
             _log("in2", time_value=data.in2, daily_record_id=record.id)
         if incoming_out2 is not None:
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
-        if "overtime_minutes" in fields_set:
-            _log("overtime_minutes", overtime_minutes=data.overtime_minutes, daily_record_id=record.id)
+        # Log overtime auto-calculado
+        _log("overtime_minutes", overtime_minutes=cand_ot, daily_record_id=record.id)
         if incoming_lunch is not None:
             _log("lunch", time_value=incoming_lunch, daily_record_id=record.id if record else None)
 

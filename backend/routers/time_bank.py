@@ -114,8 +114,10 @@ async def sync_time_bank_from_daily_records(
 ):
     """
     Sincroniza entradas automáticas do banco de horas a partir dos DailyRecords e TimeEntries existentes.
+    Também recalcula o overtime_minutes de DailyRecords históricos usando a regra automática.
     """
     from models import TimeEntry
+    from routers.daily_records import _auto_overtime_minutes
 
     target_user_id = current_user.id
     if userId:
@@ -126,14 +128,34 @@ async def sync_time_bank_from_daily_records(
     created = 0
     updated = 0
 
-    # 1. Sync from DailyRecords (overtime_minutes field)
+    # Busca usuário alvo para o cálculo de categoria
+    user_res = await db.execute(select(User).where(User.id == target_user_id))
+    target_user = user_res.scalar_one_or_none()
+    user_category = str(
+        target_user.category.value
+        if target_user and hasattr(target_user.category, "value")
+        else (target_user.category if target_user else "")
+    )
+
+    # 1. Sync from DailyRecords — recalcula overtime automaticamente
     records_result = await db.execute(
-        select(DailyRecord).where(
-            DailyRecord.user_id == target_user_id,
-            DailyRecord.overtime_minutes > 0,
-        )
+        select(DailyRecord).where(DailyRecord.user_id == target_user_id)
     )
     for record in records_result.scalars().all():
+        # Recalcula com a regra automática
+        correct_ot = _auto_overtime_minutes(
+            category=user_category,
+            date_str=record.date,
+            in1=record.in1,
+            out1=record.out1,
+            in2=record.in2,
+            out2=record.out2,
+        )
+
+        # Corrige o DailyRecord se o valor está divergente
+        if record.overtime_minutes != correct_ot:
+            record.overtime_minutes = correct_ot
+
         tb_res = await db.execute(
             select(TimeBankEntry).where(
                 TimeBankEntry.daily_record_id == record.id,
@@ -141,23 +163,30 @@ async def sync_time_bank_from_daily_records(
             )
         )
         tb_entry = tb_res.scalar_one_or_none()
-        if tb_entry:
-            if tb_entry.amount_minutes != record.overtime_minutes:
-                tb_entry.amount_minutes = record.overtime_minutes
-                tb_entry.description = "Hora extra"
-                updated += 1
+
+        if correct_ot > 0:
+            if tb_entry:
+                if tb_entry.amount_minutes != correct_ot:
+                    tb_entry.amount_minutes = correct_ot
+                    tb_entry.description = f"Hora extra gerada no dia {record.date}"
+                    updated += 1
+            else:
+                db.add(TimeBankEntry(
+                    id=str(uuid.uuid4()),
+                    user_id=target_user_id,
+                    daily_record_id=record.id,
+                    date=record.date,
+                    amount_minutes=correct_ot,
+                    description=f"Hora extra gerada no dia {record.date}",
+                    entry_type="auto",
+                    created_at=datetime.utcnow(),
+                ))
+                created += 1
         else:
-            db.add(TimeBankEntry(
-                id=str(uuid.uuid4()),
-                user_id=target_user_id,
-                daily_record_id=record.id,
-                date=record.date,
-                amount_minutes=record.overtime_minutes,
-                description="Hora extra",
-                entry_type="auto",
-                created_at=datetime.utcnow(),
-            ))
-            created += 1
+            # Sem hora extra — remove entrada automática se existir
+            if tb_entry:
+                await db.delete(tb_entry)
+                updated += 1
 
     # 2. Sync from TimeEntries (is_overtime=True)
     ot_entries_result = await db.execute(
