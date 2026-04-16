@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import List, Optional
+import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +13,17 @@ from database import get_db
 from dependencies import get_current_user
 from models import AbsenceJustification, User, TimesheetSignRequest, TimesheetSignedPdf
 from schemas import AbsenceJustificationOut
+from storage_service import (
+    S3Storage,
+    build_justification_s3_key,
+    build_timesheet_pdf_s3_key,
+    is_s3_error,
+    is_s3_not_found,
+)
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+s3_storage = S3Storage()
 
 
 def _ensure_can_access(current_user: User, record: AbsenceJustification) -> None:
@@ -78,10 +87,28 @@ async def create_justification(
             raise HTTPException(status_code=400, detail="Unsupported file type")
 
         data = await file.read()
-        record.file_data = data
         record.original_filename = file.filename
         record.mime_type = file.content_type
         record.size_bytes = len(data) if data is not None else None
+
+        if not s3_storage.enabled:
+            raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+        key = build_justification_s3_key(
+            user_id=current_user.id,
+            justification_id=record.id,
+            date=date,
+            original_filename=file.filename,
+        )
+        try:
+            s3_storage.upload_bytes(key=key, data=data, content_type=file.content_type)
+            record.file_path = key
+            record.file_data = None
+        except Exception as exc:
+            if is_s3_error(exc):
+                logger.error("Erro ao enviar justificativa para S3: %s", exc)
+                raise HTTPException(status_code=500, detail="Falha ao salvar arquivo no S3")
+            raise
 
     db.add(record)
     await db.commit()
@@ -105,28 +132,27 @@ async def download_justification_file(
     _ensure_can_access(current_user, record)
 
     if not record.file_path:
-        if not record.file_data:
-            raise HTTPException(status_code=404, detail="No file")
+        raise HTTPException(status_code=404, detail="No file")
 
-    # Prefer DB-stored file (persistent in cloud deploys)
-    if record.file_data:
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+    try:
+        blob, content_type = s3_storage.download_bytes(record.file_path)
         filename = record.original_filename or f"justificativa-{record.id}"
         headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
         return Response(
-            content=record.file_data,
-            media_type=record.mime_type or "application/octet-stream",
+            content=blob,
+            media_type=content_type or record.mime_type or "application/octet-stream",
             headers=headers,
         )
-
-    p = Path(record.file_path)
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="File missing")
-
-    return FileResponse(
-        path=str(p),
-        media_type=record.mime_type or "application/octet-stream",
-        filename=record.original_filename or p.name,
-    )
+    except Exception as exc:
+        if is_s3_not_found(exc):
+            raise HTTPException(status_code=404, detail="File missing")
+        if is_s3_error(exc):
+            logger.error("Erro ao baixar justificativa do S3. id=%s erro=%s", record.id, exc)
+            raise HTTPException(status_code=500, detail="Falha ao baixar arquivo do S3")
+        raise
 
 
 @router.delete("/{justification_id}")
@@ -145,11 +171,12 @@ async def delete_justification(
     _ensure_can_access(current_user, record)
 
     # Remove file best-effort
-    if record.file_path:
+    if record.file_path and s3_storage.enabled:
         try:
-            Path(record.file_path).unlink(missing_ok=True)
-        except Exception:
-            pass
+            s3_storage.delete_object(record.file_path)
+        except Exception as exc:
+            if is_s3_error(exc):
+                logger.warning("Falha ao remover arquivo do S3. id=%s erro=%s", record.id, exc)
 
     await db.delete(record)
     await db.commit()
@@ -205,11 +232,29 @@ def sign_timesheet(
     if not sign_request:
         raise HTTPException(status_code=400, detail="Invalid or expired token.")
 
-    # Save the signed PDF
-    signed_pdf = TimesheetSignedPdf(
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+    pdf_id = str(uuid.uuid4())
+    s3_key = build_timesheet_pdf_s3_key(
         user_id=sign_request.user_id,
         month="2026-04",  # Replace with actual month logic
-        pdf_data=pdf_data,
+        pdf_id=pdf_id,
+    )
+    try:
+        s3_storage.upload_bytes(key=s3_key, data=pdf_data, content_type="application/pdf")
+    except Exception as exc:
+        if is_s3_error(exc):
+            raise HTTPException(status_code=500, detail="Falha ao salvar PDF no S3")
+        raise
+
+    # Save the signed PDF
+    signed_pdf = TimesheetSignedPdf(
+        id=pdf_id,
+        user_id=sign_request.user_id,
+        month="2026-04",  # Replace with actual month logic
+        pdf_data=None,
+        s3_key=s3_key,
         signed_at=datetime.utcnow(),
     )
     db.add(signed_pdf)
@@ -248,8 +293,22 @@ def download_signed_pdf(pdf_id: str, db: Session = Depends(get_db)):
     if not signed_pdf:
         raise HTTPException(status_code=404, detail="Signed PDF not found.")
 
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+    if not signed_pdf.s3_key:
+        raise HTTPException(status_code=404, detail="Arquivo não migrado para S3")
+
+    try:
+        blob, content_type = s3_storage.download_bytes(signed_pdf.s3_key)
+    except Exception as exc:
+        if is_s3_not_found(exc):
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado no S3")
+        if is_s3_error(exc):
+            raise HTTPException(status_code=500, detail="Falha ao baixar PDF do S3")
+        raise
+
     return Response(
-        content=signed_pdf.pdf_data,
-        media_type=signed_pdf.mime_type,
+        content=blob,
+        media_type=content_type or signed_pdf.mime_type,
         headers={"Content-Disposition": f"attachment; filename=timesheet_{signed_pdf.month}.pdf"},
     )

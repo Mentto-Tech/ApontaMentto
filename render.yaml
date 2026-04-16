@@ -33,3 +33,16 @@ services:
         sync: false  # Default: 604800 (7 dias)
       - key: GEOCODER_NEGATIVE_CACHE_TTL_SECONDS
         sync: false  # Default: 300 (5 min) para falhas/rate-limit
+      # Optional: S3 object storage for documents/PDFs
+      - key: S3_ENABLED
+        value: "true"  # modo 100% S3 para documentos/PDFs
+      - key: S3_BUCKET
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false  # opcional (ex: Cloudflare R2/MinIO)

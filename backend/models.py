@@ -294,7 +294,8 @@ class TimesheetSignedPdf(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     month = Column(String, nullable=False)  # YYYY-MM
-    pdf_data = Column(LargeBinary, nullable=False)
+    pdf_data = Column(LargeBinary, nullable=True)
+    s3_key = Column(String, nullable=True, index=True)
     mime_type = Column(String, nullable=False, default="application/pdf")
     signed_at = Column(DateTime, nullable=False, default=lambda: dt.utcnow())
     sign_request_id = Column(String, ForeignKey("timesheet_sign_requests.id"), nullable=True)

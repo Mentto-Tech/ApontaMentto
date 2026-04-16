@@ -33,9 +33,16 @@ from schemas import (
     TimesheetSignedPdfOut,
     TimesheetSignRequestOut,
 )
+from storage_service import (
+    S3Storage,
+    build_timesheet_pdf_s3_key,
+    is_s3_error,
+    is_s3_not_found,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+s3_storage = S3Storage()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
@@ -398,14 +405,34 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
         daily_records=daily_records,
     )
 
-    signed_pdf = TimesheetSignedPdf(
-        id=str(uuid.uuid4()),
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+    pdf_id = str(uuid.uuid4())
+    s3_key = build_timesheet_pdf_s3_key(
         user_id=req.user_id,
         month=req.month,
-        pdf_data=pdf_bytes,
+        pdf_id=pdf_id,
+    )
+
+    try:
+        s3_storage.upload_bytes(key=s3_key, data=pdf_bytes, content_type="application/pdf")
+    except Exception as exc:
+        if is_s3_error(exc):
+            logger.error("Falha ao enviar PDF assinado para S3: %s", exc)
+            raise HTTPException(status_code=500, detail="Falha ao salvar PDF no S3")
+        raise
+
+    signed_pdf = TimesheetSignedPdf(
+        id=pdf_id,
+        user_id=req.user_id,
+        month=req.month,
+        pdf_data=None,
+        s3_key=s3_key,
         signed_at=datetime.utcnow(),
         sign_request_id=req.id,
     )
+
     db.add(signed_pdf)
     await db.commit()
     await db.refresh(signed_pdf)
@@ -547,8 +574,24 @@ async def download_signed_pdf(
         raise HTTPException(404, "PDF não encontrado")
     if current_user.role != "admin" and pdf.user_id != current_user.id:
         raise HTTPException(403, "Acesso negado")
-    return Response(
-        content=pdf.pdf_data,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="folha-ponto-{pdf.month}.pdf"'},
-    )
+
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+    if not pdf.s3_key:
+        raise HTTPException(status_code=404, detail="Arquivo não migrado para S3")
+
+    try:
+        blob, content_type = s3_storage.download_bytes(pdf.s3_key)
+        return Response(
+            content=blob,
+            media_type=content_type or "application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="folha-ponto-{pdf.month}.pdf"'},
+        )
+    except Exception as exc:
+        if is_s3_not_found(exc):
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado no S3")
+        if is_s3_error(exc):
+            logger.error("Erro ao baixar PDF assinado do S3. id=%s erro=%s", pdf.id, exc)
+            raise HTTPException(status_code=500, detail="Falha ao baixar PDF do S3")
+        raise
