@@ -95,7 +95,8 @@ def _build_pdf_bytes(
 
         # Data rows — same columns as the preview table
         headers = ["Dia", "Entrada 1", "Saída 1", "Almoço (Saída - Retorno)", "Entrada 2", "Saída 2", "Hora Extra", "Horas Totais"]
-        col_widths = [55, 45, 45, 110, 45, 45, 55, 55]
+        # Pequeno ajuste para separar melhor "Almoço (Saída - Retorno)" de "Entrada 2"
+        col_widths = [55, 45, 45, 122, 45, 45, 55, 55]
         
         c.setFont("Helvetica-Bold", 9)
         x = margin
