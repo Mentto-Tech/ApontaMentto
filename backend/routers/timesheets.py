@@ -287,24 +287,6 @@ async def create_sign_request(
     logger.info(f"Preparing to send sign request email to {target_email} for {month_label}")
     logger.info(f"Sign URL: {sign_url}")
 
-    from models import DailyRecord
-    records_result = await db.execute(
-        select(DailyRecord).where(
-            DailyRecord.user_id == body.user_id,
-            DailyRecord.date.like(f"{body.month}%")
-        )
-    )
-    daily_records = records_result.scalars().all()
-
-    pdf_bytes = _build_pdf_bytes(
-        month=body.month,
-        employee_name=employee.username,
-        manager_name=admin.username,
-        manager_sig_dataurl=body.manager_signature,
-        employee_sig_dataurl=None,
-        daily_records=daily_records,
-    )
-
     def _send():
         try:
             logger.info(f"Starting email send to {target_email}")
@@ -314,7 +296,6 @@ async def create_sign_request(
                 manager_name=admin.username,
                 month_label=month_label,
                 sign_url=sign_url,
-                pdf_bytes=pdf_bytes,
             )
             logger.info(f"Email send completed successfully to {target_email}")
         except Exception as e:
