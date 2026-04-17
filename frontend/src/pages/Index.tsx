@@ -252,7 +252,7 @@ const Index = () => {
                 value={in1}
                 onChange={e => setIn1(e.target.value)}
                 disabled={nextPunchField !== "in1"}
-                className="w-[90px] sm:w-[110px] h-8 text-sm"
+                className="w-[75px] sm:w-[90px] h-8 text-sm"
               />
             </div>
           </div>
@@ -265,7 +265,7 @@ const Index = () => {
                 value={out1}
                 onChange={e => setOut1(e.target.value)}
                 disabled={nextPunchField !== "out1"}
-                className="w-[90px] sm:w-[110px] h-8 text-sm"
+                className="w-[75px] sm:w-[90px] h-8 text-sm"
               />
             </div>
           </div>
@@ -278,7 +278,7 @@ const Index = () => {
                 value={lunch}
                 onChange={e => setLunch(e.target.value)}
                 disabled={nextPunchField !== "lunch"}
-                className="w-[90px] sm:w-[110px] h-8 text-sm"
+                className="w-[75px] sm:w-[90px] h-8 text-sm"
               />
             </div>
           </div>
@@ -291,7 +291,7 @@ const Index = () => {
                 value={in2}
                 onChange={e => setIn2(e.target.value)}
                 disabled={nextPunchField !== "in2"}
-                className="w-[90px] sm:w-[110px] h-8 text-sm"
+                className="w-[75px] sm:w-[90px] h-8 text-sm"
               />
             </div>
           </div>
@@ -304,7 +304,7 @@ const Index = () => {
                 value={out2}
                 onChange={e => setOut2(e.target.value)}
                 disabled={nextPunchField !== "out2"}
-                className="w-[90px] sm:w-[110px] h-8 text-sm"
+                className="w-[75px] sm:w-[90px] h-8 text-sm"
               />
             </div>
           </div>
