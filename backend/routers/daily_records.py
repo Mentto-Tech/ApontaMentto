@@ -47,7 +47,8 @@ def _auto_overtime_minutes(
     Regras:
     - CLT (8h/dia):       (out1-in1) + (out2-in2). Requer todos os 4 horários.
                           Fallback legacy: apenas in1+out2 sem almoço → out2-in1.
-    - Estagiário (6h/dia): out2 - in1 (almoço está incluso nas 6h).
+    - Estagiário (6h/dia): (out1-in1) + (out2-in2). Requer todos os 4 horários.
+                            Fallback legacy: apenas in1+out2 sem almoço → out2-in1.
     - Fim de semana:       todo tempo trabalhado vira HE (threshold=0).
     - PJ / dono:           sem cálculo automático (retorna 0).
     """
@@ -70,10 +71,18 @@ def _auto_overtime_minutes(
     m_out2 = _to_mins(out2)
 
     if category == "estagiario":
-        # Jornada completa = span total (in1 → out2). Almoço incluso.
-        if m_in1 is None or m_out2 is None:
+        if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
+            # Caso completo: dois blocos descontando almoço
+            block1 = max(0, m_out1 - m_in1)
+            block2 = max(0, m_out2 - m_in2)
+            worked = block1 + block2
+        elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
+            # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
+            worked = max(0, m_out2 - m_in1)
+        else:
+            # Dados incompletos → não calcula ainda
             return 0
-        worked = m_out2 - m_in1
+
         if worked <= 0:
             return 0
         return max(0, worked - effective_threshold)

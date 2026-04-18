@@ -91,7 +91,6 @@ const Timesheet = () => {
 
   const totalMonthMins = dayData.reduce((s, d) => s + d.workedMins, 0);
   const totalMonthOvertimeMins = dayData.reduce((s, d) => s + (d.overtimeMins || 0), 0);
-  const totalMonthAllMins = totalMonthMins + totalMonthOvertimeMins;
 
   // Canvas drawing — touch events registered as non-passive to allow preventDefault
   const getCanvasCoords = (e: MouseEvent | TouchEvent) => {
@@ -240,7 +239,7 @@ const Timesheet = () => {
 
       const lunchBreak = firstOut !== "—" && secondIn !== "—" ? `${firstOut} - ${secondIn}` : "—";
       const heLabel = overtimeMins ? `${Math.floor(overtimeMins / 60)}h${overtimeMins % 60 > 0 ? ` ${overtimeMins % 60}m` : ""}` : "—";
-      const dayTotalMins = workedMins + (overtimeMins || 0);
+      const dayTotalMins = workedMins;
       const hasAny = Boolean(dailyRecord?.in1 || dailyRecord?.clockIn || dailyRecord?.out1 || dailyRecord?.in2 || dailyRecord?.out2 || dailyRecord?.clockOut || overtimeMins);
       const totalLabel = hasAny ? `${Math.floor(dayTotalMins / 60)}h${dayTotalMins % 60 > 0 ? ` ${dayTotalMins % 60}m` : ""}` : "—";
 
@@ -267,8 +266,8 @@ const Timesheet = () => {
     y += 5;
     doc.line(margin, y, pageW - margin, y);
     y += 6;
-    const totalH = Math.floor(totalMonthAllMins / 60);
-    const totalM = totalMonthAllMins % 60;
+    const totalH = Math.floor(totalMonthMins / 60);
+    const totalM = totalMonthMins % 60;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text(
@@ -297,7 +296,7 @@ const Timesheet = () => {
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
-  }, [dayData, currentMonth, targetUser, totalMonthAllMins, totalMonthOvertimeMins, hasSignature]);
+  }, [dayData, currentMonth, targetUser, totalMonthMins, totalMonthOvertimeMins, hasSignature]);
 
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
@@ -431,7 +430,7 @@ const Timesheet = () => {
                 </thead>
                 <tbody>
                   {dayData.map(({ day, workedMins, overtimeMins, dailyRecord }) => {
-                    const dayTotalMins = workedMins + (overtimeMins || 0);
+                    const dayTotalMins = workedMins;
                     const h = Math.floor(dayTotalMins / 60);
                     const m = dayTotalMins % 60;
 
@@ -466,7 +465,7 @@ const Timesheet = () => {
                   <tr>
                     <td colSpan={7}>Total</td>
                     <td>
-                      {Math.floor(totalMonthAllMins / 60)}h{totalMonthAllMins % 60 > 0 ? ` ${totalMonthAllMins % 60}m` : ""}
+                      {Math.floor(totalMonthMins / 60)}h{totalMonthMins % 60 > 0 ? ` ${totalMonthMins % 60}m` : ""}
                       {totalMonthOvertimeMins > 0 && (
                         <span className="ml-2 text-[11px] text-amber-600 dark:text-amber-400">
                           Hora Extra: {Math.floor(totalMonthOvertimeMins / 60)}h{totalMonthOvertimeMins % 60 > 0 ? ` ${totalMonthOvertimeMins % 60}m` : ""}
