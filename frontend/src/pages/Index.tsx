@@ -1,11 +1,13 @@
 import { useMemo, useState, useEffect } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Trash2, Clock, Coffee, Zap, LogIn, LogOut, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Pencil, Clock, Coffee, Zap, LogIn, LogOut, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import TimeEntryForm from "@/components/TimeEntryForm";
-import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord } from "@/lib/queries";
+import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord, type TimeEntry } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
 import "../styles/Index.css";
 
@@ -18,6 +20,8 @@ const Index = () => {
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
   const deleteEntry = useDeleteTimeEntry();
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<TimeEntry | null>(null);
 
   // Clock-in / clock-out
   const { data: dailyRecords = [] } = useDailyRecords({ date: dateStr });
@@ -203,6 +207,13 @@ const Index = () => {
   const breakH = Math.floor(breakMinutes / 60);
   const breakM = breakMinutes % 60;
 
+  const handleDeleteEntry = () => {
+    if (!entryToDelete) return;
+    deleteEntry.mutate(entryToDelete.id, {
+      onSuccess: () => setEntryToDelete(null),
+    });
+  };
+
   return (
     <div className="page-index max-w-2xl mx-auto px-4 py-6 md:py-10">
       <h1 className="text-2xl font-bold mb-6">Registros do Dia</h1>
@@ -365,14 +376,26 @@ const Index = () => {
                       {isBrk ? "Intervalo" : `${project?.name || "—"} · ${location?.name || "—"}`}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="index-entry-actions shrink-0 hover-bg-gray"
-                    onClick={() => deleteEntry.mutate(entry.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="index-entry-actions flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover-bg-gray"
+                      onClick={() => setEditingEntry(entry)}
+                      aria-label="Editar registro"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover-bg-gray"
+                      onClick={() => setEntryToDelete(entry)}
+                      aria-label="Excluir registro"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -391,6 +414,46 @@ const Index = () => {
           </>
         )}
       </div>
+
+      <Dialog
+        open={Boolean(editingEntry)}
+        onOpenChange={(open) => {
+          if (!open) setEditingEntry(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar registro</DialogTitle>
+          </DialogHeader>
+          {editingEntry ? (
+            <TimeEntryForm
+              date={dateStr}
+              entry={editingEntry}
+              onSuccess={() => setEditingEntry(null)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={Boolean(entryToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setEntryToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir registro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. O registro será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEntry}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

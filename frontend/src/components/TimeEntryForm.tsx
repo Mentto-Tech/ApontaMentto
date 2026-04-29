@@ -1,35 +1,70 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Coffee, Clock } from "lucide-react";
-import { useProjects, useLocations, useCreateTimeEntry } from "@/lib/queries";
+import { useProjects, useLocations, useCreateTimeEntry, useUpdateTimeEntry, type TimeEntry } from "@/lib/queries";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   date: string;
+  entry?: TimeEntry | null;
+  onSuccess?: () => void;
 }
 
-const TimeEntryForm = ({ date }: Props) => {
+const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const { user } = useAuth();
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
   const createEntry = useCreateTimeEntry();
+  const updateEntry = useUpdateTimeEntry();
 
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [locationId, setLocationId] = useState("");
-  const [entryType, setEntryType] = useState<"work" | "break">("work");
-  const [isOvertime, setIsOvertime] = useState(false);
+  const [startTime, setStartTime] = useState(entry?.startTime || "");
+  const [endTime, setEndTime] = useState(entry?.endTime || "");
+  const [projectId, setProjectId] = useState(entry?.projectId || "");
+  const [locationId, setLocationId] = useState(entry?.locationId || "");
+  const [entryType, setEntryType] = useState<"work" | "break">((entry?.entryType as "work" | "break") || "work");
+  const [isOvertime, setIsOvertime] = useState(Boolean(entry?.isOvertime));
+
+  useEffect(() => {
+    setStartTime(entry?.startTime || "");
+    setEndTime(entry?.endTime || "");
+    setProjectId(entry?.projectId || "");
+    setLocationId(entry?.locationId || "");
+    setEntryType((entry?.entryType as "work" | "break") || "work");
+    setIsOvertime(Boolean(entry?.isOvertime));
+  }, [entry]);
 
   const isBreak = entryType === "break";
+  const isEditing = Boolean(entry);
+  const isPending = createEntry.isPending || updateEntry.isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!startTime || !endTime) return;
     if (!isBreak && (!projectId || !locationId)) return;
+
+    if (isEditing) {
+      updateEntry.mutate(
+        {
+          id: entry.id,
+          date: entry.date,
+          startTime,
+          endTime,
+          projectId: isBreak ? (null as any) : projectId,
+          locationId: isBreak ? (null as any) : locationId,
+          notes: entry.notes || "",
+          entryType,
+          isOvertime: isBreak ? false : isOvertime,
+          userId: entry.userId || user?.id || "",
+        },
+        {
+          onSuccess: () => onSuccess?.(),
+        }
+      );
+      return;
+    }
 
     createEntry.mutate(
       {
@@ -41,7 +76,7 @@ const TimeEntryForm = ({ date }: Props) => {
         notes: "",
         entryType,
         isOvertime: isBreak ? false : isOvertime,
-        userId: user?.id,
+        userId: user?.id || "",
       },
       {
         onSuccess: () => {
@@ -49,7 +84,9 @@ const TimeEntryForm = ({ date }: Props) => {
           setEndTime("");
           setProjectId("");
           setLocationId("");
+          setEntryType("work");
           setIsOvertime(false);
+          onSuccess?.();
         },
       }
     );
@@ -133,7 +170,7 @@ const TimeEntryForm = ({ date }: Props) => {
             </div>
           </div>
         )}
-        <Button type="submit" size="icon" className="shrink-0 bg-primary hover:bg-primary/90" disabled={createEntry.isPending}>
+        <Button type="submit" size="icon" className="shrink-0 bg-primary hover:bg-primary/90" disabled={isPending}>
           <Plus className="h-4 w-4" />
         </Button>
       </form>

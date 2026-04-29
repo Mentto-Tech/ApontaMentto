@@ -141,6 +141,15 @@ export function useCreateTimeEntry() {
   });
 }
 
+export function useUpdateTimeEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: TimeEntry) =>
+      apiFetch<TimeEntry>(`/api/time-entries/${id}`, { method: "PUT", body: data }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["time-entries"] }),
+  });
+}
+
 export function useDeleteTimeEntry() {
   const qc = useQueryClient();
   return useMutation({
