@@ -119,7 +119,12 @@ const Projects = () => {
                 {p.description && <div className="text-xs text-muted-foreground truncate">{p.description}</div>}
               </div>
               <div className="projects-item-actions flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover-bg-gray text-black hover:text-black"
+                  onClick={() => openEdit(p)}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button

@@ -99,7 +99,12 @@ const Locations = () => {
                 {l.address && <div className="text-xs text-muted-foreground truncate">{l.address}</div>}
               </div>
               <div className="locations-item-actions flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(l)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover-bg-gray text-black hover:text-black"
+                  onClick={() => openEdit(l)}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button

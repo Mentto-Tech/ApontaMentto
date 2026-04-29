@@ -380,7 +380,7 @@ const Index = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="hover-bg-gray"
+                      className="hover-bg-gray text-black hover:text-black"
                       onClick={() => setEditingEntry(entry)}
                       aria-label="Editar registro"
                     >
