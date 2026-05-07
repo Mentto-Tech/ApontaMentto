@@ -271,7 +271,7 @@ const Index = () => {
                 type="time"
                 value={in1}
                 readOnly
-                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
           </div>
@@ -283,7 +283,7 @@ const Index = () => {
                 type="time"
                 value={out1}
                 readOnly
-                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
           </div>
@@ -295,7 +295,7 @@ const Index = () => {
                 type="time"
                 value={lunch}
                 readOnly
-                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
           </div>
@@ -307,7 +307,7 @@ const Index = () => {
                 type="time"
                 value={in2}
                 readOnly
-                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
           </div>
@@ -319,7 +319,7 @@ const Index = () => {
                 type="time"
                 value={out2}
                 readOnly
-                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </div>
           </div>
