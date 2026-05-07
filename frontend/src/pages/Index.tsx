@@ -168,11 +168,20 @@ const Index = () => {
     // Keep UI in sync (in case we auto-filled with now).
     if (nextPunchField === "in1") setIn1(timeToSave);
     if (nextPunchField === "out1") setOut1(timeToSave);
-    if (nextPunchField === "lunch") setLunch(timeToSave); // Update lunch
+    if (nextPunchField === "lunch") {
+      setLunch(timeToSave);
+      setIn2(timeToSave);
+    }
     if (nextPunchField === "in2") setIn2(timeToSave);
     if (nextPunchField === "out2") setOut2(timeToSave);
 
     const patch: DailyRecordPatch = { date: dateStr, [nextPunchField]: timeToSave };
+    
+    // If we're punching lunch, also send in2 in the same patch
+    if (nextPunchField === "lunch") {
+      patch.in2 = timeToSave;
+    }
+    
     await sendPatch(patch, { captureGeo: true });
   };
 
@@ -261,9 +270,8 @@ const Index = () => {
               <Input
                 type="time"
                 value={in1}
-                onChange={e => setIn1(e.target.value)}
-                disabled={nextPunchField !== "in1"}
-                className="w-[75px] sm:w-[90px] h-8 text-sm"
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
               />
             </div>
           </div>
@@ -274,9 +282,8 @@ const Index = () => {
               <Input
                 type="time"
                 value={out1}
-                onChange={e => setOut1(e.target.value)}
-                disabled={nextPunchField !== "out1"}
-                className="w-[75px] sm:w-[90px] h-8 text-sm"
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
               />
             </div>
           </div>
@@ -287,9 +294,8 @@ const Index = () => {
               <Input
                 type="time"
                 value={lunch}
-                onChange={e => setLunch(e.target.value)}
-                disabled={nextPunchField !== "lunch"}
-                className="w-[75px] sm:w-[90px] h-8 text-sm"
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
               />
             </div>
           </div>
@@ -300,9 +306,8 @@ const Index = () => {
               <Input
                 type="time"
                 value={in2}
-                onChange={e => setIn2(e.target.value)}
-                disabled={nextPunchField !== "in2"}
-                className="w-[75px] sm:w-[90px] h-8 text-sm"
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
               />
             </div>
           </div>
@@ -313,9 +318,8 @@ const Index = () => {
               <Input
                 type="time"
                 value={out2}
-                onChange={e => setOut2(e.target.value)}
-                disabled={nextPunchField !== "out2"}
-                className="w-[75px] sm:w-[90px] h-8 text-sm"
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default"
               />
             </div>
           </div>
