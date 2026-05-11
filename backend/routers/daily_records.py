@@ -52,10 +52,6 @@ def _auto_overtime_minutes(
     - Fim de semana:       todo tempo trabalhado vira HE (threshold=0).
     - PJ / dono:           sem cálculo automático (retorna 0).
     """
-    threshold = _DAILY_THRESHOLD.get(category)
-    if threshold is None:
-        return 0  # pj, dono
-
     # Verifica se é final de semana
     try:
         d = date_type.fromisoformat(date_str)
@@ -63,48 +59,35 @@ def _auto_overtime_minutes(
     except Exception:
         is_weekend = False
 
-    effective_threshold = 0 if is_weekend else threshold
-
     m_in1  = _to_mins(in1)
     m_out1 = _to_mins(out1)
     m_in2  = _to_mins(in2)
     m_out2 = _to_mins(out2)
 
-    if category == "estagiario":
-        if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
-            # Caso completo: dois blocos descontando almoço
-            block1 = max(0, m_out1 - m_in1)
-            block2 = max(0, m_out2 - m_in2)
-            worked = block1 + block2
-        elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
-            # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
-            worked = max(0, m_out2 - m_in1)
-        else:
-            # Dados incompletos → não calcula ainda
-            return 0
+    if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
+        # Caso completo: dois blocos descontando almoço
+        block1 = max(0, m_out1 - m_in1)
+        block2 = max(0, m_out2 - m_in2)
+        worked = block1 + block2
+    elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
+        # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
+        worked = max(0, m_out2 - m_in1)
+    else:
+        # Dados incompletos → não calcula ainda
+        return 0
 
-        if worked <= 0:
-            return 0
-        return max(0, worked - effective_threshold)
+    if worked <= 0:
+        return 0
 
-    elif category == "clt":
-        if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
-            # Caso completo: dois blocos descontando almoço
-            block1 = max(0, m_out1 - m_in1)
-            block2 = max(0, m_out2 - m_in2)
-            worked = block1 + block2
-        elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
-            # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
-            worked = max(0, m_out2 - m_in1)
-        else:
-            # Dados incompletos → não calcula ainda
-            return 0
+    if is_weekend:
+        # Fim de semana: todo o tempo trabalhado é hora extra (SEMPRE)
+        return worked
 
-        if worked <= 0:
-            return 0
-        return max(0, worked - effective_threshold)
+    threshold = _DAILY_THRESHOLD.get(category)
+    if threshold is None:
+        return 0  # Dias de semana para pj/dono não têm hora extra calculada automaticamente
 
-    return 0
+    return max(0, worked - threshold)
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
