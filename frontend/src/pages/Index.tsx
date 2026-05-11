@@ -288,18 +288,6 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
-            <div>
-              <label className="text-xs text-muted-foreground block">Almoço</label>
-              <Input
-                type="time"
-                value={lunch}
-                readOnly
-                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
             <LogIn className="h-3.5 w-3.5 text-green-600 shrink-0" />
             <div>
               <label className="text-xs text-muted-foreground block">Entrada 2</label>
