@@ -64,6 +64,8 @@ def _auto_overtime_minutes(
     m_in2  = _to_mins(in2)
     m_out2 = _to_mins(out2)
 
+    worked = 0
+
     if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
         # Caso completo: dois blocos descontando almoço
         block1 = max(0, m_out1 - m_in1)
@@ -73,8 +75,11 @@ def _auto_overtime_minutes(
         # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
         worked = max(0, m_out2 - m_in1)
     else:
-        # Dados incompletos → não calcula ainda
-        return 0
+        # Blocos parciais (ex: trabalhou só de manhã num sábado)
+        if m_in1 is not None and m_out1 is not None:
+            worked += max(0, m_out1 - m_in1)
+        if m_in2 is not None and m_out2 is not None:
+            worked += max(0, m_out2 - m_in2)
 
     if worked <= 0:
         return 0
