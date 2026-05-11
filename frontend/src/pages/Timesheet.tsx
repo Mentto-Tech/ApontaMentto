@@ -1,12 +1,13 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, FileText, Pen, Send, Download, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Pen, Send, Download, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDailyRecords, useUsers } from "@/lib/queries";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import "../styles/Timesheet.css";
 import React from 'react';
@@ -18,6 +19,7 @@ interface TimesheetSignedPdf { id: string; month: string; userId: string; signed
 
 const Timesheet = () => {
   const { user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedUserId, setSelectedUserId] = useState<string>(user?.id || "");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,6 +32,32 @@ const Timesheet = () => {
 
   const { data: allUsers = [] } = useUsers();
   const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr });
+
+  // Sync time bank from daily records
+  const syncMutation = useMutation({
+    mutationFn: () => {
+      const params = new URLSearchParams();
+      if (targetUserId && targetUserId !== "all") params.append("userId", targetUserId);
+      return apiFetch<{ created: number; updated: number }>(`/api/time-bank/sync?${params.toString()}`, {
+        method: "POST",
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["dailyRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["timeBank"] });
+      toast({
+        title: "Sucesso",
+        description: `Registros sincronizados. Adicionados: ${data.created}, Atualizados: ${data.updated}`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Falha ao sincronizar registros.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const targetUser = isAdmin
     ? allUsers.find(u => u.id === targetUserId)
@@ -372,10 +400,21 @@ const Timesheet = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 md:py-10">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <FileText className="h-6 w-6 text-primary" />
-        Folha de Ponto
-      </h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <FileText className="h-6 w-6 text-primary" />
+          Folha de Ponto
+        </h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+          Sincronizar
+        </Button>
+      </div>
 
       {/* Month nav */}
       <div className="month-nav bg-card border border-border">
