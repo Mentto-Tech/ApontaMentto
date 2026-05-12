@@ -132,11 +132,11 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
         <div className="flex gap-2 flex-1 w-full">
           <div className="flex-1 min-w-0">
             <label className="text-xs text-muted-foreground mb-1 block">Início</label>
-            <Input type="time" value={startTime} readOnly className="cursor-default focus-visible:ring-0 focus-visible:ring-offset-0" required />
+            <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} required />
           </div>
           <div className="flex-1 min-w-0">
             <label className="text-xs text-muted-foreground mb-1 block">Fim</label>
-            <Input type="time" value={endTime} readOnly className="cursor-default focus-visible:ring-0 focus-visible:ring-offset-0" required />
+            <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} required />
           </div>
         </div>
         {!isBreak && (
