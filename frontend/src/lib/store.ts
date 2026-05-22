@@ -41,6 +41,8 @@ export interface DailyRecord {
   out1?: string | null; // HH:mm
   in2?: string | null; // HH:mm
   out2?: string | null; // HH:mm
+  extraIn?: string | null;
+  extraOut?: string | null;
   overtimeMinutes?: number | null;
   lunch?: string | null; // HH:mm-HH:mm format for lunch break
 

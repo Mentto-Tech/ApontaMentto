@@ -154,6 +154,10 @@ class DailyRecord(Base):
     out2: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
     overtime_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # Entradas / saídas específicas para horas extras
+    extra_in: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+    extra_out: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # HH:mm
+
     # Captura de localização (device/IP)
     geo_lat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     geo_lng: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

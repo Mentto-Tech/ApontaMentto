@@ -192,6 +192,8 @@ class DailyRecordIn(CamelModel):
     out1: Optional[str] = None
     in2: Optional[str] = None
     out2: Optional[str] = None
+    extra_in: Optional[str] = None
+    extra_out: Optional[str] = None
     overtime_minutes: Optional[int] = None
 
     # Captura de localização do dispositivo (opcional)

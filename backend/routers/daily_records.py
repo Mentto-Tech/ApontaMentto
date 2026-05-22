@@ -40,6 +40,8 @@ def _auto_overtime_minutes(
     out1: Optional[str],
     in2: Optional[str],
     out2: Optional[str],
+    extra_in: Optional[str] = None,
+    extra_out: Optional[str] = None,
 ) -> int:
     """
     Calcula horas extras automaticamente com base nos horários de ponto.
@@ -63,8 +65,14 @@ def _auto_overtime_minutes(
     m_out1 = _to_mins(out1)
     m_in2  = _to_mins(in2)
     m_out2 = _to_mins(out2)
+    m_extra_in = _to_mins(extra_in)
+    m_extra_out = _to_mins(extra_out)
 
     worked = 0
+    extra_worked = 0
+
+    if m_extra_in is not None and m_extra_out is not None:
+        extra_worked = max(0, m_extra_out - m_extra_in)
 
     if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
         # Caso completo: dois blocos descontando almoço
@@ -81,18 +89,18 @@ def _auto_overtime_minutes(
         if m_in2 is not None and m_out2 is not None:
             worked += max(0, m_out2 - m_in2)
 
-    if worked <= 0:
+    if worked <= 0 and extra_worked <= 0:
         return 0
 
     if is_weekend:
         # Fim de semana: todo o tempo trabalhado é hora extra (SEMPRE)
-        return worked
+        return worked + extra_worked
 
     threshold = _DAILY_THRESHOLD.get(category)
     if threshold is None:
-        return 0  # Dias de semana para pj/dono não têm hora extra calculada automaticamente
+        return extra_worked  # Dias de semana para pj/dono não têm hora extra calculada automaticamente, mas extra explícito soma
 
-    return max(0, worked - threshold)
+    return max(0, worked - threshold) + extra_worked
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
@@ -161,6 +169,8 @@ async def upsert_daily_record(
     existing_out1 = record.out1 if record else None
     existing_in2 = record.in2 if record else None
     existing_out2 = record.out2 if record else None
+    existing_extra_in = record.extra_in if record else None
+    existing_extra_out = record.extra_out if record else None
     existing_ot = record.overtime_minutes if record else None
     existing_clock_in = record.clock_in if record else None
     existing_clock_out = record.clock_out if record else None
@@ -180,12 +190,16 @@ async def upsert_daily_record(
 
     incoming_out1 = data.out1 if "out1" in fields_set else None
     incoming_in2 = data.in2 if "in2" in fields_set else None
+    incoming_extra_in = data.extra_in if "extra_in" in fields_set else None
+    incoming_extra_out = data.extra_out if "extra_out" in fields_set else None
     incoming_lunch = data.lunch if "lunch" in fields_set else None
 
     cand_in1 = incoming_in1 if incoming_in1 is not None else existing_in1
     cand_out1 = incoming_out1 if "out1" in fields_set else existing_out1
     cand_in2 = incoming_in2 if "in2" in fields_set else existing_in2
     cand_out2 = incoming_out2 if incoming_out2 is not None else existing_out2
+    cand_extra_in = incoming_extra_in if "extra_in" in fields_set else existing_extra_in
+    cand_extra_out = incoming_extra_out if "extra_out" in fields_set else existing_extra_out
     cand_lunch = incoming_lunch if "lunch" in fields_set else existing_lunch
 
     # Hora extra é sempre calculada automaticamente — não aceitamos valor manual
@@ -196,6 +210,8 @@ async def upsert_daily_record(
         out1=cand_out1,
         in2=cand_in2,
         out2=cand_out2,
+        extra_in=cand_extra_in,
+        extra_out=cand_extra_out,
     )
 
     # Keep legacy clock_in/out aligned when those are sent/derived
@@ -277,6 +293,10 @@ async def upsert_daily_record(
             record.in2 = data.in2
         if incoming_out2 is not None:
             record.out2 = incoming_out2
+        if "extra_in" in fields_set:
+            record.extra_in = data.extra_in
+        if "extra_out" in fields_set:
+            record.extra_out = data.extra_out
         # Hora extra é sempre recalculada automaticamente
         record.overtime_minutes = cand_ot
         if "lunch" in fields_set:
@@ -305,6 +325,10 @@ async def upsert_daily_record(
             _log("in2", time_value=data.in2, daily_record_id=record.id)
         if incoming_out2 is not None:
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
+        if "extra_in" in fields_set:
+            _log("extra_in", time_value=data.extra_in, daily_record_id=record.id)
+        if "extra_out" in fields_set:
+            _log("extra_out", time_value=data.extra_out, daily_record_id=record.id)
         # Log overtime auto-calculado (sempre que houver mudança em qualquer ponto)
         _log("overtime_minutes", overtime_minutes=cand_ot, daily_record_id=record.id)
         if incoming_lunch is not None:
@@ -320,6 +344,8 @@ async def upsert_daily_record(
             out1=cand_out1,
             in2=cand_in2,
             out2=cand_out2,
+            extra_in=cand_extra_in,
+            extra_out=cand_extra_out,
             overtime_minutes=cand_ot,
 
             geo_lat=data.geo_lat,
@@ -345,6 +371,10 @@ async def upsert_daily_record(
             _log("in2", time_value=data.in2, daily_record_id=record.id)
         if incoming_out2 is not None:
             _log("out2", time_value=incoming_out2, daily_record_id=record.id)
+        if "extra_in" in fields_set:
+            _log("extra_in", time_value=data.extra_in, daily_record_id=record.id)
+        if "extra_out" in fields_set:
+            _log("extra_out", time_value=data.extra_out, daily_record_id=record.id)
         # Log overtime auto-calculado
         _log("overtime_minutes", overtime_minutes=cand_ot, daily_record_id=record.id)
         if incoming_lunch is not None:

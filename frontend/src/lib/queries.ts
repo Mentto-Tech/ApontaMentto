@@ -273,6 +273,9 @@ export function useUpsertDailyRecord() {
       out1?: string | null;
       in2?: string | null;
       out2?: string | null;
+      extraIn?: string | null;
+      extraOut?: string | null;
+      lunch?: string | null;
       overtimeMinutes?: number | null;
       // geo
       geoLat?: number | null;

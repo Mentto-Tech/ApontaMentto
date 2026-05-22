@@ -32,6 +32,8 @@ const Index = () => {
   const [lunch, setLunch] = useState(""); 
   const [in2, setIn2] = useState("");
   const [out2, setOut2] = useState("");
+  const [extraIn, setExtraIn] = useState("");
+  const [extraOut, setExtraOut] = useState("");
   const [overtimeMinutes, setOvertimeMinutes] = useState("");
 
   useEffect(() => {
@@ -40,6 +42,8 @@ const Index = () => {
     setLunch(todayRecord?.lunch || ""); 
     setIn2(todayRecord?.in2 || "");
     setOut2(todayRecord?.out2 || todayRecord?.clockOut || "");
+    setExtraIn(todayRecord?.extraIn || "");
+    setExtraOut(todayRecord?.extraOut || "");
     setOvertimeMinutes(
       todayRecord?.overtimeMinutes !== undefined && todayRecord?.overtimeMinutes !== null
         ? String(todayRecord.overtimeMinutes)
@@ -73,6 +77,8 @@ const Index = () => {
     out1?: string | null;
     in2?: string | null;
     out2?: string | null;
+    extraIn?: string | null;
+    extraOut?: string | null;
     overtimeMinutes?: number | null;
     geoLat?: number | null;
     geoLng?: number | null;
@@ -123,8 +129,10 @@ const Index = () => {
     if (!lunch) return "lunch" as const; // Add lunch to the sequence
     if (!in2) return "in2" as const;
     if (!out2) return "out2" as const;
+    if (!extraIn) return "extraIn" as const;
+    if (!extraOut) return "extraOut" as const;
     return null;
-  }, [in1, out1, lunch, in2, out2]);
+  }, [in1, out1, lunch, in2, out2, extraIn, extraOut]);
 
   const nextPunchLabel = useMemo(() => {
     switch (nextPunchField) {
@@ -138,6 +146,10 @@ const Index = () => {
         return "Entrada 2";
       case "out2":
         return "Saída 2";
+      case "extraIn":
+        return "Entrada Hora Extra";
+      case "extraOut":
+        return "Saída Hora Extra";
       default:
         return null;
     }
@@ -160,7 +172,11 @@ const Index = () => {
         ? lunch
         : nextPunchField === "in2"
         ? in2
-        : out2;
+        : nextPunchField === "out2"
+        ? out2
+        : nextPunchField === "extraIn"
+        ? extraIn
+        : extraOut;
 
     const timeToSave = (currentValue || "").trim() || nowTime;
     if (!isValidTime(timeToSave)) return;
@@ -174,6 +190,8 @@ const Index = () => {
     }
     if (nextPunchField === "in2") setIn2(timeToSave);
     if (nextPunchField === "out2") setOut2(timeToSave);
+    if (nextPunchField === "extraIn") setExtraIn(timeToSave);
+    if (nextPunchField === "extraOut") setExtraOut(timeToSave);
 
     const patch: DailyRecordPatch = { date: dateStr, [nextPunchField]: timeToSave };
     
@@ -306,6 +324,30 @@ const Index = () => {
               <Input
                 type="time"
                 value={out2}
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <div>
+              <label className="text-xs text-muted-foreground block">Entrada HE</label>
+              <Input
+                type="time"
+                value={extraIn}
+                readOnly
+                className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <div>
+              <label className="text-xs text-muted-foreground block">Saída HE</label>
+              <Input
+                type="time"
+                value={extraOut}
                 readOnly
                 className="w-[75px] sm:w-[90px] h-8 text-sm cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
               />
