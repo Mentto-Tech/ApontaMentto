@@ -9,14 +9,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import TimeEntryForm from "@/components/TimeEntryForm";
 import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord, type TimeEntry } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import "../styles/Index.css";
 
 const Index = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [date, setDate] = useState(new Date());
 
   const dateStr = format(date, "yyyy-MM-dd");
-  const { data: entries = [] } = useTimeEntries({ date: dateStr });
+  const { data: entries = [] } = useTimeEntries({ date: dateStr, userId: user?.id });
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
   const deleteEntry = useDeleteTimeEntry();
@@ -24,7 +26,7 @@ const Index = () => {
   const [entryToDelete, setEntryToDelete] = useState<TimeEntry | null>(null);
 
   // Clock-in / clock-out
-  const { data: dailyRecords = [] } = useDailyRecords({ date: dateStr });
+  const { data: dailyRecords = [] } = useDailyRecords({ date: dateStr, userId: user?.id });
   const upsertDailyRecord = useUpsertDailyRecord();
   const todayRecord = dailyRecords.find(r => r.date === dateStr);
   const [in1, setIn1] = useState("");

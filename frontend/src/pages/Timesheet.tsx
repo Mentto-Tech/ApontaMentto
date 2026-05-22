@@ -31,7 +31,7 @@ const Timesheet = () => {
   const targetUserId = isAdmin ? selectedUserId : user?.id || "";
 
   const { data: allUsers = [] } = useUsers();
-  const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr });
+  const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr, userId: targetUserId !== "all" ? targetUserId : undefined });
 
   // Sync time bank from daily records
   const syncMutation = useMutation({
