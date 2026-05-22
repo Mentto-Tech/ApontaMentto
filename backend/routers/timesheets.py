@@ -144,10 +144,15 @@ def _build_pdf_bytes(
             lunch_break = f"{first_out} - {second_in}" if first_out != "—" and second_in != "—" else "—"
             overtime = int(getattr(record, "overtime_minutes", 0) or 0)
             
+            extra_in = getattr(record, "extra_in", None) or "—"
+            extra_out = getattr(record, "extra_out", None) or "—"
+
             if first_in != "—" and second_out != "—" and first_out == "—" and second_in == "—":
                 worked = mins_between(first_in, second_out)
             else:
                 worked = mins_between(first_in, first_out) + mins_between(second_in, second_out)
+            
+            worked += mins_between(extra_in, extra_out)
                 
             total_worked_mins += worked
             total_overtime_mins += overtime

@@ -88,6 +88,8 @@ const Timesheet = () => {
     out1?: string | null;
     in2?: string | null;
     out2?: string | null;
+    extraIn?: string | null;
+    extraOut?: string | null;
     overtimeMinutes?: number | null;
     clockIn?: string | null;
     clockOut?: string | null;
@@ -98,13 +100,19 @@ const Timesheet = () => {
     const firstOut = r.out1 ?? null;
     const secondIn = r.in2 ?? null;
     const secondOut = r.out2 ?? r.clockOut ?? null;
+    const extraIn = r.extraIn ?? null;
+    const extraOut = r.extraOut ?? null;
 
+    let baseMins = 0;
     // If we only have a single pair (legacy), use in1 -> out2
     if (firstIn && secondOut && !firstOut && !secondIn) {
-      return minsBetween(firstIn, secondOut);
+      baseMins = minsBetween(firstIn, secondOut);
+    } else {
+      baseMins = minsBetween(firstIn, firstOut) + minsBetween(secondIn, secondOut);
     }
 
-    return minsBetween(firstIn, firstOut) + minsBetween(secondIn, secondOut);
+    const extraMins = minsBetween(extraIn, extraOut);
+    return baseMins + extraMins;
   }, [minsBetween]);
 
   const dayData = useMemo(() => {

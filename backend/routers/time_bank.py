@@ -150,6 +150,8 @@ async def sync_time_bank_from_daily_records(
             out1=record.out1,
             in2=record.in2,
             out2=record.out2,
+            extra_in=record.extra_in,
+            extra_out=record.extra_out,
         )
 
         # Corrige o DailyRecord se o valor está divergente
@@ -188,7 +190,6 @@ async def sync_time_bank_from_daily_records(
                 await db.delete(tb_entry)
                 updated += 1
 
-    # 2. Sync from TimeEntries (is_overtime=True)
     ot_entries_result = await db.execute(
         select(TimeEntry.date).where(
             TimeEntry.user_id == target_user_id,
@@ -199,6 +200,16 @@ async def sync_time_bank_from_daily_records(
     overtime_dates = [row[0] for row in ot_entries_result.all()]
 
     for date in overtime_dates:
+        # Pula se o usuário já tem um DailyRecord para esta data (evita recriar a duplicidade pelo botão sync)
+        dr_res = await db.execute(
+            select(DailyRecord.id).where(
+                DailyRecord.user_id == target_user_id,
+                DailyRecord.date == date
+            )
+        )
+        if dr_res.scalar_one_or_none():
+            continue
+
         day_entries_result = await db.execute(
             select(TimeEntry).where(
                 TimeEntry.user_id == target_user_id,
