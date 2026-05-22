@@ -68,39 +68,46 @@ def _auto_overtime_minutes(
     m_extra_in = _to_mins(extra_in)
     m_extra_out = _to_mins(extra_out)
 
-    worked = 0
-    extra_worked = 0
+    intervals = []
+    if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
+        intervals.extend([(m_in1, m_out1), (m_in2, m_out2)])
+    elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
+        intervals.append((m_in1, m_out2))
+    else:
+        if m_in1 is not None and m_out1 is not None:
+            intervals.append((m_in1, m_out1))
+        if m_in2 is not None and m_out2 is not None:
+            intervals.append((m_in2, m_out2))
+
+    extra_worked = max(0, m_extra_out - m_extra_in) if m_extra_in is not None and m_extra_out is not None else 0
 
     if m_extra_in is not None and m_extra_out is not None:
-        extra_worked = max(0, m_extra_out - m_extra_in)
+        intervals.append((m_extra_in, m_extra_out))
 
-    if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
-        # Caso completo: dois blocos descontando almoço
-        block1 = max(0, m_out1 - m_in1)
-        block2 = max(0, m_out2 - m_in2)
-        worked = block1 + block2
-    elif m_in1 is not None and m_out2 is not None and m_out1 is None and m_in2 is None:
-        # Legado: apenas in1 + out2 (sem saída/retorno de almoço)
-        worked = max(0, m_out2 - m_in1)
-    else:
-        # Blocos parciais (ex: trabalhou só de manhã num sábado)
-        if m_in1 is not None and m_out1 is not None:
-            worked += max(0, m_out1 - m_in1)
-        if m_in2 is not None and m_out2 is not None:
-            worked += max(0, m_out2 - m_in2)
+    valid_intervals = [i for i in intervals if i[1] > i[0]]
+    total_worked = 0
+    if valid_intervals:
+        valid_intervals.sort(key=lambda x: x[0])
+        merged = [list(valid_intervals[0])]
+        for current in valid_intervals[1:]:
+            last = merged[-1]
+            if current[0] <= last[1]:
+                last[1] = max(last[1], current[1])
+            else:
+                merged.append(list(current))
+        total_worked = sum(e - s for s, e in merged)
 
-    if worked <= 0 and extra_worked <= 0:
+    if total_worked <= 0:
         return 0
 
     if is_weekend:
-        # Fim de semana: todo o tempo trabalhado é hora extra (SEMPRE)
-        return worked + extra_worked
+        return total_worked
 
     threshold = _DAILY_THRESHOLD.get(category)
     if threshold is None:
-        return extra_worked  # Dias de semana para pj/dono não têm hora extra calculada automaticamente, mas extra explícito soma
+        return extra_worked
 
-    return max(0, worked - threshold) + extra_worked
+    return max(0, total_worked - threshold)
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
@@ -381,30 +388,52 @@ async def upsert_daily_record(
             _log("lunch", time_value=incoming_lunch, daily_record_id=record.id if record else None)
 
     # --- Sync Time Bank Entry for Overtime ---
-    # We find if there is an existing 'auto' TimeBankEntry for this DailyRecord
-    tb_res = await db.execute(select(TimeBankEntry).where(TimeBankEntry.daily_record_id == record.id, TimeBankEntry.entry_type == "auto"))
+    # DailyRecord é a única fonte de verdade para o banco de horas quando existe.
+    # Usamos apenas cand_ot (overtime calculado automaticamente pelo ponto).
+    # A soma com TimeEntries is_overtime NÃO ocorre aqui — _sync_time_bank_for_day
+    # em time_entries.py agora verifica se há DailyRecord e, se houver, não cria
+    # uma segunda entrada. Assim nunca há duplicidade.
+    tb_res = await db.execute(
+        select(TimeBankEntry).where(
+            TimeBankEntry.daily_record_id == record.id,
+            TimeBankEntry.entry_type == "auto",
+        )
+    )
     tb_entry = tb_res.scalar_one_or_none()
 
-    if record.overtime_minutes and record.overtime_minutes > 0:
+    if cand_ot > 0:
         if tb_entry:
-            tb_entry.amount_minutes = record.overtime_minutes
+            tb_entry.amount_minutes = cand_ot
             tb_entry.description = f"Horas extras geradas no dia {record.date}"
         else:
-            tb_entry = TimeBankEntry(
+            db.add(TimeBankEntry(
                 id=str(uuid.uuid4()),
                 user_id=current_user.id,
                 daily_record_id=record.id,
                 date=record.date,
-                amount_minutes=record.overtime_minutes,
+                amount_minutes=cand_ot,
                 description=f"Horas extras geradas no dia {record.date}",
                 entry_type="auto",
-                created_at=datetime.utcnow()
-            )
-            db.add(tb_entry)
+                created_at=datetime.utcnow(),
+            ))
     else:
-        # if overtime is 0 or null, we should remove the auto entry if it exists
+        # Overtime zerado — remove a entrada automática se existir
         if tb_entry:
             await db.delete(tb_entry)
+
+    # Remove entradas órfãs com daily_record_id=NULL para o mesmo dia.
+    # Isso limpa entradas antigas criadas pelo fluxo de TimeEntry antes da correção.
+    orphan_res = await db.execute(
+        select(TimeBankEntry).where(
+            TimeBankEntry.user_id == current_user.id,
+            TimeBankEntry.date == data.date,
+            TimeBankEntry.entry_type == "auto",
+            TimeBankEntry.daily_record_id == None,
+        )
+    )
+    orphan = orphan_res.scalar_one_or_none()
+    if orphan:
+        await db.delete(orphan)
 
     await db.commit()
     await db.refresh(record)

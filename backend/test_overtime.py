@@ -96,4 +96,48 @@ check("Dono sem HE",
       0)
 
 
+
+print("\n=== extra_in/extra_out (input manual de hora extra) ===")
+# CLT 8h exatas + 1h extra explícita → HE = 1h (sem duplicidade)
+check("CLT 8h + 1h extra explícita",
+      _auto_overtime_minutes("clt", "2026-04-15", "08:00", "12:00", "13:00", "17:00",
+                             extra_in="17:00", extra_out="18:00"),
+      60)
+
+# CLT 8h30 (já HE) + 30min extra explícita → HE = 60min (30 auto + 30 extra, sem duplicidade)
+check("CLT 8h30 + 30min extra",
+      _auto_overtime_minutes("clt", "2026-04-15", "08:00", "12:00", "13:00", "17:30",
+                             extra_in="18:00", extra_out="18:30"),
+      60)
+
+# CLT 7h (abaixo da jornada) + 2h extra explícita → HE = 1h (7+2=9h - 8h threshold)
+check("CLT 7h + 2h extra (cobre gap + gera HE)",
+      _auto_overtime_minutes("clt", "2026-04-15", "08:00", "12:00", "13:00", "16:00",
+                             extra_in="17:00", extra_out="19:00"),
+      60)
+
+# CLT 8h + 2h extra, extra contíguo ao out2 → HE = 2h
+check("CLT 8h + 2h extra contíguo",
+      _auto_overtime_minutes("clt", "2026-04-15", "08:00", "12:00", "13:00", "17:00",
+                             extra_in="17:00", extra_out="19:00"),
+      120)
+
+# Estagiário 6h + 1h extra → HE = 1h
+check("Estagiário 6h + 1h extra",
+      _auto_overtime_minutes("estagiario", "2026-04-15", "09:00", None, None, "15:00",
+                             extra_in="16:00", extra_out="17:00"),
+      60)
+
+# Fim de semana com extra_in/extra_out → tudo é HE
+check("Sábado CLT 2h + 1h extra = 3h HE",
+      _auto_overtime_minutes("clt", "2026-04-18", "09:00", None, None, "11:00",
+                             extra_in="12:00", extra_out="13:00"),
+      180)
+
+# PJ com extra_in/extra_out → retorna extra_worked (horas normais não geram HE, mas extra explícito sim)
+check("PJ com 1h extra explícita",
+      _auto_overtime_minutes("pj", "2026-04-15", "08:00", "12:00", "13:00", "17:00",
+                             extra_in="17:00", extra_out="18:00"),
+      60)
+
 print()

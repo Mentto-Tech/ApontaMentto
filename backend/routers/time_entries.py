@@ -22,7 +22,28 @@ def _calc_mins(start: str, end: str) -> int:
 
 
 async def _sync_time_bank_for_day(user_id: str, date: str, db: AsyncSession):
-    """Recalcula o total de minutos de overtime do usuário no dia e faz upsert na TimeBankEntry."""
+    """
+    Sincroniza o banco de horas com base nos TimeEntries marcados como is_overtime=True.
+
+    Regra anti-duplicidade:
+    - Se existir um DailyRecord para o dia, ele é a fonte de verdade do banco de horas.
+      O upsert do DailyRecord (daily_records.py) gerencia a entrada `auto` desse dia.
+      Esta função NÃO interfere, evitando assim a duplicação de lançamentos.
+    - Se NÃO existir DailyRecord, cria/atualiza normalmente uma entrada com daily_record_id=NULL.
+    """
+    from models import DailyRecord
+
+    # Se houver DailyRecord para o dia, não faz nada — daily_records.py é o responsável
+    dr_res = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == user_id,
+            DailyRecord.date == date,
+        )
+    )
+    if dr_res.scalar_one_or_none() is not None:
+        return
+
+    # Sem DailyRecord: calcula total de minutos dos TimeEntries de hora extra
     result = await db.execute(
         select(TimeEntry).where(
             TimeEntry.user_id == user_id,
@@ -62,6 +83,8 @@ async def _sync_time_bank_for_day(user_id: str, date: str, db: AsyncSession):
     else:
         if tb_entry:
             await db.delete(tb_entry)
+
+
 
 
 @router.get("", response_model=List[TimeEntryOut])
