@@ -332,7 +332,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
             <div>
-              <label className="text-xs text-muted-foreground block">Entrada HE</label>
+              <label className="text-xs text-muted-foreground block">Entrada Hora Extra</label>
               <Input
                 type="time"
                 value={extraIn}
@@ -344,7 +344,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
             <div>
-              <label className="text-xs text-muted-foreground block">Saída HE</label>
+              <label className="text-xs text-muted-foreground block">Saída Hora Extra</label>
               <Input
                 type="time"
                 value={extraOut}
