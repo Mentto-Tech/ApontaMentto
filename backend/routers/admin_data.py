@@ -31,6 +31,7 @@ from schemas import (
     PunchLogOut,
     TimeBankEntryOut,
     TimeEntryOut,
+    TimesheetSignedPdfOut,
     TimesheetSignRequestOut,
     UserOut,
 )
@@ -71,6 +72,7 @@ async def export_data(
     punch_logs_result = await db.execute(select(PunchLog).order_by(PunchLog.recorded_at))
     time_bank_result = await db.execute(select(TimeBankEntry).order_by(TimeBankEntry.date))
     sign_requests_result = await db.execute(select(TimesheetSignRequest).order_by(TimesheetSignRequest.month))
+    signed_pdfs_result = await db.execute(select(TimesheetSignedPdf).order_by(TimesheetSignedPdf.signed_at))
 
     return AdminExport(
         version="2.0",
@@ -89,6 +91,10 @@ async def export_data(
         timesheet_sign_requests=[
             TimesheetSignRequestOut.model_validate(sr)
             for sr in sign_requests_result.scalars().all()
+        ],
+        timesheet_signed_pdfs=[
+            TimesheetSignedPdfOut.model_validate(pdf)
+            for pdf in signed_pdfs_result.scalars().all()
         ],
     )
 
@@ -115,6 +121,7 @@ async def import_data(
     punch_logs_raw = data.get("punchLogs") or data.get("punch_logs") or []
     time_bank_raw = data.get("timeBankEntries") or data.get("time_bank_entries") or []
     sign_requests_raw = data.get("timesheetSignRequests") or data.get("timesheet_sign_requests") or []
+    signed_pdfs_raw = data.get("timesheetSignedPdfs") or data.get("timesheet_signed_pdfs") or []
 
     # --- Delete transactional data (children first) ---
     await db.execute(delete(TimesheetSignedPdf))
@@ -138,6 +145,7 @@ async def import_data(
         "punchLogs": 0,
         "timeBankEntries": 0,
         "timesheetSignRequests": 0,
+        "timesheetSignedPdfs": 0,
     }
 
     # --- Upsert Users (preserva senha se já existe) ---
@@ -245,6 +253,13 @@ async def import_data(
         _strip_tz(sign_req)
         db.add(sign_req)
         counts["timesheetSignRequests"] += 1
+
+    for pdf in signed_pdfs_raw:
+        pdf_model = TimesheetSignedPdfOut.model_validate(pdf)
+        signed_pdf = TimesheetSignedPdf(**pdf_model.model_dump(exclude_none=True))
+        _strip_tz(signed_pdf)
+        db.add(signed_pdf)
+        counts["timesheetSignedPdfs"] += 1
 
     await db.commit()
     return AdminImportResult(ok=True, imported=counts)

@@ -309,6 +309,7 @@ class AdminExport(CamelModel):
     punch_logs: List[PunchLogOut] = []
     time_bank_entries: List[TimeBankEntryOut] = []
     timesheet_sign_requests: List[TimesheetSignRequestOut] = []
+    timesheet_signed_pdfs: List[TimesheetSignedPdfOut] = []
 
 
 class AdminImportResult(CamelModel):

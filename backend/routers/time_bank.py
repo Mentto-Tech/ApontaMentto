@@ -200,7 +200,8 @@ async def sync_time_bank_from_daily_records(
     overtime_dates = [row[0] for row in ot_entries_result.all()]
 
     for date in overtime_dates:
-        # Pula se o usuário já tem um DailyRecord para esta data (evita recriar a duplicidade pelo botão sync)
+        # Pula se o usuário já tem um DailyRecord para esta data, e garante a limpeza de qualquer
+        # entrada originada por esse TimeEntry criada antes da nossa correção do bug de duplicidade.
         dr_res = await db.execute(
             select(DailyRecord.id).where(
                 DailyRecord.user_id == target_user_id,
@@ -208,6 +209,18 @@ async def sync_time_bank_from_daily_records(
             )
         )
         if dr_res.scalar_one_or_none():
+            orphan_res = await db.execute(
+                select(TimeBankEntry).where(
+                    TimeBankEntry.user_id == target_user_id,
+                    TimeBankEntry.date == date,
+                    TimeBankEntry.entry_type == "auto",
+                    TimeBankEntry.daily_record_id == None,
+                )
+            )
+            orphan = orphan_res.scalar_one_or_none()
+            if orphan:
+                await db.delete(orphan)
+                updated += 1
             continue
 
         day_entries_result = await db.execute(
