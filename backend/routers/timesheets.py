@@ -174,9 +174,9 @@ def _build_pdf_bytes(
             he_label = f"{overtime // 60}h{f' {overtime % 60}m' if overtime % 60 else ''}" if overtime else "—"
             c.drawString(x, y, he_label)
             x += col_widths[6]
-            day_total = worked + overtime
+            # worked já inclui o tempo de extra_in/extra_out; não somar overtime novamente
             has_any = worked > 0 or overtime > 0
-            total_label = f"{day_total // 60}h{f' {day_total % 60}m' if day_total % 60 else ''}" if has_any else "—"
+            total_label = f"{worked // 60}h{f' {worked % 60}m' if worked % 60 else ''}" if has_any else "—"
             c.drawString(x, y, total_label)
             
             y -= 15
@@ -185,9 +185,9 @@ def _build_pdf_bytes(
         c.line(margin, y, w - margin, y)
         y -= 15
         
-        total_all_mins = total_worked_mins + total_overtime_mins
-        total_h = total_all_mins // 60
-        total_m = total_all_mins % 60
+        # total_worked_mins já inclui o tempo de extra_in/extra_out
+        total_h = total_worked_mins // 60
+        total_m = total_worked_mins % 60
         oh = total_overtime_mins // 60
         om = total_overtime_mins % 60
         

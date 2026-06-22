@@ -105,9 +105,15 @@ def _auto_overtime_minutes(
 
     threshold = _DAILY_THRESHOLD.get(category)
     if threshold is None:
+        # PJ / dono: apenas o tempo explicitamente marcado como HE
         return extra_worked
 
-    return max(0, total_worked - threshold)
+    # CLT / estagiário: HE = max(0, total_trabalhado - jornada) + HE explícita
+    # A HE explícita (extra_in/extra_out) já está incluída em total_worked.
+    # Calculamos a HE pelo excesso sobre o threshold SEM o extra, depois somamos extra_worked.
+    base_worked = total_worked - extra_worked  # tempo dos pontos normais (in1/out1/in2/out2)
+    he_from_base = max(0, base_worked - threshold)
+    return he_from_base + extra_worked
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
