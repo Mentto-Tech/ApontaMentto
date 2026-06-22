@@ -18,6 +18,9 @@ def _calc_mins(start: str, end: str) -> int:
     sh, sm = map(int, start.split(":"))
     eh, em = map(int, end.split(":"))
     diff = (eh * 60 + em) - (sh * 60 + sm)
+    # Suporte a travessia de meia-noite
+    if diff < 0:
+        diff += 1440
     return max(0, diff)
 
 

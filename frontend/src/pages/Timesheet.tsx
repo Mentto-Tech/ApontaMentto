@@ -79,7 +79,9 @@ const Timesheet = () => {
     if (!start || !end) return 0;
     const [sh, sm] = start.split(":").map(Number);
     const [eh, em] = end.split(":").map(Number);
-    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    let diff = (eh * 60 + em) - (sh * 60 + sm);
+    // Suporte a travessia de meia-noite (ex: extra_in=22:00, extra_out=01:28)
+    if (diff < 0) diff += 1440;
     return diff > 0 ? diff : 0;
   }, []);
 

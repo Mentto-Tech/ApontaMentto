@@ -68,6 +68,11 @@ def _auto_overtime_minutes(
     m_extra_in = _to_mins(extra_in)
     m_extra_out = _to_mins(extra_out)
 
+    # Corrige travessia de meia-noite para extra_in/extra_out
+    # Ex: extra_in=22:00 (1320), extra_out=01:28 (88) → extra_out vira 88+1440=1528
+    if m_extra_in is not None and m_extra_out is not None and m_extra_out < m_extra_in:
+        m_extra_out += 1440
+
     intervals = []
     if m_in1 is not None and m_out1 is not None and m_in2 is not None and m_out2 is not None:
         intervals.extend([(m_in1, m_out1), (m_in2, m_out2)])

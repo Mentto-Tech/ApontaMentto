@@ -121,6 +121,9 @@ def _build_pdf_bytes(
                 sh, sm = map(int, start.split(":"))
                 eh, em = map(int, end.split(":"))
                 diff = (eh * 60 + em) - (sh * 60 + sm)
+                # Suporte a travessia de meia-noite (ex: extra_in=22:00, extra_out=01:28)
+                if diff < 0:
+                    diff += 1440
                 return diff if diff > 0 else 0
             except: return 0
 
