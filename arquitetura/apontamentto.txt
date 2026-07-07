@@ -1,3 +1,0 @@
-APP Mobile do ApontaMentto
-Tiago e Isabelly precisam assinar a folho de ponto (enviar por email)
-Banco de horas -> possibilidade de registrar entrada e saída com descrição
