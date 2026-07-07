@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from functools import partial
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_admin_user, get_current_user
 from email_service import EmailService
-from models import TimesheetSignRequest, TimesheetSignedPdf, User
+from models import AuditLog, TimesheetSignRequest, TimesheetSignedPdf, User
 from schemas import (
     CreateSignRequestIn,
     EmployeeSignIn,
@@ -49,6 +49,17 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _get_request_meta(request: Request) -> tuple[str | None, str | None]:
+    """Extrai IP e User-Agent da requisição, suportando proxies reversos."""
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        ip = forwarded_for.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent")
+    return ip, ua
 
 
 def _build_pdf_bytes(
@@ -254,6 +265,7 @@ def _build_pdf_bytes(
 # ---------------------------------------------------------------------------
 @router.post("/sign-request", response_model=TimesheetSignRequestOut)
 async def create_sign_request(
+    request: Request,
     body: CreateSignRequestIn,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_admin_user),
@@ -283,6 +295,22 @@ async def create_sign_request(
     db.add(req)
     await db.commit()
     await db.refresh(req)
+
+    # --- Auditoria: gestou assinou a folha ---
+    ip, ua = _get_request_meta(request)
+    audit = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=admin.id,
+        username=admin.username,
+        user_role=admin.role,
+        action="GESTOR_ASSINOU_FOLHA",
+        timesheet_id=req.id,
+        month=body.month,
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(audit)
+    await db.commit()
 
     # Send email in thread (SMTP is blocking)
     sign_url = f"{FRONTEND_URL}/assinar/{raw_token}"
@@ -354,7 +382,7 @@ async def get_sign_request_info(token: str, db: AsyncSession = Depends(get_db)):
 # Public: employee signs
 # ---------------------------------------------------------------------------
 @router.post("/sign-request/{token}/employee-sign")
-async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Depends(get_db)):
+async def employee_sign(request: Request, token: str, body: EmployeeSignIn, db: AsyncSession = Depends(get_db)):
     token_hash = _hash_token(token)
     result = await db.execute(
         select(TimesheetSignRequest).where(TimesheetSignRequest.token_hash == token_hash)
@@ -426,6 +454,22 @@ async def employee_sign(token: str, body: EmployeeSignIn, db: AsyncSession = Dep
     db.add(signed_pdf)
     await db.commit()
     await db.refresh(signed_pdf)
+
+    # --- Auditoria: funcionário assinou a folha ---
+    ip, ua = _get_request_meta(request)
+    audit = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=employee.id if employee else None,
+        username=employee.username if employee else None,
+        user_role=employee.role if employee else None,
+        action="FUNCIONARIO_ASSINOU_FOLHA",
+        timesheet_id=req.id,
+        month=req.month,
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(audit)
+    await db.commit()
 
     # Notify manager (non-blocking)
     from calendar import month_name as _mn

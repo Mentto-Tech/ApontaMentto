@@ -306,3 +306,34 @@ class TimesheetSignedPdf(Base):
 
     user = relationship("User")
 
+
+class AuditLog(Base):
+    """Registro de auditoria para ações relacionadas à folha de ponto."""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    # Quem executou a ação
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    username: Mapped[Optional[str]] = mapped_column(String, nullable=True)   # snapshot para permanência histórica
+    user_role: Mapped[Optional[str]] = mapped_column(String, nullable=True)   # snapshot do papel (admin/user)
+    # O que foi feito
+    action: Mapped[str] = mapped_column(String, nullable=False, index=True)   # ex: GESTOR_ASSINOU_FOLHA
+    # Qual folha de ponto foi afetada
+    timesheet_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("timesheet_sign_requests.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    month: Mapped[Optional[str]] = mapped_column(String, nullable=True)   # YYYY-MM — snapshot, mesmo se a folha for removida
+    # Metadados da requisição
+    ip_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Timestamp
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: dt.utcnow(), nullable=False, index=True
+    )
+
+    user: Mapped[Optional["User"]] = relationship("User")
+    timesheet: Mapped[Optional["TimesheetSignRequest"]] = relationship("TimesheetSignRequest")
+

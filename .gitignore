@@ -9,6 +9,12 @@
 backend/seed_test.json
 backend/generate_seed_json.py
 
+# Arquitetura
+/arquitetura
+
+# Backups
+/backups
+
 # Python
 __pycache__/
 **/__pycache__/
