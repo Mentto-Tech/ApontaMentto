@@ -301,6 +301,7 @@ class TimesheetSignedPdf(Base):
     pdf_data = Column(LargeBinary, nullable=True)
     s3_key = Column(String, nullable=True, index=True)
     mime_type = Column(String, nullable=False, default="application/pdf")
+    pdf_hash = Column(String, nullable=True)
     signed_at = Column(DateTime, nullable=False, default=lambda: dt.utcnow())
     sign_request_id = Column(String, ForeignKey("timesheet_sign_requests.id"), nullable=True)
 

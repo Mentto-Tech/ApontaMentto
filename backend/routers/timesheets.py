@@ -441,12 +441,15 @@ async def employee_sign(request: Request, token: str, body: EmployeeSignIn, db: 
             raise HTTPException(status_code=500, detail="Falha ao salvar PDF no S3")
         raise
 
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
     signed_pdf = TimesheetSignedPdf(
         id=pdf_id,
         user_id=req.user_id,
         month=req.month,
         pdf_data=None,
         s3_key=s3_key,
+        pdf_hash=pdf_hash,
         signed_at=datetime.utcnow(),
         sign_request_id=req.id,
     )

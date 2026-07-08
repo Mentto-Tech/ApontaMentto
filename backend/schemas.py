@@ -340,6 +340,7 @@ class TimesheetSignedPdfOut(CamelModel):
     id: str
     user_id: str
     month: str
+    pdf_hash: Optional[str] = None
     signed_at: Optional[datetime] = None
     sign_request_id: Optional[str] = None
 
