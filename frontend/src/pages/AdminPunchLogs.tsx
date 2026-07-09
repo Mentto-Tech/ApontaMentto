@@ -184,13 +184,40 @@ const AdminPunchLogs = () => {
           </div>
         )}
 
-        {logs.map((log) => {
-          const who = users.find((u) => u.id === log.userId)?.username ?? log.userId;
+        {logs
+          // Oculta overtime_minutes = 0 (sem horas extras, irrelevante para RH)
+          .filter((log) => !(log.field === "overtime_minutes" && (log.overtimeMinutes === 0 || log.overtimeMinutes == null)))
+          // Oculta in2 duplicado gerado automaticamente junto com lunch (mesmo timestamp + mesmo valor)
+          .filter((log, _i, arr) => {
+            if (log.field !== "in2") return true;
+            return !arr.some(
+              (other) =>
+                other.field === "lunch" &&
+                other.userId === log.userId &&
+                other.date === log.date &&
+                other.recordedAt === log.recordedAt &&
+                other.timeValue === log.timeValue,
+            );
+          })
+          .map((log) => {
+          const FIELD_LABELS: Record<string, string> = {
+            in1: "Entrada 1",
+            out1: "Saída 1",
+            in2: "Entrada 2",
+            out2: "Saída 2",
+            extra_in: "Entrada Hora Extra",
+            extra_out: "Saída Hora Extra",
+            lunch: "Almoço",
+            overtime_minutes: "Horas Extras",
+            clock_in: "Entrada",
+            clock_out: "Saída",
+          };
+
+          const fieldLabel = FIELD_LABELS[log.field] ?? log.field;
+
           const value =
             log.field === "overtime_minutes"
-              ? log.overtimeMinutes == null
-                ? "-"
-                : `${log.overtimeMinutes} min`
+              ? `${log.overtimeMinutes} min`
               : log.timeValue || "-";
 
           const latLng = formatLatLng(log.geoLat, log.geoLng);
@@ -199,12 +226,14 @@ const AdminPunchLogs = () => {
               ? `https://www.google.com/maps?q=${log.geoLat},${log.geoLng}`
               : null;
 
+          const who = users.find((u) => u.id === log.userId)?.username ?? log.userId;
+
           return (
             <div key={log.id} className="apl-log-card bg-card border border-border rounded-lg p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                 <div>
                   <div className="text-sm sm:text-base font-semibold">
-                    {who} · {formatYmdToBr(log.date)} · {log.field}
+                    {who} · {formatYmdToBr(log.date)} · {fieldLabel}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Registrado em: {formatIsoDateTimeToBr(log.recordedAt)}
