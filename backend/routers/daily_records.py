@@ -172,6 +172,15 @@ async def upsert_daily_record(
     current_user: User = Depends(get_current_user),
 ):
     """Create or update a daily record for the given date + current user."""
+    # Non-admins can only punch for today
+    if current_user.role != "admin":
+        today_str = date_type.today().isoformat()
+        if data.date != today_str:
+            raise HTTPException(
+                status_code=403,
+                detail="Não é permitido registrar ponto em dias diferentes do dia atual.",
+            )
+
     result = await db.execute(
         select(DailyRecord).where(
             DailyRecord.date == data.date,

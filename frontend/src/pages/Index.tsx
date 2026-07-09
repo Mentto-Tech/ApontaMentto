@@ -14,8 +14,16 @@ import "../styles/Index.css";
 
 const Index = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [date, setDate] = useState(new Date());
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedDay = new Date(date);
+  selectedDay.setHours(0, 0, 0, 0);
+  const isToday = selectedDay.getTime() === today.getTime();
+  const isPastDay = selectedDay.getTime() < today.getTime();
+  const canPunch = isAdmin || isToday;
 
   const dateStr = format(date, "yyyy-MM-dd");
   const { data: entries = [] } = useTimeEntries({ date: dateStr, userId: user?.id });
@@ -262,8 +270,7 @@ const Index = () => {
         </div>
         <Button variant="ghost" size="icon" onClick={() => setDate(d => addDays(d, 1))}>
           <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+        </Button>      </div>
 
       {/* Clock-in / Clock-out section */}
       <div className="mb-4 bg-card border border-border rounded-lg p-3">
@@ -271,10 +278,17 @@ const Index = () => {
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Registro do Dia</span>
         </div>
 
+        {!canPunch && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400">
+            <Clock className="h-4 w-4 shrink-0" />
+            <span className="text-xs">Visualização de dia anterior — não é possível registrar ponto.</span>
+          </div>
+        )}
+
         <div className="index-punch-actions flex items-center justify-between gap-3 mb-3">
           <Button
             onClick={() => void handleCommitNextPunch()}
-            disabled={!nextPunchField || upsertDailyRecord.isPending}
+            disabled={!nextPunchField || upsertDailyRecord.isPending || !canPunch}
             className="shrink-0"
           >
             <MapPin className="h-4 w-4 mr-2" />

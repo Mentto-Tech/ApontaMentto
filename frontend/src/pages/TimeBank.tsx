@@ -45,7 +45,8 @@ const TimeBank = () => {
 
   // Form state
   const [formDate, setFormDate] = useState("");
-  const [formAmount, setFormAmount] = useState("");
+  const [formHours, setFormHours] = useState("");
+  const [formMinutes, setFormMinutes] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formType, setFormType] = useState<"manual_add" | "manual_subtract">("manual_add");
 
@@ -81,7 +82,8 @@ const TimeBank = () => {
       toast.success("Lançamento criado com sucesso");
       setIsDialogOpen(false);
       setFormDate("");
-      setFormAmount("");
+      setFormHours("");
+      setFormMinutes("");
       setFormDescription("");
     },
     onError: () => {
@@ -123,15 +125,16 @@ const TimeBank = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const amountHours = parseFloat(formAmount);
-    if (!formDate || isNaN(amountHours)) {
-      toast.error("Preencha data e quantidade em horas");
+    const hours = parseInt(formHours || "0", 10);
+    const mins = parseInt(formMinutes || "0", 10);
+    if (!formDate || (hours === 0 && mins === 0)) {
+      toast.error("Preencha data e uma quantidade maior que zero");
       return;
     }
-    const amountMinutes = Math.round(Math.abs(amountHours) * 60);
+    const amountMinutes = hours * 60 + mins;
     createEntryMutation.mutate({
       date: formDate,
-      amountMinutes: formType === "manual_subtract" ? -Math.abs(amountMinutes) : Math.abs(amountMinutes),
+      amountMinutes: formType === "manual_subtract" ? -amountMinutes : amountMinutes,
       description: formDescription || undefined,
       entryType: formType,
     });
@@ -201,16 +204,32 @@ const TimeBank = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label>Quantidade (horas)</Label>
-                  <Input
-                    type="number"
-                    step="0.25"
-                    min="0"
-                    value={formAmount}
-                    onChange={(e) => setFormAmount(e.target.value)}
-                    placeholder="Ex: 1.5 para 1h30"
-                    required
-                  />
+                  <Label>Quantidade</Label>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex items-center gap-1 flex-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={formHours}
+                        onChange={(e) => setFormHours(e.target.value)}
+                        placeholder="0"
+                        className="text-center"
+                      />
+                      <span className="text-sm text-muted-foreground shrink-0">h</span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={formMinutes}
+                        onChange={(e) => setFormMinutes(e.target.value)}
+                        placeholder="0"
+                        className="text-center"
+                      />
+                      <span className="text-sm text-muted-foreground shrink-0">min</span>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label>Descrição (opcional)</Label>
