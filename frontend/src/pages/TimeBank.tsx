@@ -148,12 +148,21 @@ const TimeBank = () => {
     return `${isNegative ? "-" : ""}${hours}h${mins > 0 ? ` ${mins}m` : ""}`;
   };
 
+  const displayBalance = useMemo(() => {
+    if (!timeBank) return 0;
+    // If a month filter is active, sum only the filtered entries
+    if (monthFilter) {
+      return timeBank.entries.reduce((acc, e) => acc + e.amountMinutes, 0);
+    }
+    return timeBank.totalBalanceMinutes;
+  }, [timeBank, monthFilter]);
+
   const balanceColor = useMemo(() => {
     if (!timeBank) return "text-muted-foreground";
-    if (timeBank.totalBalanceMinutes > 0) return "text-green-600";
-    if (timeBank.totalBalanceMinutes < 0) return "text-red-600";
+    if (displayBalance > 0) return "text-green-600";
+    if (displayBalance < 0) return "text-red-600";
     return "text-muted-foreground";
-  }, [timeBank]);
+  }, [timeBank, displayBalance]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
@@ -296,7 +305,7 @@ const TimeBank = () => {
             <div>
               <div className="text-sm text-muted-foreground mb-1">Saldo Total</div>
               <div className={`text-3xl font-bold ${balanceColor}`}>
-                {formatMinutes(timeBank.totalBalanceMinutes)}
+                {formatMinutes(displayBalance)}
               </div>
             </div>
           </div>
