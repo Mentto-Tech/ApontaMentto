@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getToken } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Bell, BellOff, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Bell, BellOff, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Announcement {
@@ -28,6 +28,9 @@ const AdminAnnouncements = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
     queryKey: ["announcements"],
@@ -37,15 +40,27 @@ const AdminAnnouncements = () => {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["announcements"] });
 
   const createMutation = useMutation({
-    mutationFn: (data: typeof emptyForm) =>
-      apiFetch("/api/announcements", { method: "POST", body: { ...data, imageUrl: data.imageUrl || null } }),
+    mutationFn: async (data: typeof emptyForm) => {
+      const ann = await apiFetch<Announcement>("/api/announcements", {
+        method: "POST",
+        body: { ...data, imageUrl: data.imageUrl || null },
+      });
+      if (imageFile) await uploadImage(ann.id, imageFile);
+      return ann;
+    },
     onSuccess: () => { invalidate(); closeDialog(); toast.success("Aviso criado"); },
     onError: () => toast.error("Erro ao criar aviso"),
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: typeof emptyForm) =>
-      apiFetch(`/api/announcements/${editing!.id}`, { method: "PUT", body: { ...data, imageUrl: data.imageUrl || null } }),
+    mutationFn: async (data: typeof emptyForm) => {
+      const ann = await apiFetch<Announcement>(`/api/announcements/${editing!.id}`, {
+        method: "PUT",
+        body: { ...data, imageUrl: data.imageUrl || null },
+      });
+      if (imageFile) await uploadImage(ann.id, imageFile);
+      return ann;
+    },
     onSuccess: () => { invalidate(); closeDialog(); toast.success("Aviso atualizado"); },
     onError: () => toast.error("Erro ao atualizar aviso"),
   });
@@ -68,9 +83,23 @@ const AdminAnnouncements = () => {
     onError: () => toast.error("Erro ao cancelar aviso"),
   });
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setDialogOpen(true); };
-  const openEdit = (a: Announcement) => { setEditing(a); setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl || "" }); setDialogOpen(true); };
-  const closeDialog = () => { setDialogOpen(false); setEditing(null); setForm(emptyForm); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); setDialogOpen(true); };
+  const openEdit = (a: Announcement) => { setEditing(a); setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl || "" }); setImageFile(null); setImagePreview(a.imageUrl || null); setDialogOpen(true); };
+  const closeDialog = () => { setDialogOpen(false); setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); };
+
+  const uploadImage = async (announcementId: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    await apiFetch(`/api/announcements/${announcementId}/upload-image`, { method: "POST", body: fd });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setForm((f) => ({ ...f, imageUrl: "" })); // clear manual URL when file is chosen
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,12 +203,50 @@ const AdminAnnouncements = () => {
               />
             </div>
             <div>
-              <Label>URL da imagem (opcional)</Label>
-              <Input
-                value={form.imageUrl}
-                onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://..."
+              <Label>Imagem (opcional)</Label>
+              {/* File upload */}
+              <div
+                className="mt-1 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:bg-muted/40 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {imagePreview ? (
+                  <div className="relative w-full">
+                    <img src={imagePreview} alt="Preview" className="w-full max-h-40 object-cover rounded-md" />
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-background rounded-full p-0.5 shadow"
+                      onClick={(e) => { e.stopPropagation(); setImageFile(null); setImagePreview(null); setForm((f) => ({ ...f, imageUrl: "" })); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <ImagePlus className="h-6 w-6 text-muted-foreground mb-1" />
+                    <span className="text-xs text-muted-foreground">Clique para selecionar uma imagem</span>
+                    <span className="text-xs text-muted-foreground">JPEG, PNG, GIF, WebP · máx 10 MB</span>
+                  </>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
               />
+              {/* Or URL */}
+              {!imageFile && (
+                <div className="mt-2">
+                  <Label className="text-xs text-muted-foreground">ou cole uma URL</Label>
+                  <Input
+                    value={form.imageUrl}
+                    onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                    placeholder="https://..."
+                    className="mt-1"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>

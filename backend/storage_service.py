@@ -98,6 +98,11 @@ def build_timesheet_pdf_s3_key(*, user_id: str, month: str, pdf_id: str) -> str:
     return f"timesheets/signed/{user_id}/{month}/{pdf_id}.pdf"
 
 
+def build_announcement_image_s3_key(*, announcement_id: str, original_filename: str | None) -> str:
+    safe_name = _safe_filename(original_filename)
+    return f"announcements/{announcement_id}/{safe_name}"
+
+
 def is_s3_not_found(exc: Exception) -> bool:
     if isinstance(exc, ClientError):
         code = (exc.response.get("Error") or {}).get("Code")
