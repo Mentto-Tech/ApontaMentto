@@ -199,7 +199,6 @@ async def upload_announcement_image(
 async def serve_announcement_image(
     announcement_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     from fastapi.responses import Response as FastAPIResponse
     result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
