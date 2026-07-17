@@ -21,8 +21,15 @@ const AnnouncementModal = () => {
 
   const { data: announcement } = useQuery<Announcement | null>({
     queryKey: ["announcement-active"],
-    queryFn: () => apiFetch<Announcement | null>("/api/announcements/active"),
+    queryFn: async () => {
+      try {
+        return await apiFetch<Announcement | null>("/api/announcements/active");
+      } catch {
+        return null;
+      }
+    },
     retry: false,
+    staleTime: 1000 * 60 * 5,
   });
 
   useEffect(() => {

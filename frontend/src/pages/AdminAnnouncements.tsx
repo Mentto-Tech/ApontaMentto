@@ -125,8 +125,9 @@ const AdminAnnouncements = () => {
                       onClick={() => activateMutation.mutate(a.id)}
                       disabled={activateMutation.isPending}
                       title="Disparar aviso"
+                      className="group"
                     >
-                      <Bell className="h-4 w-4 text-primary" />
+                      <Bell className="h-4 w-4 text-primary group-hover:text-white" />
                     </Button>
                   )}
                   <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar">
