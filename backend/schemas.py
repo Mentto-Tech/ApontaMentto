@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from models import UserCategory
@@ -387,3 +387,18 @@ class AnnouncementOut(CamelModel):
     @classmethod
     def _dt_utc(cls, v: Any):
         return _as_utc_datetime(v)
+
+    @model_validator(mode="after")
+    def format_image_url(self) -> AnnouncementOut:
+        if self.image_url:
+            import os
+            bucket = os.getenv("S3_BUCKET")
+            is_s3 = False
+            if not self.image_url.startswith("http"):
+                is_s3 = True
+            elif bucket and bucket in self.image_url:
+                is_s3 = True
+            
+            if is_s3:
+                self.image_url = f"/api/announcements/{self.id}/image"
+        return self

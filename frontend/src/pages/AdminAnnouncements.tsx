@@ -90,7 +90,7 @@ const AdminAnnouncements = () => {
   const openCreate = () => { setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); setDialogOpen(true); };
   const openEdit = (a: Announcement) => {
     setEditing(a);
-    setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl?.startsWith("http") ? a.imageUrl : "" });
+    setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl || "" });
     setImageFile(null);
     // Show existing S3 image via backend proxy, or external URL directly
     setImagePreview(imageDisplayUrl(a));

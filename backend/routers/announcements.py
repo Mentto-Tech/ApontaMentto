@@ -80,7 +80,34 @@ async def update_announcement(
         raise HTTPException(404, "Aviso não encontrado")
     ann.title = data.title
     ann.body = data.body
-    ann.image_url = data.image_url
+    
+    # If image_url points to our local proxy for this announcement, keep the current stored value
+    if data.image_url and (
+        data.image_url.startswith("/api/announcements/") or 
+        data.image_url == ann.image_url
+    ):
+        pass
+    else:
+        # Delete old image if it changes
+        if ann.image_url and ann.image_url != data.image_url:
+            bucket = _storage.config.bucket
+            is_external = ann.image_url.startswith("http") and not (bucket and bucket in ann.image_url)
+            if not is_external:
+                try:
+                    key_to_delete = ann.image_url
+                    if ann.image_url.startswith("http"):
+                        from urllib.parse import urlparse
+                        parsed = urlparse(ann.image_url)
+                        path = parsed.path.lstrip("/")
+                        if bucket and path.startswith(bucket + "/"):
+                            key_to_delete = path[len(bucket) + 1 :]
+                        else:
+                            key_to_delete = path
+                    _storage.delete_object(key_to_delete)
+                except Exception:
+                    pass
+        ann.image_url = data.image_url
+
     await db.commit()
     await db.refresh(ann)
     return AnnouncementOut.model_validate(ann)
@@ -98,6 +125,26 @@ async def delete_announcement(
     ann = result.scalar_one_or_none()
     if not ann:
         raise HTTPException(404, "Aviso não encontrado")
+        
+    # Also delete image if exists on S3
+    if ann.image_url:
+        bucket = _storage.config.bucket
+        is_external = ann.image_url.startswith("http") and not (bucket and bucket in ann.image_url)
+        if not is_external:
+            try:
+                key_to_delete = ann.image_url
+                if ann.image_url.startswith("http"):
+                    from urllib.parse import urlparse
+                    parsed = urlparse(ann.image_url)
+                    path = parsed.path.lstrip("/")
+                    if bucket and path.startswith(bucket + "/"):
+                        key_to_delete = path[len(bucket) + 1 :]
+                    else:
+                        key_to_delete = path
+                _storage.delete_object(key_to_delete)
+            except Exception:
+                pass
+
     await db.delete(ann)
     await db.commit()
     return {"ok": True}
@@ -160,8 +207,13 @@ async def serve_announcement_image(
     if not ann or not ann.image_url:
         raise HTTPException(404, "Imagem não encontrada")
 
-    # If it's an external URL just redirect
-    if ann.image_url.startswith("http"):
+    # If it's an external URL (NOT in our S3 bucket), just redirect to it
+    bucket = _storage.config.bucket
+    is_internal_s3 = False
+    if ann.image_url.startswith("http") and bucket and bucket in ann.image_url:
+        is_internal_s3 = True
+
+    if ann.image_url.startswith("http") and not is_internal_s3:
         from fastapi.responses import RedirectResponse
         return RedirectResponse(ann.image_url)
 
@@ -169,7 +221,18 @@ async def serve_announcement_image(
         raise HTTPException(503, "Armazenamento S3 não configurado")
 
     try:
-        data, content_type = _storage.download_bytes(ann.image_url)
+        # If it's an internal S3 URL, extract the key, otherwise use the key directly
+        s3_key = ann.image_url
+        if is_internal_s3:
+            from urllib.parse import urlparse
+            parsed = urlparse(ann.image_url)
+            path = parsed.path.lstrip("/")
+            if bucket and path.startswith(bucket + "/"):
+                s3_key = path[len(bucket) + 1 :]
+            else:
+                s3_key = path
+                
+        data, content_type = _storage.download_bytes(s3_key)
     except Exception:
         raise HTTPException(404, "Imagem não encontrada no S3")
 
