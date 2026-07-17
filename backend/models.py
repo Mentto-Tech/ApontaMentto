@@ -338,3 +338,22 @@ class AuditLog(Base):
     user: Mapped[Optional["User"]] = relationship("User")
     timesheet: Mapped[Optional["TimesheetSignRequest"]] = relationship("TimesheetSignRequest")
 
+
+
+class Announcement(Base):
+    """Avisos disparados pelo admin para exibição modal no login dos usuários."""
+
+    __tablename__ = "announcements"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: dt.utcnow(), nullable=False
+    )
+    activated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)

@@ -362,3 +362,28 @@ class EmployeeSignIn(BaseModel):
     employee_signature: str     # dataURL base64 PNG
 
 
+
+
+# ---------------------------------------------------------------------------
+# Announcements
+# ---------------------------------------------------------------------------
+class AnnouncementIn(CamelModel):
+    title: str
+    body: str
+    image_url: Optional[str] = None
+
+
+class AnnouncementOut(CamelModel):
+    id: str
+    title: str
+    body: str
+    image_url: Optional[str] = None
+    is_active: bool
+    created_by_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    activated_at: Optional[datetime] = None
+
+    @field_validator("created_at", "activated_at", mode="before")
+    @classmethod
+    def _dt_utc(cls, v: Any):
+        return _as_utc_datetime(v)

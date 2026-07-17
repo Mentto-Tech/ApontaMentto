@@ -22,6 +22,7 @@ import TimeBank from "./pages/TimeBank";
 import AdminUsers from "./pages/AdminUsers";
 import AdminPunchLogs from "./pages/AdminPunchLogs";
 import AdminSettings from "./pages/AdminSettings";
+import AdminAnnouncements from "./pages/AdminAnnouncements";
 import NotFound from "./pages/NotFound";
 
 import SignTimesheet from "./pages/SignTimesheet";
@@ -68,6 +69,7 @@ const AppRoutes = () => (
       <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
       <Route path="/admin/logs" element={<AdminRoute><AdminPunchLogs /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
+      <Route path="/admin/announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

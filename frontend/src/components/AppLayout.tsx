@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History, Wallet } from "lucide-react";
+import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History, Wallet, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import AnnouncementModal from "@/components/AnnouncementModal";
 
 const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -23,6 +24,7 @@ const AppLayout = () => {
         { to: "/admin/users", icon: Users, label: "Usuários" },
         { to: "/admin/logs", icon: History, label: "Logs" },
         { to: "/admin/settings", icon: Settings, label: "Backup" },
+        { to: "/admin/announcements", icon: Bell, label: "Avisos" },
       ]
     : [
         { to: "/minhas-folhas", icon: FileText, label: "Minhas Folhas" },
@@ -139,6 +141,7 @@ const AppLayout = () => {
 
       <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0 md:ml-56">
         <Outlet />
+        <AnnouncementModal />
       </main>
     </div>
   );
