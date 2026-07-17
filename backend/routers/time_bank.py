@@ -27,10 +27,12 @@ async def get_time_bank(
             raise HTTPException(403, "Sem permissão")
         target_user_id = userId
 
-    # Calculate overall balance for this user (all time)
+    # Calculate balance for this user, filtered by month if provided
     balance_query = select(func.sum(TimeBankEntry.amount_minutes)).where(
         TimeBankEntry.user_id == target_user_id
     )
+    if month:
+        balance_query = balance_query.where(TimeBankEntry.date.like(f"{month}%"))
     balance_result = await db.execute(balance_query)
     total_balance = balance_result.scalar() or 0
 
