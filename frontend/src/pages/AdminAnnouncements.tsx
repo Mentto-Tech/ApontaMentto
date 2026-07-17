@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, getToken } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,8 +83,19 @@ const AdminAnnouncements = () => {
     onError: () => toast.error("Erro ao cancelar aviso"),
   });
 
+  // Returns the URL to display an announcement image (S3 key proxied via backend, or external URL)
+  const imageDisplayUrl = (a: Announcement) =>
+    a.imageUrl ? (a.imageUrl.startsWith("http") ? a.imageUrl : `/api/announcements/${a.id}/image`) : null;
+
   const openCreate = () => { setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); setDialogOpen(true); };
-  const openEdit = (a: Announcement) => { setEditing(a); setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl || "" }); setImageFile(null); setImagePreview(a.imageUrl || null); setDialogOpen(true); };
+  const openEdit = (a: Announcement) => {
+    setEditing(a);
+    setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl?.startsWith("http") ? a.imageUrl : "" });
+    setImageFile(null);
+    // Show existing S3 image via backend proxy, or external URL directly
+    setImagePreview(imageDisplayUrl(a));
+    setDialogOpen(true);
+  };
   const closeDialog = () => { setDialogOpen(false); setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); };
 
   const uploadImage = async (announcementId: string, file: File) => {
@@ -133,7 +144,12 @@ const AdminAnnouncements = () => {
                   </div>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{a.body}</p>
                   {a.imageUrl && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate">🖼 {a.imageUrl}</p>
+                    <img
+                      src={imageDisplayUrl(a)!}
+                      alt="Imagem do aviso"
+                      className="mt-2 h-16 rounded-md object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">

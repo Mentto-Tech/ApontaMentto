@@ -129,10 +129,9 @@ async def upload_announcement_image(
         raise HTTPException(400, "Imagem muito grande (máx 10 MB)")
 
     # Delete old image if exists
-    if ann.image_url:
+    if ann.image_url and not ann.image_url.startswith("http"):
         try:
-            old_key = ann.image_url.split(".amazonaws.com/", 1)[-1]
-            _storage.delete_object(old_key)
+            _storage.delete_object(ann.image_url)
         except Exception:
             pass
 
@@ -142,13 +141,39 @@ async def upload_announcement_image(
     )
     _storage.upload_bytes(key, data, content_type=file.content_type)
 
-    # Build public URL
-    region = _storage.config.region or "us-east-1"
-    image_url = f"https://{_storage.bucket}.s3.{region}.amazonaws.com/{key}"
-    ann.image_url = image_url
+    # Store the S3 key (not a public URL — served via /image endpoint)
+    ann.image_url = key
     await db.commit()
     await db.refresh(ann)
-    return {"imageUrl": image_url}
+    return {"imageUrl": f"/api/announcements/{announcement_id}/image"}
+
+
+@router.get("/{announcement_id}/image")
+async def serve_announcement_image(
+    announcement_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    from fastapi.responses import Response as FastAPIResponse
+    result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
+    ann = result.scalar_one_or_none()
+    if not ann or not ann.image_url:
+        raise HTTPException(404, "Imagem não encontrada")
+
+    # If it's an external URL just redirect
+    if ann.image_url.startswith("http"):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(ann.image_url)
+
+    if not _storage.enabled:
+        raise HTTPException(503, "Armazenamento S3 não configurado")
+
+    try:
+        data, content_type = _storage.download_bytes(ann.image_url)
+    except Exception:
+        raise HTTPException(404, "Imagem não encontrada no S3")
+
+    return FastAPIResponse(content=data, media_type=content_type or "image/jpeg")
 
 
 @router.post("/{announcement_id}/activate", response_model=AnnouncementOut)

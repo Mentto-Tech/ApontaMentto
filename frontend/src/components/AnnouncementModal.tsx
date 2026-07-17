@@ -93,7 +93,7 @@ const AnnouncementModal = () => {
 
           {announcement.imageUrl && (
             <img
-              src={announcement.imageUrl}
+              src={announcement.imageUrl.startsWith("http") ? announcement.imageUrl : `/api/announcements/${announcement.id}/image`}
               alt="Imagem do aviso"
               className="w-full rounded-lg mb-4 object-cover max-h-64"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
