@@ -149,7 +149,7 @@ const Profile = () => {
           <span className="flex items-center"><DownloadCloud className="h-4 w-4 mr-2" /> Exportar Meus Dados</span>
           {exporting && <span className="text-xs">Aguarde...</span>}
         </Button>
-        <Button variant="outline" className="w-full text-destructive border-transparent hover:bg-destructive/10 flex justify-between" onClick={() => setDeleteModalOpen(true)}>
+        <Button variant="outline" className="w-full text-destructive border-transparent hover:bg-destructive/10 hover:text-black flex justify-between" onClick={() => setDeleteModalOpen(true)}>
           <span className="flex items-center"><AlertTriangle className="h-4 w-4 mr-2" /> Excluir Minha Conta</span>
         </Button>
       </div>
