@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/lib/queries";
+import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
-import { User, LogOut, DollarSign, Zap } from "lucide-react";
+import { User, LogOut, DollarSign, Zap, DownloadCloud, AlertTriangle } from "lucide-react";
 import "../styles/Profile.css";
 
 const Profile = () => {
@@ -14,6 +16,49 @@ const Profile = () => {
   const updateProfile = useUpdateProfile();
   const [name, setName] = useState(user?.name ?? user?.username ?? "");
   const [email, setEmail] = useState(user?.email || "");
+  const [exporting, setExporting] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const data = await apiFetch<any>("/api/users/me/data-export");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `meus_dados_apontamentto.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      toast.success("Dados exportados com sucesso!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao exportar dados.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmName !== (user?.name || user?.username)) {
+      toast.error("O nome digitado não confere.");
+      return;
+    }
+    setDeleting(true);
+    try {
+      await apiFetch("/api/users/me", { method: "DELETE" });
+      toast.success("Conta excluída com sucesso.");
+      logout();
+      navigate("/login");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir conta.");
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +142,18 @@ const Profile = () => {
         </div>
       )}
 
+      {/* LGPD Actions */}
+      <div className="profile-card bg-card border border-border rounded-lg p-6 mt-4 space-y-4">
+        <h2 className="text-sm font-semibold mb-3">Privacidade e Dados (LGPD)</h2>
+        <Button variant="outline" className="w-full flex justify-between" onClick={handleExportData} disabled={exporting}>
+          <span className="flex items-center"><DownloadCloud className="h-4 w-4 mr-2" /> Exportar Meus Dados</span>
+          {exporting && <span className="text-xs">Aguarde...</span>}
+        </Button>
+        <Button variant="outline" className="w-full text-destructive border-transparent hover:bg-destructive/10 flex justify-between" onClick={() => setDeleteModalOpen(true)}>
+          <span className="flex items-center"><AlertTriangle className="h-4 w-4 mr-2" /> Excluir Minha Conta</span>
+        </Button>
+      </div>
+
       <Button
         variant="outline"
         onClick={handleLogout}
@@ -105,6 +162,34 @@ const Profile = () => {
         <LogOut className="h-4 w-4 mr-2" />
         Sair da conta
       </Button>
+
+      {/* Exclusão Modal */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Conta</DialogTitle>
+            <DialogDescription>
+              Atenção: sua conta será desativada e seus dados pessoais serão anonimizados para conformidade com a LGPD. 
+              Ao prosseguir, você perderá acesso ao sistema.
+              <br /><br />
+              Para confirmar, digite seu nome exatamente como aparece no perfil: <strong>{user?.name || user?.username}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input 
+              value={deleteConfirmName} 
+              onChange={e => setDeleteConfirmName(e.target.value)} 
+              placeholder="Digite seu nome para confirmar" 
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteModalOpen(false)} disabled={deleting}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting || deleteConfirmName !== (user?.name || user?.username)}>
+              {deleting ? "Excluindo..." : "Confirmar Exclusão"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

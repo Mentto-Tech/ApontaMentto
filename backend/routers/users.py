@@ -79,12 +79,19 @@ async def export_my_data(
     }
 
 
+import uuid
+
 @router.delete("/me")
 async def delete_me(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await db.delete(current_user)
+    # Soft delete (LGPD Anonymization)
+    suffix = str(uuid.uuid4())[:12]
+    current_user.email = f"deleted_{suffix}@mentto.local"
+    current_user.username = f"Usuario_Excluido_{suffix}"
+    current_user.hashed_password = "SOFT_DELETED"
+    
     await db.commit()
     return {"message": "Conta excluída com sucesso"}
 
