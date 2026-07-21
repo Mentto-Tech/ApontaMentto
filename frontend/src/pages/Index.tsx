@@ -32,6 +32,8 @@ const Index = () => {
   const deleteEntry = useDeleteTimeEntry();
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<TimeEntry | null>(null);
+  const [geoConsentOpen, setGeoConsentOpen] = useState(false);
+  const [pendingPatch, setPendingPatch] = useState<{ patch: DailyRecordPatch, opts?: { captureGeo?: boolean } } | null>(null);
 
   // Clock-in / clock-out
   const { data: dailyRecords = [] } = useDailyRecords({ date: dateStr, userId: user?.id });
@@ -103,6 +105,12 @@ const Index = () => {
         title: "Sem conexão",
         description: "Você está offline. Conecte-se à internet para salvar a batida.",
       });
+      return;
+    }
+
+    if (opts?.captureGeo && localStorage.getItem("geoConsent") !== "true") {
+      setPendingPatch({ patch, opts });
+      setGeoConsentOpen(true);
       return;
     }
 
@@ -211,6 +219,20 @@ const Index = () => {
     }
     
     await sendPatch(patch, { captureGeo: true });
+  };
+
+  const handleGeoConfirm = async () => {
+    localStorage.setItem("geoConsent", "true");
+    setGeoConsentOpen(false);
+    if (pendingPatch) {
+      await sendPatch(pendingPatch.patch, pendingPatch.opts);
+      setPendingPatch(null);
+    }
+  };
+
+  const handleGeoCancel = () => {
+    setGeoConsentOpen(false);
+    setPendingPatch(null);
   };
 
   const handleSaveOvertime = async () => {
@@ -484,6 +506,22 @@ const Index = () => {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={geoConsentOpen} onOpenChange={setGeoConsentOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permissão de Localização</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para validar o seu ponto de acordo com as regras estabelecidas, precisamos registrar sua geolocalização no momento da batida. 
+              Sua localização será coletada apenas neste instante e não será rastreada continuamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleGeoCancel}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleGeoConfirm}>Entendi e Aceito</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={Boolean(entryToDelete)}

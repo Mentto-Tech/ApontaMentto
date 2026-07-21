@@ -57,6 +57,18 @@ const Login = () => {
           Não tem conta?{" "}
           <Link to="/signup" className="text-primary font-medium hover:underline">Cadastre-se</Link>
         </p>
+
+        <div className="mt-8 text-center text-xs text-muted-foreground">
+          <p>
+            Ao entrar, você concorda com nossos{" "}
+            <a href="https://mentto.com.br/termos-de-uso-e-politicas-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Termos de Uso e Política de Privacidade
+            </a>.
+          </p>
+          <p className="mt-1">
+            Seus dados de ponto são retidos por 5 anos (art. 11 CLT).
+          </p>
+        </div>
       </div>
     </div>
   );

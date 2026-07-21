@@ -42,6 +42,53 @@ async def update_user_admin(
     return UserOut.model_validate(user)
 
 
+@router.get("/me/data-export")
+async def export_my_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.daily_records))
+        .where(User.id == current_user.id)
+    )
+    user_with_records = result.scalar_one()
+    
+    return {
+        "user": {
+            "id": user_with_records.id,
+            "username": user_with_records.username,
+            "email": user_with_records.email,
+            "category": user_with_records.category,
+            "created_at": user_with_records.created_at,
+        },
+        "daily_records": [
+            {
+                "date": dr.date,
+                "in1": dr.in1,
+                "out1": dr.out1,
+                "in2": dr.in2,
+                "out2": dr.out2,
+                "ip_address": dr.ip_address,
+                "geo_lat": dr.geo_lat,
+                "geo_lng": dr.geo_lng,
+            }
+            for dr in user_with_records.daily_records
+        ]
+    }
+
+
+@router.delete("/me")
+async def delete_me(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await db.delete(current_user)
+    await db.commit()
+    return {"message": "Conta excluída com sucesso"}
+
+
 @router.put("/me", response_model=UserOut)
 async def update_me(
     data: UserMeUpdate,
