@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/lib/queries";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
-import { User, LogOut, DollarSign, Zap, DownloadCloud, AlertTriangle } from "lucide-react";
+import { User, LogOut, DollarSign, Zap, DownloadCloud, AlertTriangle, Key } from "lucide-react";
 import "../styles/Profile.css";
 
 const Profile = () => {
@@ -20,6 +20,11 @@ const Profile = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [deleting, setDeleting] = useState(false);
+  
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
   
   const handleExportData = async () => {
     setExporting(true);
@@ -38,6 +43,26 @@ const Profile = () => {
       toast.error(err.message || "Erro ao exportar dados.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) return;
+    setChangingPassword(true);
+    try {
+      await apiFetch("/api/users/me/change-password", {
+        method: "POST",
+        body: { currentPassword, newPassword }
+      });
+      toast.success("Senha alterada com sucesso!");
+      setPasswordModalOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao alterar senha.");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -142,6 +167,14 @@ const Profile = () => {
         </div>
       )}
 
+      {/* Segurança */}
+      <div className="profile-card bg-card border border-border rounded-lg p-6 mt-4 space-y-4">
+        <h2 className="text-sm font-semibold mb-3">Segurança</h2>
+        <Button variant="outline" className="w-full flex justify-between" onClick={() => setPasswordModalOpen(true)}>
+          <span className="flex items-center"><Key className="h-4 w-4 mr-2" /> Alterar Senha</span>
+        </Button>
+      </div>
+
       {/* LGPD Actions */}
       <div className="profile-card bg-card border border-border rounded-lg p-6 mt-4 space-y-4">
         <h2 className="text-sm font-semibold mb-3">Privacidade e Dados (LGPD)</h2>
@@ -162,6 +195,43 @@ const Profile = () => {
         <LogOut className="h-4 w-4 mr-2" />
         Sair da conta
       </Button>
+
+      {/* Troca de Senha Modal */}
+      <Dialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword}>
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Senha atual</label>
+                <Input 
+                  type="password"
+                  value={currentPassword} 
+                  onChange={e => setCurrentPassword(e.target.value)} 
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Nova senha</label>
+                <Input 
+                  type="password"
+                  value={newPassword} 
+                  onChange={e => setNewPassword(e.target.value)} 
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setPasswordModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={changingPassword}>
+                {changingPassword ? "Salvando..." : "Alterar Senha"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Exclusão Modal */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>

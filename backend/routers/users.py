@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_admin_user, get_current_user
 from models import User
-from schemas import UserAdminUpdate, UserMeUpdate, UserOut
+from schemas import UserAdminUpdate, UserMeUpdate, UserOut, ChangePasswordRequest
+from security import verify_password, hash_password
 
 router = APIRouter()
 
@@ -94,6 +95,20 @@ async def delete_me(
     
     await db.commit()
     return {"message": "Conta excluída com sucesso"}
+
+
+@router.post("/me/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(400, "Senha atual incorreta")
+    
+    current_user.hashed_password = hash_password(data.new_password)
+    await db.commit()
+    return {"message": "Senha alterada com sucesso"}
 
 
 @router.put("/me", response_model=UserOut)

@@ -95,6 +95,11 @@ class UserMeUpdate(CamelModel):
     email: Optional[str] = None
 
 
+class ChangePasswordRequest(CamelModel):
+    current_password: str
+    new_password: str
+
+
 # ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------
