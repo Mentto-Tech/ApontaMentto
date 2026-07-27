@@ -5,7 +5,7 @@ from typing import Optional, List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pywebpush import webpush, WebPushException
-from pyvapid import Vapid
+from py_vapid import Vapid
 
 from models import PushSubscription, Announcement
 
@@ -37,12 +37,24 @@ def _get_or_create_vapid() -> tuple[str, str]:
         vapid = Vapid()
         vapid.generate_keys()
         _vapid_instance = vapid
-        _vapid_public_key_b64 = vapid.public_key.decode("utf-8") if isinstance(vapid.public_key, bytes) else str(vapid.public_key)
-        _vapid_private_key = vapid.private_key.decode("utf-8") if isinstance(vapid.private_key, bytes) else str(vapid.private_key)
+
+        if hasattr(vapid.public_key, "savePublicKey"):
+            _vapid_public_key_b64 = vapid.public_key.savePublicKey().decode("utf-8")
+        elif isinstance(vapid.public_key, bytes):
+            _vapid_public_key_b64 = vapid.public_key.decode("utf-8")
+        else:
+            _vapid_public_key_b64 = str(vapid.public_key)
+
+        if hasattr(vapid.private_key, "savePrivateKey"):
+            _vapid_private_key = vapid.private_key.savePrivateKey().decode("utf-8")
+        elif isinstance(vapid.private_key, bytes):
+            _vapid_private_key = vapid.private_key.decode("utf-8")
+        else:
+            _vapid_private_key = str(vapid.private_key)
+
         logger.info("VAPID keys auto-generated successfully.")
     except Exception as e:
         logger.error(f"Failed to generate VAPID keys: {e}")
-        # Fallback dummy key placeholders
         _vapid_public_key_b64 = pub_env or ""
         _vapid_private_key = priv_env or ""
 
