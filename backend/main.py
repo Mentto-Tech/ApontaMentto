@@ -21,8 +21,10 @@ async def _push_scheduler():
     from push_service import dispatch_announcement_push
 
     logger.info("Push scheduler started.")
+    first_run = True
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(5 if first_run else 60)
+        first_run = False
         try:
             async with AsyncSessionLocal() as db:
                 now = datetime.utcnow()
@@ -32,12 +34,12 @@ async def _push_scheduler():
                     )
                 )
                 candidates = result.scalars().all()
-                logger.debug(f"Scheduler tick: {len(candidates)} announcement(s) with repeat schedule.")
+                logger.info(f"Scheduler tick: {len(candidates)} announcement(s) with repeat schedule.")
 
                 for ann in candidates:
                     # Skip if not active
                     if not ann.is_active:
-                        logger.debug(f"Skipping '{ann.title}': not active.")
+                        logger.info(f"Skipping '{ann.title}': not active (is_active=False).")
                         continue
 
                     # Expire if past repeat_until
@@ -52,7 +54,7 @@ async def _push_scheduler():
                     if ann.push_last_sent_at:
                         next_send = ann.push_last_sent_at + timedelta(minutes=ann.push_repeat_interval_minutes)
                         if now < next_send:
-                            logger.debug(f"Skipping '{ann.title}': next send at {next_send}.")
+                            logger.info(f"Skipping '{ann.title}': next send at {next_send} (now={now}).")
                             continue
 
                     # Fire
