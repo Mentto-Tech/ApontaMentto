@@ -357,3 +357,23 @@ class Announcement(Base):
         DateTime, default=lambda: dt.utcnow(), nullable=False
     )
     activated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class PushSubscription(Base):
+    """Inscrições PUSH (Web Push VAPID) dos dispositivos dos usuários."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    p256dh: Mapped[str] = mapped_column(Text, nullable=False)
+    auth: Mapped[str] = mapped_column(Text, nullable=False)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: dt.utcnow(), nullable=False
+    )
+
+    user: Mapped[User] = relationship("User")

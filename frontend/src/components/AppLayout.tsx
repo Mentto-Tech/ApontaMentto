@@ -3,6 +3,7 @@ import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText,
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import AnnouncementModal from "@/components/AnnouncementModal";
+import PushNotificationToggle from "@/components/PushNotificationToggle";
 
 const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -106,6 +107,9 @@ const AppLayout = () => {
               <div className="text-xs font-medium text-sidebar-foreground truncate">{user?.username}</div>
               <div className="text-[10px] text-sidebar-foreground/50 capitalize">{user?.isAdmin ? 'Admin' : 'User'}</div>
             </div>
+          </div>
+          <div className="mb-2">
+            <PushNotificationToggle variant="sidebar" showTestButton />
           </div>
           <Button
             variant="ghost"

@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import admin_data, announcements, auth, daily_records, geocode, justifications, locations, projects, punch_logs, time_entries, users, time_bank, timesheets
+from routers import admin_data, announcements, auth, daily_records, geocode, justifications, locations, projects, punch_logs, push, time_entries, users, time_bank, timesheets
 
 
 @asynccontextmanager
@@ -57,6 +57,7 @@ app.include_router(time_bank.router, prefix="/api/time-bank", tags=["time-bank"]
 app.include_router(admin_data.router, prefix="/api/admin", tags=["admin"])
 app.include_router(timesheets.router, prefix="/api/timesheets", tags=["timesheets"])
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
+app.include_router(push.router, prefix="/api/push", tags=["push"])
 
 
 @app.get("/api/health")

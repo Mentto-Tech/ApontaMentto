@@ -11,6 +11,7 @@ from dependencies import get_current_user
 from models import Announcement, User
 from schemas import AnnouncementIn, AnnouncementOut
 from storage_service import S3Storage, build_announcement_image_s3_key
+from push_service import dispatch_announcement_push
 
 router = APIRouter()
 _storage = S3Storage()
@@ -259,6 +260,13 @@ async def activate_announcement(
     ann.activated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(ann)
+
+    # Disparar notificação PUSH para os usuários
+    try:
+        await dispatch_announcement_push(db, ann)
+    except Exception as e:
+        pass
+
     return AnnouncementOut.model_validate(ann)
 
 
@@ -278,3 +286,21 @@ async def deactivate_announcement(
     await db.commit()
     await db.refresh(ann)
     return AnnouncementOut.model_validate(ann)
+
+
+@router.post("/{announcement_id}/push")
+async def trigger_announcement_push(
+    announcement_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permite ao administrador reenviar a notificação PUSH de um aviso específico."""
+    if current_user.role != "admin":
+        raise HTTPException(403, "Sem permissão")
+    result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
+    ann = result.scalar_one_or_none()
+    if not ann:
+        raise HTTPException(404, "Aviso não encontrado")
+
+    sent = await dispatch_announcement_push(db, ann)
+    return {"ok": True, "sentCount": sent}

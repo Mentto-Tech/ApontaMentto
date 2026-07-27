@@ -55,6 +55,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         navigateFallback: "/index.html",
         cleanupOutdatedCaches: true,
+        importScripts: ["/push-sw.js"],
         runtimeCaching: [
           // IMPORTANT: do NOT cache authenticated API responses at the service worker level.
           // It can serve stale data across sessions/users and make the UI look like it "didn't save".

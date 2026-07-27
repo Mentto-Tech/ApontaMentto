@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Bell, BellOff, ImagePlus, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Bell, BellOff, ImagePlus, X, Send } from "lucide-react";
 import { toast } from "sonner";
 
 interface Announcement {
@@ -81,6 +81,12 @@ const AdminAnnouncements = () => {
     mutationFn: (id: string) => apiFetch(`/api/announcements/${id}/deactivate`, { method: "POST" }),
     onSuccess: () => { invalidate(); toast.success("Aviso cancelado"); },
     onError: () => toast.error("Erro ao cancelar aviso"),
+  });
+
+  const pushMutation = useMutation({
+    mutationFn: (id: string) => apiFetch<{ ok: boolean; sentCount: number }>(`/api/announcements/${id}/push`, { method: "POST" }),
+    onSuccess: (res) => { toast.success(`Notificação PUSH enviada para ${res.sentCount} dispositivo(s)`); },
+    onError: () => toast.error("Erro ao enviar notificação PUSH"),
   });
 
   // Returns the URL to display an announcement image (S3 key proxied via backend, or external URL)
@@ -175,6 +181,15 @@ const AdminAnnouncements = () => {
                       <Bell className="h-4 w-4 text-primary group-hover:text-white" />
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => pushMutation.mutate(a.id)}
+                    disabled={pushMutation.isPending}
+                    title="Enviar notificação PUSH para este aviso"
+                  >
+                    <Send className="h-4 w-4 text-primary" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar">
                     <Pencil className="h-4 w-4" />
                   </Button>
