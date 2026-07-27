@@ -182,13 +182,14 @@ const AdminAnnouncements = () => {
                     </Button>
                   )}
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => pushMutation.mutate(a.id)}
                     disabled={pushMutation.isPending}
                     title="Enviar notificação PUSH para este aviso"
+                    className="group hover:bg-primary"
                   >
-                    <Send className="h-4 w-4 text-primary" />
+                    <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar">
                     <Pencil className="h-4 w-4" />
