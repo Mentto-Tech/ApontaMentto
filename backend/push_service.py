@@ -1,89 +1,78 @@
 import json
 import os
 import logging
-import inspect
+import base64
 from typing import Optional, List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from cryptography.hazmat.primitives.asymmetric import ec
 
-# Patch cryptography functions to convert uninstantiated curve classes (passed by py_vapid) into instances
-_orig_epn_init = ec.EllipticPublicNumbers.__init__
-def _patched_epn_init(self, x, y, curve):
-    if inspect.isclass(curve) and issubclass(curve, ec.EllipticCurve):
-        curve = curve()
-    _orig_epn_init(self, x, y, curve)
-ec.EllipticPublicNumbers.__init__ = _patched_epn_init
-
-_orig_generate_private_key = ec.generate_private_key
-def _patched_generate_private_key(curve, backend=None):
-    if inspect.isclass(curve) and issubclass(curve, ec.EllipticCurve):
-        curve = curve()
-    return _orig_generate_private_key(curve, backend=backend)
-ec.generate_private_key = _patched_generate_private_key
-
-_orig_derive_private_key = ec.derive_private_key
-def _patched_derive_private_key(private_value, curve, backend=None):
-    if inspect.isclass(curve) and issubclass(curve, ec.EllipticCurve):
-        curve = curve()
-    return _orig_derive_private_key(private_value, curve, backend=backend)
-ec.derive_private_key = _patched_derive_private_key
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    generate_private_key,
+    SECP256R1,
+    EllipticCurvePrivateKey,
+)
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PublicFormat,
+    PrivateFormat,
+    NoEncryption,
+)
+from cryptography.hazmat.backends import default_backend
 
 from pywebpush import webpush, WebPushException
-from py_vapid import Vapid
 
 from models import PushSubscription, Announcement
 
 logger = logging.getLogger(__name__)
 
-# Global cached VAPID instance and claims
-_vapid_instance: Optional[Vapid] = None
+# Global cached VAPID keys
 _vapid_public_key_b64: Optional[str] = None
-_vapid_private_key: Optional[str] = None
+_vapid_private_key_pem: Optional[str] = None
 _vapid_claim_email: str = os.getenv("VAPID_CLAIM_EMAIL", "mailto:admin@apontamentto.com")
 
 
+def _generate_vapid_keys() -> tuple[str, str]:
+    """Generate a new VAPID keypair. Returns (public_key_urlsafe_b64, private_key_pem)."""
+    private_key: EllipticCurvePrivateKey = generate_private_key(SECP256R1(), default_backend())
+
+    # Public key as uncompressed point (65 bytes) → URL-safe base64 (no padding)
+    pub_bytes = private_key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+    pub_b64 = base64.urlsafe_b64encode(pub_bytes).rstrip(b"=").decode("utf-8")
+
+    # Private key as PEM for pywebpush
+    priv_pem = private_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()).decode("utf-8")
+
+    return pub_b64, priv_pem
+
+
 def _get_or_create_vapid() -> tuple[str, str]:
-    global _vapid_public_key_b64, _vapid_private_key, _vapid_instance
+    """Returns (public_key_urlsafe_b64, private_key_pem)."""
+    global _vapid_public_key_b64, _vapid_private_key_pem
 
-    if _vapid_public_key_b64 and _vapid_private_key:
-        return _vapid_public_key_b64, _vapid_private_key
+    if _vapid_public_key_b64 and _vapid_private_key_pem:
+        return _vapid_public_key_b64, _vapid_private_key_pem
 
-    pub_env = os.getenv("VAPID_PUBLIC_KEY")
-    priv_env = os.getenv("VAPID_PRIVATE_KEY")
+    pub_env = os.getenv("VAPID_PUBLIC_KEY", "").strip()
+    priv_env = os.getenv("VAPID_PRIVATE_KEY", "").strip()
 
     if pub_env and priv_env:
-        _vapid_public_key_b64 = pub_env.strip()
-        _vapid_private_key = priv_env.strip()
-        return _vapid_public_key_b64, _vapid_private_key
+        _vapid_public_key_b64 = pub_env
+        _vapid_private_key_pem = priv_env
+        return _vapid_public_key_b64, _vapid_private_key_pem
 
-    # Generate keypair automatically if not supplied in env
+    # Auto-generate if not provided
     try:
-        vapid = Vapid()
-        vapid.generate_keys()
-        _vapid_instance = vapid
-
-        if hasattr(vapid.public_key, "savePublicKey"):
-            _vapid_public_key_b64 = vapid.public_key.savePublicKey().decode("utf-8")
-        elif isinstance(vapid.public_key, bytes):
-            _vapid_public_key_b64 = vapid.public_key.decode("utf-8")
-        else:
-            _vapid_public_key_b64 = str(vapid.public_key)
-
-        if hasattr(vapid.private_key, "savePrivateKey"):
-            _vapid_private_key = vapid.private_key.savePrivateKey().decode("utf-8")
-        elif isinstance(vapid.private_key, bytes):
-            _vapid_private_key = vapid.private_key.decode("utf-8")
-        else:
-            _vapid_private_key = str(vapid.private_key)
-
-        logger.info("VAPID keys auto-generated successfully.")
+        _vapid_public_key_b64, _vapid_private_key_pem = _generate_vapid_keys()
+        logger.warning(
+            "VAPID keys auto-generated (ephemeral). Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY "
+            "env vars for persistent keys across restarts."
+        )
     except Exception as e:
         logger.error(f"Failed to generate VAPID keys: {e}")
-        _vapid_public_key_b64 = pub_env or ""
-        _vapid_private_key = priv_env or ""
+        _vapid_public_key_b64 = ""
+        _vapid_private_key_pem = ""
 
-    return _vapid_public_key_b64, _vapid_private_key
+    return _vapid_public_key_b64, _vapid_private_key_pem
 
 
 def get_vapid_public_key() -> str:
@@ -105,8 +94,8 @@ async def send_push_payload(
     Remove automaticamente inscrições expiradas (404/410).
     Retorna o número de envios bem sucedidos.
     """
-    pub_key, priv_key = _get_or_create_vapid()
-    if not pub_key or not priv_key:
+    pub_key, priv_key_pem = _get_or_create_vapid()
+    if not pub_key or not priv_key_pem:
         logger.warning("VAPID keys not configured properly, skipping push notification.")
         return 0
 
@@ -137,7 +126,7 @@ async def send_push_payload(
             webpush(
                 subscription_info=sub_info,
                 data=payload_str,
-                vapid_private_key=priv_key,
+                vapid_private_key=priv_key_pem,
                 vapid_claims={"sub": _vapid_claim_email},
                 timeout=10,
             )
