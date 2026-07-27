@@ -14,47 +14,55 @@ logger = logging.getLogger(__name__)
 
 async def _push_scheduler():
     """Background task: fires scheduled push notifications for active announcements."""
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from sqlalchemy import select
     from database import AsyncSessionLocal
     from models import Announcement
     from push_service import dispatch_announcement_push
 
+    logger.info("Push scheduler started.")
     while True:
-        await asyncio.sleep(60)  # check every minute
+        await asyncio.sleep(60)
         try:
             async with AsyncSessionLocal() as db:
                 now = datetime.utcnow()
                 result = await db.execute(
                     select(Announcement).where(
-                        Announcement.push_repeat_interval_minutes != None,
-                        Announcement.is_active == True,
+                        Announcement.push_repeat_interval_minutes.isnot(None),
                     )
                 )
-                announcements_list = result.scalars().all()
-                for ann in announcements_list:
-                    # Check if schedule has expired
+                candidates = result.scalars().all()
+                logger.debug(f"Scheduler tick: {len(candidates)} announcement(s) with repeat schedule.")
+
+                for ann in candidates:
+                    # Skip if not active
+                    if not ann.is_active:
+                        logger.debug(f"Skipping '{ann.title}': not active.")
+                        continue
+
+                    # Expire if past repeat_until
                     if ann.push_repeat_until and ann.push_repeat_until < now:
+                        logger.info(f"Schedule expired for '{ann.title}', clearing.")
                         ann.push_repeat_interval_minutes = None
                         ann.push_repeat_until = None
                         await db.commit()
                         continue
 
-                    # Check if enough time has passed since last send
+                    # Check interval
                     if ann.push_last_sent_at:
-                        from datetime import timedelta
                         next_send = ann.push_last_sent_at + timedelta(minutes=ann.push_repeat_interval_minutes)
                         if now < next_send:
+                            logger.debug(f"Skipping '{ann.title}': next send at {next_send}.")
                             continue
 
-                    # Fire push
+                    # Fire
                     try:
                         sent = await dispatch_announcement_push(db, ann)
                         ann.push_last_sent_at = now
                         await db.commit()
-                        logger.info(f"Scheduled push for announcement '{ann.title}': {sent} sent")
+                        logger.info(f"Scheduled push '{ann.title}': {sent} sent.")
                     except Exception as e:
-                        logger.error(f"Scheduled push failed for {ann.id}: {e}")
+                        logger.error(f"Scheduled push failed for '{ann.title}': {e}")
         except Exception as e:
             logger.error(f"Push scheduler error: {e}")
 
