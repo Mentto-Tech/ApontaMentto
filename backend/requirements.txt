@@ -14,4 +14,4 @@ reportlab==4.2.5
 pillow==11.1.0
 boto3==1.37.38
 pywebpush==1.14.0
-pyvapid>=2.0.0
+py-vapid>=1.9.0
