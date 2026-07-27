@@ -1,9 +1,34 @@
 import json
 import os
 import logging
+import inspect
 from typing import Optional, List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from cryptography.hazmat.primitives.asymmetric import ec
+
+# Patch cryptography functions to convert uninstantiated curve classes (passed by py_vapid) into instances
+_orig_epn_init = ec.EllipticPublicNumbers.__init__
+def _patched_epn_init(self, x, y, curve):
+    if inspect.isclass(curve) and issubclass(curve, ec.EllipticCurve):
+        curve = curve()
+    _orig_epn_init(self, x, y, curve)
+ec.EllipticPublicNumbers.__init__ = _patched_epn_init
+
+_orig_generate_private_key = ec.generate_private_key
+def _patched_generate_private_key(curve, backend=None):
+    if inspect.isclass(curve) and issubclass(curve, ec.EllipticCurve):
+        curve = curve()
+    return _orig_generate_private_key(curve, backend=backend)
+ec.generate_private_key = _patched_generate_private_key
+
+_orig_derive_private_key = ec.derive_private_key
+def _patched_derive_private_key(private_value, curve, backend=None):
+    if inspect.isclass(curve) and issubclass(curve, ec.EllipticCurve):
+        curve = curve()
+    return _orig_derive_private_key(private_value, curve, backend=backend)
+ec.derive_private_key = _patched_derive_private_key
+
 from pywebpush import webpush, WebPushException
 from py_vapid import Vapid
 
