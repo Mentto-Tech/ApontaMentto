@@ -30,13 +30,56 @@ export function usePushNotifications() {
     setPermission(Notification.permission);
 
     try {
-      // Ensure Service Worker is registered
-      const reg = await navigator.serviceWorker.ready;
+      let reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/sw.js");
+      }
+      await navigator.serviceWorker.ready;
+
       const sub = await reg.pushManager.getSubscription();
       setIsSubscribed(!!sub);
+
+      // Se a permissão já estiver concedida mas a inscrição ainda não foi enviada para o backend, registrar silenciosamente
+      if (Notification.permission === "granted") {
+        if (!sub) {
+          const { publicKey } = await apiFetch<{ publicKey: string }>("/api/push/vapid-public-key");
+          if (publicKey) {
+            const convertedKey = urlBase64ToUint8Array(publicKey);
+            const newSub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedKey,
+            });
+            const subJson = newSub.toJSON();
+            await apiFetch("/api/push/subscribe", {
+              method: "POST",
+              body: {
+                endpoint: newSub.endpoint,
+                keys: {
+                  p256dh: subJson.keys?.p256dh || "",
+                  auth: subJson.keys?.auth || "",
+                },
+              },
+            });
+            setIsSubscribed(true);
+          }
+        } else {
+          // Re-sincronizar inscrição existente com o backend
+          const subJson = sub.toJSON();
+          await apiFetch("/api/push/subscribe", {
+            method: "POST",
+            body: {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: subJson.keys?.p256dh || "",
+                auth: subJson.keys?.auth || "",
+              },
+            },
+          });
+          setIsSubscribed(true);
+        }
+      }
     } catch (err) {
       console.error("Erro ao verificar inscrição de push:", err);
-      setIsSubscribed(false);
     } finally {
       setIsLoading(false);
     }

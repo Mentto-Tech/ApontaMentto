@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import AnnouncementModal from "@/components/AnnouncementModal";
 import PushNotificationToggle from "@/components/PushNotificationToggle";
+import PushBanner from "@/components/PushBanner";
 
 const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -144,6 +145,7 @@ const AppLayout = () => {
       </nav>
 
       <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0 md:ml-56">
+        <PushBanner />
         <Outlet />
         <AnnouncementModal />
       </main>
