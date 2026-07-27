@@ -224,17 +224,24 @@ async def _send_one(
     headers = {
         "Content-Type": "application/octet-stream",
         "Content-Encoding": "aes128gcm",
-        "Authorization": f"vapid t={vapid_jwt},k={vapid_pub_b64}",
+        # RFC 8292: space after comma is required; some push services are strict about it
+        "Authorization": f"vapid t={vapid_jwt}, k={vapid_pub_b64}",
         "TTL": "86400",
+        "Urgency": "normal",
     }
 
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(sub.endpoint, content=encrypted, headers=headers)
 
     if resp.status_code in (200, 201, 202):
         return True
     if resp.status_code in (404, 410):
-        return False  # expired subscription
+        logger.warning(f"Subscription expired ({resp.status_code}): {sub.endpoint[:60]}")
+        return False
+    # Log unexpected errors to help diagnose
+    logger.error(
+        f"Push failed for {sub.endpoint[:60]} — HTTP {resp.status_code}: {resp.text[:200]}"
+    )
     resp.raise_for_status()
     return False
 
