@@ -376,6 +376,8 @@ class AnnouncementIn(CamelModel):
     title: str
     body: str
     image_url: Optional[str] = None
+    push_repeat_interval_minutes: Optional[int] = None
+    push_repeat_until: Optional[datetime] = None
 
 
 class AnnouncementOut(CamelModel):
@@ -387,8 +389,11 @@ class AnnouncementOut(CamelModel):
     created_by_id: Optional[str] = None
     created_at: Optional[datetime] = None
     activated_at: Optional[datetime] = None
+    push_repeat_interval_minutes: Optional[int] = None
+    push_repeat_until: Optional[datetime] = None
+    push_last_sent_at: Optional[datetime] = None
 
-    @field_validator("created_at", "activated_at", mode="before")
+    @field_validator("created_at", "activated_at", "push_repeat_until", "push_last_sent_at", mode="before")
     @classmethod
     def _dt_utc(cls, v: Any):
         return _as_utc_datetime(v)

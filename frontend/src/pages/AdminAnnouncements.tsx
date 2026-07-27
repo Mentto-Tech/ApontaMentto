@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Bell, BellOff, ImagePlus, X, Send } from "lucide-react";
+import { Plus, Pencil, Trash2, Bell, BellOff, ImagePlus, X, Send, Clock, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 
 interface Announcement {
@@ -19,9 +19,12 @@ interface Announcement {
   isActive: boolean;
   createdAt: string;
   activatedAt?: string | null;
+  pushRepeatIntervalMinutes?: number | null;
+  pushRepeatUntil?: string | null;
+  pushLastSentAt?: string | null;
 }
 
-const emptyForm = { title: "", body: "", imageUrl: "" };
+const emptyForm = { title: "", body: "", imageUrl: "", pushRepeatIntervalMinutes: "", pushRepeatUntil: "" };
 
 const AdminAnnouncements = () => {
   const queryClient = useQueryClient();
@@ -30,6 +33,9 @@ const AdminAnnouncements = () => {
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleTarget, setScheduleTarget] = useState<Announcement | null>(null);
+  const [scheduleForm, setScheduleForm] = useState({ intervalMinutes: "", repeatUntil: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
@@ -43,7 +49,12 @@ const AdminAnnouncements = () => {
     mutationFn: async (data: typeof emptyForm) => {
       const ann = await apiFetch<Announcement>("/api/announcements", {
         method: "POST",
-        body: { ...data, imageUrl: data.imageUrl || null },
+        body: {
+          ...data,
+          imageUrl: data.imageUrl || null,
+          pushRepeatIntervalMinutes: data.pushRepeatIntervalMinutes ? parseInt(data.pushRepeatIntervalMinutes) : null,
+          pushRepeatUntil: data.pushRepeatUntil || null,
+        },
       });
       if (imageFile) await uploadImage(ann.id, imageFile);
       return ann;
@@ -56,7 +67,12 @@ const AdminAnnouncements = () => {
     mutationFn: async (data: typeof emptyForm) => {
       const ann = await apiFetch<Announcement>(`/api/announcements/${editing!.id}`, {
         method: "PUT",
-        body: { ...data, imageUrl: data.imageUrl || null },
+        body: {
+          ...data,
+          imageUrl: data.imageUrl || null,
+          pushRepeatIntervalMinutes: data.pushRepeatIntervalMinutes ? parseInt(data.pushRepeatIntervalMinutes) : null,
+          pushRepeatUntil: data.pushRepeatUntil || null,
+        },
       });
       if (imageFile) await uploadImage(ann.id, imageFile);
       return ann;
@@ -89,6 +105,16 @@ const AdminAnnouncements = () => {
     onError: () => toast.error("Erro ao enviar notificação PUSH"),
   });
 
+  const scheduleMutation = useMutation({
+    mutationFn: ({ id, intervalMinutes, repeatUntil }: { id: string; intervalMinutes: number | null; repeatUntil: string | null }) =>
+      apiFetch<Announcement>(`/api/announcements/${id}/schedule`, {
+        method: "POST",
+        body: { intervalMinutes, repeatUntil },
+      }),
+    onSuccess: () => { invalidate(); setScheduleDialogOpen(false); toast.success("Agendamento configurado"); },
+    onError: () => toast.error("Erro ao configurar agendamento"),
+  });
+
   // Returns the URL to display an announcement image (S3 key proxied via backend, or external URL)
   const imageDisplayUrl = (a: Announcement) =>
     a.imageUrl ? (a.imageUrl.startsWith("http") ? a.imageUrl : `/api/announcements/${a.id}/image`) : null;
@@ -96,13 +122,35 @@ const AdminAnnouncements = () => {
   const openCreate = () => { setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); setDialogOpen(true); };
   const openEdit = (a: Announcement) => {
     setEditing(a);
-    setForm({ title: a.title, body: a.body, imageUrl: a.imageUrl || "" });
+    setForm({
+      title: a.title,
+      body: a.body,
+      imageUrl: a.imageUrl || "",
+      pushRepeatIntervalMinutes: a.pushRepeatIntervalMinutes?.toString() ?? "",
+      pushRepeatUntil: a.pushRepeatUntil ? new Date(a.pushRepeatUntil).toISOString().slice(0, 16) : "",
+    });
     setImageFile(null);
-    // Show existing S3 image via backend proxy, or external URL directly
     setImagePreview(imageDisplayUrl(a));
     setDialogOpen(true);
   };
   const closeDialog = () => { setDialogOpen(false); setEditing(null); setForm(emptyForm); setImageFile(null); setImagePreview(null); };
+
+  const openSchedule = (a: Announcement) => {
+    setScheduleTarget(a);
+    setScheduleForm({
+      intervalMinutes: a.pushRepeatIntervalMinutes?.toString() ?? "",
+      repeatUntil: a.pushRepeatUntil ? new Date(a.pushRepeatUntil).toISOString().slice(0, 16) : "",
+    });
+    setScheduleDialogOpen(true);
+  };
+
+  const handleScheduleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduleTarget) return;
+    const interval = scheduleForm.intervalMinutes ? parseInt(scheduleForm.intervalMinutes) : null;
+    const until = scheduleForm.repeatUntil || null;
+    scheduleMutation.mutate({ id: scheduleTarget.id, intervalMinutes: interval, repeatUntil: until });
+  };
 
   const uploadImage = async (announcementId: string, file: File) => {
     const fd = new FormData();
@@ -147,6 +195,12 @@ const AdminAnnouncements = () => {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-sm">{a.title}</span>
                     {a.isActive && <Badge variant="default" className="text-xs">Ativo</Badge>}
+                    {a.pushRepeatIntervalMinutes && (
+                      <Badge variant="outline" className="text-xs flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        a cada {a.pushRepeatIntervalMinutes}min
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{a.body}</p>
                   {a.imageUrl && (
@@ -160,46 +214,30 @@ const AdminAnnouncements = () => {
                 </div>
                 <div className="flex gap-1 shrink-0">
                   {a.isActive ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deactivateMutation.mutate(a.id)}
-                      disabled={deactivateMutation.isPending}
-                      title="Cancelar aviso"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => deactivateMutation.mutate(a.id)} disabled={deactivateMutation.isPending} title="Cancelar aviso">
                       <BellOff className="h-4 w-4 text-destructive" />
                     </Button>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => activateMutation.mutate(a.id)}
-                      disabled={activateMutation.isPending}
-                      title="Disparar aviso"
-                      className="group"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => activateMutation.mutate(a.id)} disabled={activateMutation.isPending} title="Disparar aviso" className="group">
                       <Bell className="h-4 w-4 text-primary group-hover:text-white" />
                     </Button>
                   )}
+                  <Button variant="outline" size="sm" onClick={() => pushMutation.mutate(a.id)} disabled={pushMutation.isPending} title="Enviar PUSH agora" className="group hover:bg-primary">
+                    <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => pushMutation.mutate(a.id)}
-                    disabled={pushMutation.isPending}
-                    title="Enviar notificação PUSH para este aviso"
-                    className="group hover:bg-primary"
+                    onClick={() => openSchedule(a)}
+                    title="Agendar PUSH recorrente"
+                    className={a.pushRepeatIntervalMinutes ? "border-primary/50 text-primary" : ""}
                   >
-                    <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
+                    <CalendarClock className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar">
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { if (confirm("Remover aviso?")) deleteMutation.mutate(a.id); }}
-                    title="Excluir"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => { if (confirm("Remover aviso?")) deleteMutation.mutate(a.id); }} title="Excluir">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -285,6 +323,54 @@ const AdminAnnouncements = () => {
                 {editing ? "Salvar" : "Criar"}
               </Button>
               <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={(v) => { if (!v) setScheduleDialogOpen(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agendar PUSH recorrente</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            O aviso <span className="font-medium text-foreground">"{scheduleTarget?.title}"</span> será reenviado automaticamente no intervalo definido, desde que esteja ativo.
+          </p>
+          <form onSubmit={handleScheduleSubmit} className="space-y-4 mt-2">
+            <div>
+              <Label>Repetir a cada (minutos)</Label>
+              <Input
+                type="number"
+                min={1}
+                value={scheduleForm.intervalMinutes}
+                onChange={(e) => setScheduleForm((f) => ({ ...f, intervalMinutes: e.target.value }))}
+                placeholder="Ex: 30"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Deixe em branco para desativar o agendamento.</p>
+            </div>
+            <div>
+              <Label>Repetir até (opcional)</Label>
+              <Input
+                type="datetime-local"
+                value={scheduleForm.repeatUntil}
+                onChange={(e) => setScheduleForm((f) => ({ ...f, repeatUntil: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Deixe em branco para repetir indefinidamente enquanto o aviso estiver ativo.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={scheduleMutation.isPending}>Salvar</Button>
+              {scheduleTarget?.pushRepeatIntervalMinutes && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={scheduleMutation.isPending}
+                  onClick={() => scheduleMutation.mutate({ id: scheduleTarget.id, intervalMinutes: null, repeatUntil: null })}
+                >
+                  Desativar
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancelar</Button>
             </div>
           </form>
         </DialogContent>

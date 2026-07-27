@@ -1,8 +1,9 @@
 import uuid
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,11 @@ from push_service import dispatch_announcement_push
 
 router = APIRouter()
 _storage = S3Storage()
+
+
+class PushScheduleIn(BaseModel):
+    interval_minutes: Optional[int] = None   # None = desabilitar agendamento
+    repeat_until: Optional[datetime] = None  # None = sem limite de tempo
 
 
 @router.get("", response_model=List[AnnouncementOut])
@@ -59,6 +65,8 @@ async def create_announcement(
         is_active=False,
         created_by_id=current_user.id,
         created_at=datetime.utcnow(),
+        push_repeat_interval_minutes=data.push_repeat_interval_minutes,
+        push_repeat_until=data.push_repeat_until.replace(tzinfo=None) if data.push_repeat_until else None,
     )
     db.add(ann)
     await db.commit()
@@ -81,6 +89,8 @@ async def update_announcement(
         raise HTTPException(404, "Aviso não encontrado")
     ann.title = data.title
     ann.body = data.body
+    ann.push_repeat_interval_minutes = data.push_repeat_interval_minutes
+    ann.push_repeat_until = data.push_repeat_until.replace(tzinfo=None) if data.push_repeat_until else None
     
     # If image_url points to our local proxy for this announcement, keep the current stored value
     if data.image_url and (
@@ -283,6 +293,34 @@ async def deactivate_announcement(
     if not ann:
         raise HTTPException(404, "Aviso não encontrado")
     ann.is_active = False
+    await db.commit()
+    await db.refresh(ann)
+    return AnnouncementOut.model_validate(ann)
+
+
+@router.post("/{announcement_id}/schedule", response_model=AnnouncementOut)
+async def schedule_announcement_push(
+    announcement_id: str,
+    data: PushScheduleIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Configura o agendamento de envio recorrente de PUSH para um aviso."""
+    if current_user.role != "admin":
+        raise HTTPException(403, "Sem permissão")
+    result = await db.execute(select(Announcement).where(Announcement.id == announcement_id))
+    ann = result.scalar_one_or_none()
+    if not ann:
+        raise HTTPException(404, "Aviso não encontrado")
+
+    if data.interval_minutes is not None and data.interval_minutes < 1:
+        raise HTTPException(400, "Intervalo deve ser de pelo menos 1 minuto")
+
+    ann.push_repeat_interval_minutes = data.interval_minutes
+    ann.push_repeat_until = data.repeat_until.replace(tzinfo=None) if data.repeat_until else None
+    # Reset last_sent so it fires on next scheduler tick
+    if data.interval_minutes:
+        ann.push_last_sent_at = None
     await db.commit()
     await db.refresh(ann)
     return AnnouncementOut.model_validate(ann)

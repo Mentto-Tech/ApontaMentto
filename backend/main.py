@@ -1,5 +1,6 @@
 import os
-import os
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,10 +9,65 @@ from fastapi.responses import JSONResponse
 
 from routers import admin_data, announcements, auth, daily_records, geocode, justifications, locations, projects, punch_logs, push, time_entries, users, time_bank, timesheets
 
+logger = logging.getLogger(__name__)
+
+
+async def _push_scheduler():
+    """Background task: fires scheduled push notifications for active announcements."""
+    from datetime import datetime
+    from sqlalchemy import select
+    from database import AsyncSessionLocal
+    from models import Announcement
+    from push_service import dispatch_announcement_push
+
+    while True:
+        await asyncio.sleep(60)  # check every minute
+        try:
+            async with AsyncSessionLocal() as db:
+                now = datetime.utcnow()
+                result = await db.execute(
+                    select(Announcement).where(
+                        Announcement.push_repeat_interval_minutes != None,
+                        Announcement.is_active == True,
+                    )
+                )
+                announcements_list = result.scalars().all()
+                for ann in announcements_list:
+                    # Check if schedule has expired
+                    if ann.push_repeat_until and ann.push_repeat_until < now:
+                        ann.push_repeat_interval_minutes = None
+                        ann.push_repeat_until = None
+                        await db.commit()
+                        continue
+
+                    # Check if enough time has passed since last send
+                    if ann.push_last_sent_at:
+                        from datetime import timedelta
+                        next_send = ann.push_last_sent_at + timedelta(minutes=ann.push_repeat_interval_minutes)
+                        if now < next_send:
+                            continue
+
+                    # Fire push
+                    try:
+                        sent = await dispatch_announcement_push(db, ann)
+                        ann.push_last_sent_at = now
+                        await db.commit()
+                        logger.info(f"Scheduled push for announcement '{ann.title}': {sent} sent")
+                    except Exception as e:
+                        logger.error(f"Scheduled push failed for {ann.id}: {e}")
+        except Exception as e:
+            logger.error(f"Push scheduler error: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    task = asyncio.create_task(_push_scheduler())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

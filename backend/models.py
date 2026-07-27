@@ -358,6 +358,11 @@ class Announcement(Base):
     )
     activated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
+    # Push scheduling: repeat every N minutes until a given datetime
+    push_repeat_interval_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    push_repeat_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    push_last_sent_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
 
 class PushSubscription(Base):
     """Inscrições PUSH (Web Push VAPID) dos dispositivos dos usuários."""
