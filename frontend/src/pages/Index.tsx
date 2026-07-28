@@ -528,7 +528,7 @@ const Index = () => {
           if (!open) setEditingEntry(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Editar registro</DialogTitle>
           </DialogHeader>
