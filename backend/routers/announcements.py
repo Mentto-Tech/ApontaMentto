@@ -269,13 +269,6 @@ async def activate_announcement(
     ann.activated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(ann)
-
-    # Disparar notificação PUSH para os usuários
-    try:
-        await dispatch_announcement_push(db, ann)
-    except Exception as e:
-        pass
-
     return AnnouncementOut.model_validate(ann)
 
 

@@ -40,11 +40,6 @@ async def _push_scheduler():
                 logger.info(f"Scheduler tick: {len(candidates)} announcement(s) with repeat schedule.")
 
                 for ann in candidates:
-                    # Skip if not active
-                    if not ann.is_active:
-                        logger.info(f"Skipping '{ann.title}': not active (is_active=False).")
-                        continue
-
                     # Expire if past repeat_until
                     if ann.push_repeat_until and ann.push_repeat_until < now:
                         logger.info(f"Schedule expired for '{ann.title}', clearing.")
