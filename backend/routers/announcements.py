@@ -18,9 +18,9 @@ router = APIRouter()
 _storage = S3Storage()
 
 
-class PushScheduleIn(BaseModel):
-    interval_minutes: Optional[int] = None   # None = desabilitar agendamento
-    repeat_until: Optional[datetime] = None  # None = sem limite de tempo
+class PushScheduleIn(CamelModel):
+    interval_minutes: Optional[int] = None
+    repeat_until: Optional[datetime] = None
 
 
 @router.get("", response_model=List[AnnouncementOut])

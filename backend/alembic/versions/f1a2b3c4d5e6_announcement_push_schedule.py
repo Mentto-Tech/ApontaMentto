@@ -14,9 +14,14 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("announcements", sa.Column("push_repeat_interval_minutes", sa.Integer(), nullable=True))
-    op.add_column("announcements", sa.Column("push_repeat_until", sa.DateTime(), nullable=True))
-    op.add_column("announcements", sa.Column("push_last_sent_at", sa.DateTime(), nullable=True))
+    # Use IF NOT EXISTS to be idempotent in case columns were added manually
+    conn = op.get_bind()
+    conn.execute(sa.text("""
+        ALTER TABLE announcements
+        ADD COLUMN IF NOT EXISTS push_repeat_interval_minutes INTEGER,
+        ADD COLUMN IF NOT EXISTS push_repeat_until TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS push_last_sent_at TIMESTAMP
+    """))
 
 
 def downgrade():
