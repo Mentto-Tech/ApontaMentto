@@ -15,11 +15,14 @@ logger = logging.getLogger(__name__)
 async def _push_scheduler():
     """Background task: fires scheduled push notifications based on daily time slots."""
     import json as _json
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone as _tz
+    from zoneinfo import ZoneInfo as _ZoneInfo
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from database import AsyncSessionLocal
     from models import Announcement
+
+    _brazil_tz = _ZoneInfo("America/Sao_Paulo")
 
     logger.info("Push scheduler started.")
     first_run = True
@@ -29,9 +32,10 @@ async def _push_scheduler():
         first_run = False
         try:
             async with AsyncSessionLocal() as db:
-                now = datetime.utcnow()
-                current_time = now.strftime("%H:%M")   # "HH:MM"
-                current_date = now.strftime("%Y-%m-%d") # "YYYY-MM-DD"
+                now = datetime.now(_tz.utc)
+                now_brazil = now.astimezone(_brazil_tz)
+                current_time = now_brazil.strftime("%H:%M")    # "HH:MM" no horário de Brasília
+                current_date = now_brazil.strftime("%Y-%m-%d") # "YYYY-MM-DD" no horário de Brasília
                 slot_key = f"{current_date} {current_time}"
 
                 result = await db.execute(
@@ -40,7 +44,7 @@ async def _push_scheduler():
                     .where(Announcement.push_schedule_times.isnot(None))
                 )
                 candidates = result.scalars().all()
-                logger.info(f"Scheduler tick {current_time}: {len(candidates)} announcement(s) with time schedule.")
+                logger.info(f"Scheduler tick {current_time} (Brasília): {len(candidates)} announcement(s) with time schedule.")
 
                 for ann in candidates:
                     try:
@@ -75,11 +79,11 @@ async def _push_scheduler():
                         )
                         # Mark slot as sent; keep only last 7 days to avoid unbounded growth
                         sent_map[slot_key] = True
-                        cutoff = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+                        cutoff = (now - timedelta(days=7)).astimezone(_brazil_tz).strftime("%Y-%m-%d")
                         sent_map = {k: v for k, v in sent_map.items() if k[:10] >= cutoff}
                         ann.push_schedule_sent = _json.dumps(sent_map)
                         await db.commit()
-                        logger.info(f"Scheduled push '{ann.title}' at {current_time}: {sent} sent.")
+                        logger.info(f"Scheduled push '{ann.title}' at {current_time} (Brasília): {sent} sent.")
                     except Exception as e:
                         logger.error(f"Scheduled push failed for '{ann.title}': {e}")
         except Exception as e:
