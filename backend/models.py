@@ -363,6 +363,12 @@ class Announcement(Base):
     push_repeat_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
     push_last_sent_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
+    # Daily schedule: JSON array of "HH:MM" strings
+    # e.g. '["07:10","11:40","18:00"]'
+    push_schedule_times: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Tracks sent slots: JSON object {"YYYY-MM-DD HH:MM": true}
+    push_schedule_sent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Targeting: if target_all=True, all users see it; otherwise only users in AnnouncementTarget
     target_all: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 

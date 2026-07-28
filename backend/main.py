@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _push_scheduler():
-    """Background task: fires scheduled push notifications for active announcements."""
+    """Background task: fires scheduled push notifications based on daily time slots."""
+    import json as _json
     from datetime import datetime, timedelta
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
@@ -24,44 +25,46 @@ async def _push_scheduler():
     first_run = True
     while True:
         sleep_secs = 5 if first_run else 60
-        logger.info(f"Scheduler sleeping for {sleep_secs}s...")
         await asyncio.sleep(sleep_secs)
         first_run = False
-        logger.info("Scheduler woke up, running tick...")
         try:
             async with AsyncSessionLocal() as db:
                 now = datetime.utcnow()
+                current_time = now.strftime("%H:%M")   # "HH:MM"
+                current_date = now.strftime("%Y-%m-%d") # "YYYY-MM-DD"
+                slot_key = f"{current_date} {current_time}"
+
                 result = await db.execute(
                     select(Announcement)
                     .options(selectinload(Announcement.targets))
-                    .where(Announcement.push_repeat_interval_minutes.isnot(None))
+                    .where(Announcement.push_schedule_times.isnot(None))
                 )
                 candidates = result.scalars().all()
-                logger.info(f"Scheduler tick: {len(candidates)} announcement(s) with repeat schedule.")
+                logger.info(f"Scheduler tick {current_time}: {len(candidates)} announcement(s) with time schedule.")
 
                 for ann in candidates:
-                    # Expire if past repeat_until
-                    if ann.push_repeat_until and ann.push_repeat_until < now:
-                        logger.info(f"Schedule expired for '{ann.title}', clearing.")
-                        ann.push_repeat_interval_minutes = None
-                        ann.push_repeat_until = None
-                        await db.commit()
+                    try:
+                        times: list = _json.loads(ann.push_schedule_times or "[]")
+                    except Exception:
                         continue
 
-                    # Check interval
-                    if ann.push_last_sent_at:
-                        next_send = ann.push_last_sent_at + timedelta(minutes=ann.push_repeat_interval_minutes)
-                        if now < next_send:
-                            logger.info(f"Skipping '{ann.title}': next send at {next_send} (now={now}).")
-                            continue
+                    if current_time not in times:
+                        continue
+
+                    # Check if already sent for this slot today
+                    try:
+                        sent_map: dict = _json.loads(ann.push_schedule_sent or "{}")
+                    except Exception:
+                        sent_map = {}
+
+                    if sent_map.get(slot_key):
+                        continue
 
                     # Fire
                     try:
-                        from sqlalchemy.orm import selectinload
-                        await db.refresh(ann, ["targets"])
                         from routers.announcements import _get_subscriptions_for_announcement
-                        subscriptions = await _get_subscriptions_for_announcement(db, ann)
                         from push_service import send_push_payload
+                        subscriptions = await _get_subscriptions_for_announcement(db, ann)
                         sent = await send_push_payload(
                             db=db,
                             subscriptions=subscriptions,
@@ -70,9 +73,13 @@ async def _push_scheduler():
                             url="/",
                             tag=f"announcement-{ann.id}",
                         )
-                        ann.push_last_sent_at = now
+                        # Mark slot as sent; keep only last 7 days to avoid unbounded growth
+                        sent_map[slot_key] = True
+                        cutoff = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+                        sent_map = {k: v for k, v in sent_map.items() if k[:10] >= cutoff}
+                        ann.push_schedule_sent = _json.dumps(sent_map)
                         await db.commit()
-                        logger.info(f"Scheduled push '{ann.title}': {sent} sent.")
+                        logger.info(f"Scheduled push '{ann.title}' at {current_time}: {sent} sent.")
                     except Exception as e:
                         logger.error(f"Scheduled push failed for '{ann.title}': {e}")
         except Exception as e:

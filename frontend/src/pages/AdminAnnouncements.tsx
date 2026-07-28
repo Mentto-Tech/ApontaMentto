@@ -25,6 +25,7 @@ interface Announcement {
   pushRepeatIntervalMinutes?: number | null;
   pushRepeatUntil?: string | null;
   pushLastSentAt?: string | null;
+  pushScheduleTimes?: string[];
   targetAll: boolean;
   targetUserIds: string[];
 }
@@ -39,8 +40,6 @@ const emptyForm = {
   title: "",
   body: "",
   imageUrl: "",
-  pushRepeatIntervalMinutes: "",
-  pushRepeatUntil: "",
   targetAll: true,
   targetUserIds: [] as string[],
 };
@@ -55,7 +54,8 @@ const AdminAnnouncements = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [scheduleTarget, setScheduleTarget] = useState<Announcement | null>(null);
-  const [scheduleForm, setScheduleForm] = useState({ intervalMinutes: "", repeatUntil: "" });
+  const [scheduleTimes, setScheduleTimes] = useState<string[]>([]);
+  const [scheduleTimeInput, setScheduleTimeInput] = useState("07:00");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
@@ -79,8 +79,6 @@ const AdminAnnouncements = () => {
           title: data.title,
           body: data.body,
           imageUrl: data.imageUrl || null,
-          pushRepeatIntervalMinutes: data.pushRepeatIntervalMinutes ? parseInt(data.pushRepeatIntervalMinutes) : null,
-          pushRepeatUntil: data.pushRepeatUntil || null,
           targetAll: isAdmin ? data.targetAll : false,
           targetUserIds: isAdmin ? (data.targetAll ? [] : data.targetUserIds) : [],
         },
@@ -100,8 +98,6 @@ const AdminAnnouncements = () => {
           title: data.title,
           body: data.body,
           imageUrl: data.imageUrl || null,
-          pushRepeatIntervalMinutes: data.pushRepeatIntervalMinutes ? parseInt(data.pushRepeatIntervalMinutes) : null,
-          pushRepeatUntil: data.pushRepeatUntil || null,
           targetAll: isAdmin ? data.targetAll : false,
           targetUserIds: isAdmin ? (data.targetAll ? [] : data.targetUserIds) : [],
         },
@@ -138,10 +134,10 @@ const AdminAnnouncements = () => {
   });
 
   const scheduleMutation = useMutation({
-    mutationFn: ({ id, intervalMinutes, repeatUntil }: { id: string; intervalMinutes: number | null; repeatUntil: string | null }) =>
+    mutationFn: ({ id, times }: { id: string; times: string[] }) =>
       apiFetch<Announcement>(`/api/announcements/${id}/schedule`, {
         method: "POST",
-        body: { intervalMinutes, repeatUntil },
+        body: { times },
       }),
     onSuccess: () => { invalidate(); setScheduleDialogOpen(false); toast.success("Agendamento configurado"); },
     onError: () => toast.error("Erro ao configurar agendamento"),
@@ -164,8 +160,6 @@ const AdminAnnouncements = () => {
       title: a.title,
       body: a.body,
       imageUrl: a.imageUrl || "",
-      pushRepeatIntervalMinutes: a.pushRepeatIntervalMinutes?.toString() ?? "",
-      pushRepeatUntil: a.pushRepeatUntil ? new Date(a.pushRepeatUntil).toISOString().slice(0, 16) : "",
       targetAll: a.targetAll,
       targetUserIds: a.targetUserIds ?? [],
     });
@@ -184,12 +178,22 @@ const AdminAnnouncements = () => {
 
   const openSchedule = (a: Announcement) => {
     setScheduleTarget(a);
-    setScheduleForm({
-      intervalMinutes: a.pushRepeatIntervalMinutes?.toString() ?? "",
-      repeatUntil: a.pushRepeatUntil ? new Date(a.pushRepeatUntil).toISOString().slice(0, 16) : "",
-    });
+    setScheduleTimes(a.pushScheduleTimes ?? []);
+    setScheduleTimeInput("07:00");
     setScheduleDialogOpen(true);
   };
+
+  const addScheduleTime = () => {
+    // Snap to nearest 10-min
+    const [h, m] = scheduleTimeInput.split(":").map(Number);
+    const snapped = `${String(h).padStart(2, "0")}:${String(Math.round(m / 10) * 10).padStart(2, "0")}`;
+    const fixed = snapped.endsWith(":60") ? `${String(h + 1).padStart(2, "0")}:00` : snapped;
+    if (!scheduleTimes.includes(fixed)) {
+      setScheduleTimes((prev) => [...prev, fixed].sort());
+    }
+  };
+
+  const removeScheduleTime = (t: string) => setScheduleTimes((prev) => prev.filter((x) => x !== t));
 
   const uploadImage = async (announcementId: string, file: File) => {
     const fd = new FormData();
@@ -259,10 +263,10 @@ const AdminAnnouncements = () => {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-semibold text-sm">{a.title}</span>
                         {a.isActive && <Badge variant="default" className="text-xs">Ativo</Badge>}
-                        {a.pushRepeatIntervalMinutes && (
+                        {(a.pushScheduleTimes?.length ?? 0) > 0 && (
                           <Badge variant="outline" className="text-xs flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            a cada {a.pushRepeatIntervalMinutes}min
+                            {a.pushScheduleTimes!.length} horário{a.pushScheduleTimes!.length > 1 ? "s" : ""}
                           </Badge>
                         )}
                         {!a.targetAll && label && (
@@ -297,7 +301,7 @@ const AdminAnnouncements = () => {
                         <Button variant="outline" size="sm" onClick={() => pushMutation.mutate(a.id)} disabled={pushMutation.isPending} title="Enviar PUSH agora" className="group hover:bg-primary hover:border-primary">
                           <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openSchedule(a)} title="Agendar PUSH recorrente" className={`group hover:bg-primary hover:border-primary ${a.pushRepeatIntervalMinutes ? "border-primary/50 text-primary" : ""}`}>
+                        <Button variant="outline" size="sm" onClick={() => openSchedule(a)} title="Agendar PUSH recorrente" className={`group hover:bg-primary hover:border-primary ${(a.pushScheduleTimes?.length ?? 0) > 0 ? "border-primary/50 text-primary" : ""}`}>
                           <CalendarClock className="h-4 w-4 group-hover:text-white transition-colors" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar" className="group hover:bg-primary">
@@ -324,7 +328,7 @@ const AdminAnnouncements = () => {
                       <Button variant="outline" size="sm" onClick={() => pushMutation.mutate(a.id)} disabled={pushMutation.isPending} title="Enviar PUSH agora" className="group hover:bg-primary hover:border-primary">
                         <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => openSchedule(a)} title="Agendar PUSH recorrente" className={`group hover:bg-primary hover:border-primary ${a.pushRepeatIntervalMinutes ? "border-primary/50 text-primary" : ""}`}>
+                      <Button variant="outline" size="sm" onClick={() => openSchedule(a)} title="Agendar PUSH recorrente" className={`group hover:bg-primary hover:border-primary ${(a.pushScheduleTimes?.length ?? 0) > 0 ? "border-primary/50 text-primary" : ""}`}>
                         <CalendarClock className="h-4 w-4 group-hover:text-white transition-colors" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar" className="group hover:bg-primary">
@@ -436,33 +440,68 @@ const AdminAnnouncements = () => {
 
       {/* Schedule Dialog */}
       <Dialog open={scheduleDialogOpen} onOpenChange={(v) => { if (!v) setScheduleDialogOpen(false); }}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Agendar PUSH recorrente</DialogTitle>
+            <DialogTitle>Horários de PUSH diário</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Aviso: <span className="font-medium text-foreground">"{scheduleTarget?.title}"</span>
           </p>
-          <form onSubmit={(e) => { e.preventDefault(); if (!scheduleTarget) return; scheduleMutation.mutate({ id: scheduleTarget.id, intervalMinutes: scheduleForm.intervalMinutes ? parseInt(scheduleForm.intervalMinutes) : null, repeatUntil: scheduleForm.repeatUntil || null }); }} className="space-y-4 mt-2">
-            <div>
-              <Label>Repetir a cada (minutos)</Label>
-              <Input type="number" min={1} value={scheduleForm.intervalMinutes} onChange={(e) => setScheduleForm((f) => ({ ...f, intervalMinutes: e.target.value }))} placeholder="Ex: 30" />
-              <p className="text-xs text-muted-foreground mt-1">Deixe em branco para desativar.</p>
+          <p className="text-xs text-muted-foreground">A notificação será enviada todos os dias nos horários abaixo. Os minutos devem ser múltiplos de 10.</p>
+
+          {/* Add time */}
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Label className="text-xs mb-1 block">Adicionar horário</Label>
+              <Input
+                type="time"
+                step={600}
+                value={scheduleTimeInput}
+                onChange={(e) => setScheduleTimeInput(e.target.value)}
+                className="w-full"
+              />
             </div>
-            <div>
-              <Label>Repetir até (opcional)</Label>
-              <Input type="datetime-local" value={scheduleForm.repeatUntil} onChange={(e) => setScheduleForm((f) => ({ ...f, repeatUntil: e.target.value }))} />
+            <Button type="button" size="sm" onClick={addScheduleTime} className="group hover:bg-primary">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Time list */}
+          {scheduleTimes.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">Nenhum horário adicionado</p>
+          ) : (
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+              {scheduleTimes.map((t) => (
+                <span key={t} className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-mono px-2 py-1 rounded-full">
+                  {t}
+                  <button type="button" onClick={() => removeScheduleTime(t)} className="hover:text-destructive transition-colors">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
             </div>
-            <div className="flex gap-2">
-              <Button type="submit" disabled={scheduleMutation.isPending}>Salvar</Button>
-              {scheduleTarget?.pushRepeatIntervalMinutes && (
-                <Button type="button" variant="destructive" disabled={scheduleMutation.isPending} onClick={() => scheduleMutation.mutate({ id: scheduleTarget.id, intervalMinutes: null, repeatUntil: null })}>
-                  Desativar
-                </Button>
-              )}
-              <Button type="button" variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancelar</Button>
-            </div>
-          </form>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              type="button"
+              disabled={scheduleMutation.isPending}
+              onClick={() => scheduleTarget && scheduleMutation.mutate({ id: scheduleTarget.id, times: scheduleTimes })}
+            >
+              Salvar
+            </Button>
+            {(scheduleTarget?.pushScheduleTimes?.length ?? 0) > 0 && (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={scheduleMutation.isPending}
+                onClick={() => scheduleTarget && scheduleMutation.mutate({ id: scheduleTarget.id, times: [] })}
+              >
+                Limpar
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancelar</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

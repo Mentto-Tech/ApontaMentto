@@ -19,8 +19,7 @@ _storage = S3Storage()
 
 
 class PushScheduleIn(CamelModel):
-    interval_minutes: Optional[int] = None
-    repeat_until: Optional[datetime] = None
+    times: List[str] = []  # list of "HH:MM" strings, multiples of 10 min
 
 
 # ---------------------------------------------------------------------------
@@ -28,9 +27,14 @@ class PushScheduleIn(CamelModel):
 # ---------------------------------------------------------------------------
 
 def _ann_out(ann: Announcement) -> AnnouncementOut:
-    """Build AnnouncementOut including target_user_ids from loaded relationship."""
+    """Build AnnouncementOut including target_user_ids and push_schedule_times."""
+    import json as _json
     data = AnnouncementOut.model_validate(ann)
     data.target_user_ids = [t.user_id for t in (ann.targets or [])]
+    try:
+        data.push_schedule_times = _json.loads(ann.push_schedule_times) if ann.push_schedule_times else []
+    except Exception:
+        data.push_schedule_times = []
     return data
 
 
@@ -382,6 +386,7 @@ async def schedule_announcement_push(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    import json as _json, re
     result = await db.execute(
         select(Announcement).options(selectinload(Announcement.targets)).where(Announcement.id == announcement_id)
     )
@@ -390,13 +395,27 @@ async def schedule_announcement_push(
         raise HTTPException(404, "Aviso não encontrado")
     if current_user.role != "admin" and ann.created_by_id != current_user.id:
         raise HTTPException(403, "Sem permissão")
-    if data.interval_minutes is not None and data.interval_minutes < 1:
-        raise HTTPException(400, "Intervalo deve ser de pelo menos 1 minuto")
 
-    ann.push_repeat_interval_minutes = data.interval_minutes
-    ann.push_repeat_until = data.repeat_until.replace(tzinfo=None) if data.repeat_until else None
-    if data.interval_minutes:
-        ann.push_last_sent_at = None
+    # Validate: each time must be "HH:MM" and minutes must be multiple of 10
+    valid_re = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+    cleaned = []
+    for t in data.times:
+        if not valid_re.match(t):
+            raise HTTPException(400, f"Horário inválido: {t}. Use formato HH:MM.")
+        h, m = map(int, t.split(":"))
+        if m % 10 != 0:
+            raise HTTPException(400, f"Minutos devem ser múltiplos de 10 (recebido: {t}).")
+        cleaned.append(f"{h:02d}:{m:02d}")
+
+    # Deduplicate and sort
+    cleaned = sorted(set(cleaned))
+
+    ann.push_schedule_times = _json.dumps(cleaned) if cleaned else None
+    ann.push_schedule_sent = None  # reset sent tracking
+    # Clear legacy interval fields
+    ann.push_repeat_interval_minutes = None
+    ann.push_repeat_until = None
+    ann.push_last_sent_at = None
     await db.commit()
     result = await db.execute(
         select(Announcement).options(selectinload(Announcement.targets)).where(Announcement.id == ann.id)

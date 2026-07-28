@@ -242,11 +242,14 @@ export function useUpdateProfile() {
 // ---------------------------------------------------------------------------
 // Daily Records (clock-in / clock-out)
 // ---------------------------------------------------------------------------
-export function useDailyRecords(params?: {
-  date?: string;
-  month?: string;
-  userId?: string;
-}) {
+export function useDailyRecords(
+  params?: {
+    date?: string;
+    month?: string;
+    userId?: string;
+  },
+  options?: { enabled?: boolean }
+) {
   const search = new URLSearchParams();
   if (params?.date) search.set("date", params.date);
   if (params?.month) search.set("month", params.month);
@@ -257,6 +260,7 @@ export function useDailyRecords(params?: {
     queryKey: ["daily-records", params ?? {}],
     queryFn: () => apiFetch<DailyRecord[]>(`/api/daily-records${qs}`),
     staleTime: 10_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

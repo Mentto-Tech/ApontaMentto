@@ -268,6 +268,20 @@ async def upsert_daily_record(
     if cand_out2 and (cand_out1 or cand_in2) and not cand_in2:
         raise HTTPException(status_code=400, detail="out2 requires in2")
 
+    # Prevent overwriting an existing punch with a new in1 when out1 hasn't been recorded yet.
+    existing_first_in = existing_in1 or existing_clock_in
+    if (
+        record
+        and incoming_in1 is not None
+        and existing_first_in
+        and not existing_out1
+        and "out1" not in fields_set
+        and incoming_in1 != existing_first_in
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Entrada 1 já registrada. Registre a Saída 1 antes de alterar a entrada.",
+        )
 
     ip_address = _extract_client_ip(request)
     user_agent = request.headers.get("user-agent")
