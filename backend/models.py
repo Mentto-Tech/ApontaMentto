@@ -363,6 +363,29 @@ class Announcement(Base):
     push_repeat_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
     push_last_sent_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
+    # Targeting: if target_all=True, all users see it; otherwise only users in AnnouncementTarget
+    target_all: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    targets: Mapped[List["AnnouncementTarget"]] = relationship(
+        "AnnouncementTarget", back_populates="announcement", cascade="all, delete-orphan"
+    )
+
+
+class AnnouncementTarget(Base):
+    """Junction table: which users are targeted by a specific announcement."""
+
+    __tablename__ = "announcement_targets"
+
+    announcement_id: Mapped[str] = mapped_column(
+        String, ForeignKey("announcements.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    announcement: Mapped["Announcement"] = relationship("Announcement", back_populates="targets")
+    user: Mapped["User"] = relationship("User")
+
 
 class PushSubscription(Base):
     """Inscrições PUSH (Web Push VAPID) dos dispositivos dos usuários."""

@@ -16,8 +16,8 @@ const AppLayout = () => {
     { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
     { to: "/time-bank", icon: Wallet, label: "Banco de Horas" },
     { to: "/justifications", icon: Upload, label: "Justificativas" },
-    { to: "/projects", icon: FolderOpen, label: "Projetos" },
-    { to: "/locations", icon: MapPin, label: "Locais" },
+    { to: "/projects", icon: FolderOpen, label: "Projetos e Locais" },
+    { to: "/admin/announcements", icon: Bell, label: "Avisos" },
   ];
 
   const adminNavItems = isAdmin
@@ -26,7 +26,6 @@ const AppLayout = () => {
         { to: "/admin/users", icon: Users, label: "Usuários" },
         { to: "/admin/logs", icon: History, label: "Logs" },
         { to: "/admin/settings", icon: Settings, label: "Backup" },
-        { to: "/admin/announcements", icon: Bell, label: "Avisos" },
       ]
     : [
         { to: "/minhas-folhas", icon: FileText, label: "Minhas Folhas" },

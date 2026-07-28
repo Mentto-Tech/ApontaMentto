@@ -16,6 +16,7 @@ async def _push_scheduler():
     """Background task: fires scheduled push notifications for active announcements."""
     from datetime import datetime, timedelta
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     from database import AsyncSessionLocal
     from models import Announcement
     from push_service import dispatch_announcement_push
@@ -32,9 +33,9 @@ async def _push_scheduler():
             async with AsyncSessionLocal() as db:
                 now = datetime.utcnow()
                 result = await db.execute(
-                    select(Announcement).where(
-                        Announcement.push_repeat_interval_minutes.isnot(None),
-                    )
+                    select(Announcement)
+                    .options(selectinload(Announcement.targets))
+                    .where(Announcement.push_repeat_interval_minutes.isnot(None))
                 )
                 candidates = result.scalars().all()
                 logger.info(f"Scheduler tick: {len(candidates)} announcement(s) with repeat schedule.")
@@ -57,7 +58,19 @@ async def _push_scheduler():
 
                     # Fire
                     try:
-                        sent = await dispatch_announcement_push(db, ann)
+                        from sqlalchemy.orm import selectinload
+                        await db.refresh(ann, ["targets"])
+                        from routers.announcements import _get_subscriptions_for_announcement
+                        subscriptions = await _get_subscriptions_for_announcement(db, ann)
+                        from push_service import send_push_payload
+                        sent = await send_push_payload(
+                            db=db,
+                            subscriptions=subscriptions,
+                            title=f"📢 {ann.title}",
+                            body=ann.body,
+                            url="/",
+                            tag=f"announcement-{ann.id}",
+                        )
                         ann.push_last_sent_at = now
                         await db.commit()
                         logger.info(f"Scheduled push '{ann.title}': {sent} sent.")

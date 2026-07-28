@@ -10,8 +10,7 @@ import AppLayout from "@/components/AppLayout";
 import { InstallBanner } from "./components/InstallBanner";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects";
-import Locations from "./pages/Locations";
+import ProjectsAndLocations from "./pages/ProjectsAndLocations";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -63,13 +62,12 @@ const AppRoutes = () => (
       <Route path="/minhas-folhas" element={<MySignedTimesheets />} />
       <Route path="/justifications" element={<Justifications />} />
       <Route path="/time-bank" element={<TimeBank />} />
-      <Route path="/projects" element={<Projects />} />
-      <Route path="/locations" element={<Locations />} />
+      <Route path="/projects" element={<ProjectsAndLocations />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
       <Route path="/admin/logs" element={<AdminRoute><AdminPunchLogs /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
-      <Route path="/admin/announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
+      <Route path="/admin/announcements" element={<AdminAnnouncements />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

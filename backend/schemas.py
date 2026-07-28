@@ -378,6 +378,8 @@ class AnnouncementIn(CamelModel):
     image_url: Optional[str] = None
     push_repeat_interval_minutes: Optional[int] = None
     push_repeat_until: Optional[datetime] = None
+    target_all: bool = True
+    target_user_ids: List[str] = []
 
 
 class AnnouncementOut(CamelModel):
@@ -392,6 +394,8 @@ class AnnouncementOut(CamelModel):
     push_repeat_interval_minutes: Optional[int] = None
     push_repeat_until: Optional[datetime] = None
     push_last_sent_at: Optional[datetime] = None
+    target_all: bool = True
+    target_user_ids: List[str] = []
 
     @field_validator("created_at", "activated_at", "push_repeat_until", "push_last_sent_at", mode="before")
     @classmethod
