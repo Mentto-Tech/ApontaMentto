@@ -312,30 +312,3 @@ async def send_push_payload(
         logger.info(f"Purged {len(expired_ids)} expired push subscriptions.")
 
     return sent_count
-
-
-async def dispatch_announcement_push(db: AsyncSession, announcement: Announcement) -> int:
-    """Dispara a notificação PUSH de um aviso para TODOS os dispositivos inscritos."""
-    result = await db.execute(select(PushSubscription))
-    subscriptions = list(result.scalars().all())
-
-    if not subscriptions:
-        logger.info("No active push subscriptions found.")
-        return 0
-
-    image_url = None
-    if announcement.image_url:
-        if announcement.image_url.startswith("http"):
-            image_url = announcement.image_url
-        else:
-            image_url = f"/api/announcements/{announcement.id}/image"
-
-    return await send_push_payload(
-        db=db,
-        subscriptions=subscriptions,
-        title=f"📢 {announcement.title}",
-        body=announcement.body,
-        image=image_url,
-        url="/",
-        tag=f"announcement-{announcement.id}",
-    )

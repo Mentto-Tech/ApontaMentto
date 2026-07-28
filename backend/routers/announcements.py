@@ -12,7 +12,7 @@ from dependencies import get_current_user
 from models import Announcement, AnnouncementTarget, User
 from schemas import AnnouncementIn, AnnouncementOut, CamelModel
 from storage_service import S3Storage, build_announcement_image_s3_key
-from push_service import send_push_payload, dispatch_announcement_push
+from push_service import send_push_payload
 
 router = APIRouter()
 _storage = S3Storage()

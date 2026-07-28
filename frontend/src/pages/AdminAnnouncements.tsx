@@ -252,62 +252,86 @@ const AdminAnnouncements = () => {
             const label = targetLabel(a);
             return (
               <Card key={a.id} className={`p-4 ${a.isActive ? "border-primary/60 bg-primary/5" : ""}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-semibold text-sm">{a.title}</span>
-                      {a.isActive && <Badge variant="default" className="text-xs">Ativo</Badge>}
-                      {a.pushRepeatIntervalMinutes && (
-                        <Badge variant="outline" className="text-xs flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          a cada {a.pushRepeatIntervalMinutes}min
-                        </Badge>
-                      )}
-                      {!a.targetAll && label && (
-                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {label}
-                        </Badge>
+                <div className="flex flex-col gap-2">
+                  {/* Content */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-semibold text-sm">{a.title}</span>
+                        {a.isActive && <Badge variant="default" className="text-xs">Ativo</Badge>}
+                        {a.pushRepeatIntervalMinutes && (
+                          <Badge variant="outline" className="text-xs flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            a cada {a.pushRepeatIntervalMinutes}min
+                          </Badge>
+                        )}
+                        {!a.targetAll && label && (
+                          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {label}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{a.body}</p>
+                      {a.imageUrl && (
+                        <img
+                          src={imageDisplayUrl(a)!}
+                          alt="Imagem do aviso"
+                          className="mt-2 h-16 rounded-md object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">{a.body}</p>
-                    {a.imageUrl && (
-                      <img
-                        src={imageDisplayUrl(a)!}
-                        alt="Imagem do aviso"
-                        className="mt-2 h-16 rounded-md object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
+                    {/* Desktop: botões ao lado (md+) */}
+                    {canEdit(a) && (
+                      <div className="hidden md:flex gap-1 shrink-0">
+                        {a.isActive ? (
+                          <Button variant="outline" size="sm" onClick={() => deactivateMutation.mutate(a.id)} disabled={deactivateMutation.isPending} title="Desativar aviso" className="group hover:bg-destructive hover:border-destructive">
+                            <BellOff className="h-4 w-4 text-destructive group-hover:text-white transition-colors" />
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => activateMutation.mutate(a.id)} disabled={activateMutation.isPending} title="Ativar aviso" className="group hover:bg-primary hover:border-primary">
+                            <Bell className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => pushMutation.mutate(a.id)} disabled={pushMutation.isPending} title="Enviar PUSH agora" className="group hover:bg-primary hover:border-primary">
+                          <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openSchedule(a)} title="Agendar PUSH recorrente" className={`group hover:bg-primary hover:border-primary ${a.pushRepeatIntervalMinutes ? "border-primary/50 text-primary" : ""}`}>
+                          <CalendarClock className="h-4 w-4 group-hover:text-white transition-colors" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar" className="group hover:bg-primary">
+                          <Pencil className="h-4 w-4 group-hover:text-white transition-colors" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { if (confirm("Remover aviso?")) deleteMutation.mutate(a.id); }} title="Excluir" className="group hover:bg-destructive">
+                          <Trash2 className="h-4 w-4 text-destructive group-hover:text-white transition-colors" />
+                        </Button>
+                      </div>
                     )}
                   </div>
+                  {/* Mobile: botões no footer do card */}
                   {canEdit(a) && (
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex md:hidden gap-1 pt-2 border-t border-border">
                       {a.isActive ? (
-                        <Button variant="outline" size="sm" onClick={() => deactivateMutation.mutate(a.id)} disabled={deactivateMutation.isPending} title="Desativar aviso">
-                          <BellOff className="h-4 w-4 text-destructive" />
+                        <Button variant="outline" size="sm" onClick={() => deactivateMutation.mutate(a.id)} disabled={deactivateMutation.isPending} title="Desativar aviso" className="group hover:bg-destructive hover:border-destructive">
+                          <BellOff className="h-4 w-4 text-destructive group-hover:text-white transition-colors" />
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => activateMutation.mutate(a.id)} disabled={activateMutation.isPending} title="Ativar aviso">
-                          <Bell className="h-4 w-4 text-primary" />
+                        <Button variant="outline" size="sm" onClick={() => activateMutation.mutate(a.id)} disabled={activateMutation.isPending} title="Ativar aviso" className="group hover:bg-primary hover:border-primary">
+                          <Bell className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => pushMutation.mutate(a.id)} disabled={pushMutation.isPending} title="Enviar PUSH agora" className="group hover:bg-primary">
+                      <Button variant="outline" size="sm" onClick={() => pushMutation.mutate(a.id)} disabled={pushMutation.isPending} title="Enviar PUSH agora" className="group hover:bg-primary hover:border-primary">
                         <Send className="h-4 w-4 text-primary group-hover:text-white transition-colors" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openSchedule(a)}
-                        title="Agendar PUSH recorrente"
-                        className={a.pushRepeatIntervalMinutes ? "border-primary/50 text-primary" : ""}
-                      >
-                        <CalendarClock className="h-4 w-4" />
+                      <Button variant="outline" size="sm" onClick={() => openSchedule(a)} title="Agendar PUSH recorrente" className={`group hover:bg-primary hover:border-primary ${a.pushRepeatIntervalMinutes ? "border-primary/50 text-primary" : ""}`}>
+                        <CalendarClock className="h-4 w-4 group-hover:text-white transition-colors" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar">
-                        <Pencil className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(a)} title="Editar" className="group hover:bg-primary">
+                        <Pencil className="h-4 w-4 group-hover:text-white transition-colors" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => { if (confirm("Remover aviso?")) deleteMutation.mutate(a.id); }} title="Excluir">
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button variant="ghost" size="sm" onClick={() => { if (confirm("Remover aviso?")) deleteMutation.mutate(a.id); }} title="Excluir" className="group hover:bg-destructive">
+                        <Trash2 className="h-4 w-4 text-destructive group-hover:text-white transition-colors" />
                       </Button>
                     </div>
                   )}

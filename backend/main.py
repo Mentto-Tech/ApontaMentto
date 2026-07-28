@@ -19,7 +19,6 @@ async def _push_scheduler():
     from sqlalchemy.orm import selectinload
     from database import AsyncSessionLocal
     from models import Announcement
-    from push_service import dispatch_announcement_push
 
     logger.info("Push scheduler started.")
     first_run = True
