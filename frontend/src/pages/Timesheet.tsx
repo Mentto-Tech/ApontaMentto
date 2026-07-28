@@ -373,7 +373,7 @@ const Timesheet = () => {
       return;
     }
     if (!targetUserId) return;
-    const trimmed = emailInput.trim();
+    const trimmed = emailInput.trim() || targetUser?.email || "";
     if (!trimmed) {
       toast({ title: "Informe o email", description: "Digite o email do destinatário.", variant: "destructive" });
       return;
@@ -395,7 +395,7 @@ const Timesheet = () => {
       setSendingEmail(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSignature, targetUserId, monthStr, emailInput, loadSignedData]);
+  }, [hasSignature, targetUserId, monthStr, emailInput, targetUser, loadSignedData]);
 
   const handleDownload = useCallback(async (id: string) => {
     const blob = await apiFetchBlob(`/api/timesheets/signed-pdfs/${id}/download`);
@@ -575,7 +575,7 @@ const Timesheet = () => {
             <input
               type="email"
               className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Email do destinatário"
+              placeholder={targetUser?.email ? `Usar email do funcionário: ${targetUser.email}` : "Email do destinatário"}
               value={emailInput}
               onChange={e => { setEmailInput(e.target.value); setShowEmailSuggestions(true); }}
               onFocus={() => setShowEmailSuggestions(true)}
@@ -599,7 +599,7 @@ const Timesheet = () => {
             variant="outline"
             className="w-full"
             onClick={handleSendEmail}
-            disabled={sendingEmail || !targetUserId || !emailInput.trim()}
+            disabled={sendingEmail || !targetUserId || (!emailInput.trim() && !targetUser?.email)}
           >
             {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
             Enviar link — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}

@@ -23,8 +23,11 @@ async def _push_scheduler():
     logger.info("Push scheduler started.")
     first_run = True
     while True:
-        await asyncio.sleep(5 if first_run else 60)
+        sleep_secs = 5 if first_run else 60
+        logger.info(f"Scheduler sleeping for {sleep_secs}s...")
+        await asyncio.sleep(sleep_secs)
         first_run = False
+        logger.info("Scheduler woke up, running tick...")
         try:
             async with AsyncSessionLocal() as db:
                 now = datetime.utcnow()
@@ -71,13 +74,16 @@ async def _push_scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(_push_scheduler())
-    yield
-    task.cancel()
+    loop = asyncio.get_event_loop()
+    task = loop.create_task(_push_scheduler())
     try:
-        await task
-    except asyncio.CancelledError:
-        pass
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
