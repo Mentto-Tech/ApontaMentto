@@ -3,14 +3,13 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user
 from models import Announcement, User
-from schemas import AnnouncementIn, AnnouncementOut
+from schemas import AnnouncementIn, AnnouncementOut, CamelModel
 from storage_service import S3Storage, build_announcement_image_s3_key
 from push_service import dispatch_announcement_push
 
