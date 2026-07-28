@@ -28,13 +28,8 @@ class PushScheduleIn(CamelModel):
 
 def _ann_out(ann: Announcement) -> AnnouncementOut:
     """Build AnnouncementOut including target_user_ids and push_schedule_times."""
-    import json as _json
     data = AnnouncementOut.model_validate(ann)
     data.target_user_ids = [t.user_id for t in (ann.targets or [])]
-    try:
-        data.push_schedule_times = _json.loads(ann.push_schedule_times) if ann.push_schedule_times else []
-    except Exception:
-        data.push_schedule_times = []
     return data
 
 

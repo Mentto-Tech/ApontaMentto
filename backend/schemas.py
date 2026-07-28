@@ -399,6 +399,20 @@ class AnnouncementOut(CamelModel):
     target_all: bool = True
     target_user_ids: List[str] = []
 
+    @field_validator("push_schedule_times", mode="before")
+    @classmethod
+    def _parse_push_schedule_times(cls, v: Any):
+        import json as _json
+        if v is None:
+            return []
+        if isinstance(v, str):
+            try:
+                parsed = _json.loads(v)
+                return parsed if isinstance(parsed, list) else []
+            except Exception:
+                return []
+        return v
+
     @field_validator("created_at", "activated_at", "push_repeat_until", "push_last_sent_at", mode="before")
     @classmethod
     def _dt_utc(cls, v: Any):
