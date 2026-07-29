@@ -58,16 +58,16 @@ async def update_location(
     return LocationOut.model_validate(location)
 
 
-@router.delete("/{location_id}")
-async def delete_location(
-    location_id: str,
-    db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
-    result = await db.execute(select(Location).where(Location.id == location_id))
-    location = result.scalar_one_or_none()
-    if not location:
-        raise HTTPException(404, "Local não encontrado")
-    await db.delete(location)
-    await db.commit()
-    return {"ok": True}
+# @router.delete("/{location_id}")
+# async def delete_location(
+#     location_id: str,
+#     db: AsyncSession = Depends(get_db),
+#     _: User = Depends(get_current_user),
+# ):
+#     result = await db.execute(select(Location).where(Location.id == location_id))
+#     location = result.scalar_one_or_none()
+#     if not location:
+#         raise HTTPException(404, "Local não encontrado")
+#     await db.delete(location)
+#     await db.commit()
+#     return {"ok": True}

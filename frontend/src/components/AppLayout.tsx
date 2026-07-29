@@ -125,25 +125,25 @@ const AppLayout = () => {
       </aside>
 
       {/* Mobile bottom nav - show only key items */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex gap-2 px-2 py-2 overflow-x-auto flex-nowrap">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex gap-3 px-3 py-4 overflow-x-auto flex-nowrap">
         {[...mainNavItems, ...adminNavItems].map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === "/"}
             className={({ isActive }) =>
-              `shrink-0 flex flex-col items-center gap-0.5 text-xs font-medium px-2 py-1 rounded-lg transition-colors ${
+              `shrink-0 flex flex-col items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg transition-colors ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`
             }
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-6 w-6" />
             {label}
           </NavLink>
         ))}
       </nav>
 
-      <main className="flex-1 min-w-0 overflow-x-hidden pb-20 md:pb-0 md:ml-56">
+      <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 md:ml-56">
         <PushBanner />
         <Outlet />
         <AnnouncementModal />

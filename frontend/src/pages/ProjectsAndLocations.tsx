@@ -61,7 +61,6 @@ const ProjectsTab = () => {
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => deleteProject.mutate(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             </div>
           ))}
@@ -151,7 +150,6 @@ const LocationsTab = () => {
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(l)}><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => deleteLocation.mutate(l.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             </div>
           ))}

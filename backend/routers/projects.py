@@ -58,16 +58,16 @@ async def update_project(
     return ProjectOut.model_validate(project)
 
 
-@router.delete("/{project_id}")
-async def delete_project(
-    project_id: str,
-    db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
-):
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(404, "Projeto não encontrado")
-    await db.delete(project)
-    await db.commit()
-    return {"ok": True}
+# @router.delete("/{project_id}")
+# async def delete_project(
+#     project_id: str,
+#     db: AsyncSession = Depends(get_db),
+#     _: User = Depends(get_current_user),
+# ):
+#     result = await db.execute(select(Project).where(Project.id == project_id))
+#     project = result.scalar_one_or_none()
+#     if not project:
+#         raise HTTPException(404, "Projeto não encontrado")
+#     await db.delete(project)
+#     await db.commit()
+#     return {"ok": True}
