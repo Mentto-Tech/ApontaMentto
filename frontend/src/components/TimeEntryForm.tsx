@@ -44,9 +44,25 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const [locationName, setLocationName] = useState("");
   const [locationAddress, setLocationAddress] = useState("");
 
-  // Estados para controlar a abertura dos seletores
-  const [projectSelectOpen, setProjectSelectOpen] = useState(false);
-  const [locationSelectOpen, setLocationSelectOpen] = useState(false);
+  // Valor especial para a opção de criar novo dentro do select
+  const NEW_PROJECT_VALUE = "__new_project__";
+  const NEW_LOCATION_VALUE = "__new_location__";
+
+  const handleProjectChange = (value: string) => {
+    if (value === NEW_PROJECT_VALUE) {
+      setProjectOpen(true);
+      return;
+    }
+    setProjectId(value);
+  };
+
+  const handleLocationChange = (value: string) => {
+    if (value === NEW_LOCATION_VALUE) {
+      setLocationOpen(true);
+      return;
+    }
+    setLocationId(value);
+  };
 
   useEffect(() => {
     setStartTime(entry?.startTime || "");
@@ -185,56 +201,42 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
           <div className="flex gap-2 flex-1 w-full">
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Projeto</label>
-              <div className="flex gap-1 items-center">
-                <Select value={projectId} onValueChange={setProjectId} open={projectSelectOpen} onOpenChange={setProjectSelectOpen}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {projects.map(p => (
-                      <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-                          {p.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className={`h-10 w-10 shrink-0 transition-opacity ${projectSelectOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-                  onClick={() => setProjectOpen(true)}
-                  title="Novo Projeto"
-                  tabIndex={projectSelectOpen ? 0 : -1}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Select value={projectId} onValueChange={handleProjectChange}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {projects.map(p => (
+                    <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                        {p.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW_PROJECT_VALUE} className="pl-2 [&>span:first-child]:hidden border-t border-border mt-1 pt-2 text-primary font-medium">
+                    <span className="flex items-center gap-2">
+                      <Plus className="h-3.5 w-3.5" />
+                      Novo Projeto
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Local</label>
-              <div className="flex gap-1 items-center">
-                <Select value={locationId} onValueChange={setLocationId} open={locationSelectOpen} onOpenChange={setLocationSelectOpen}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {locations.map(l => (
-                      <SelectItem key={l.id} value={l.id} className="pl-2 [&>span:first-child]:hidden">{l.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className={`h-10 w-10 shrink-0 transition-opacity ${locationSelectOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-                  onClick={() => setLocationOpen(true)}
-                  title="Novo Local"
-                  tabIndex={locationSelectOpen ? 0 : -1}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Select value={locationId} onValueChange={handleLocationChange}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {locations.map(l => (
+                    <SelectItem key={l.id} value={l.id} className="pl-2 [&>span:first-child]:hidden">{l.name}</SelectItem>
+                  ))}
+                  <SelectItem value={NEW_LOCATION_VALUE} className="pl-2 [&>span:first-child]:hidden border-t border-border mt-1 pt-2 text-primary font-medium">
+                    <span className="flex items-center gap-2">
+                      <Plus className="h-3.5 w-3.5" />
+                      Novo Local
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
