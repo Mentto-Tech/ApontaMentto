@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Coffee, Clock } from "lucide-react";
-import { useProjects, useLocations, useCreateTimeEntry, useUpdateTimeEntry, type TimeEntry } from "@/lib/queries";
+import { Plus, Coffee, Clock, MapPin, FolderOpen } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useProjects, useLocations, useCreateTimeEntry, useUpdateTimeEntry, useCreateProject, useCreateLocation, type TimeEntry } from "@/lib/queries";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
@@ -13,12 +15,17 @@ interface Props {
   onSuccess?: () => void;
 }
 
+const COLORS = ["#0f766e", "#2563eb", "#9333ea", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#64748b"];
+
 const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const { user } = useAuth();
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
   const createEntry = useCreateTimeEntry();
   const updateEntry = useUpdateTimeEntry();
+  
+  const createProject = useCreateProject();
+  const createLocation = useCreateLocation();
 
   const [startTime, setStartTime] = useState(entry?.startTime || "");
   const [endTime, setEndTime] = useState(entry?.endTime || "");
@@ -26,6 +33,16 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const [locationId, setLocationId] = useState(entry?.locationId || "");
   const [entryType, setEntryType] = useState<"work" | "break">((entry?.entryType as "work" | "break") || "work");
   const [isOvertime, setIsOvertime] = useState(Boolean(entry?.isOvertime));
+
+  // Estados dos modais de criação rápida
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectDesc, setProjectDesc] = useState("");
+  const [projectColor, setProjectColor] = useState(COLORS[0]);
+
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationName, setLocationName] = useState("");
+  const [locationAddress, setLocationAddress] = useState("");
 
   useEffect(() => {
     setStartTime(entry?.startTime || "");
@@ -39,6 +56,37 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const isBreak = entryType === "break";
   const isEditing = Boolean(entry);
   const isPending = createEntry.isPending || updateEntry.isPending;
+
+  const handleSaveProject = () => {
+    if (!projectName.trim()) return;
+    createProject.mutate(
+      { name: projectName.trim(), description: projectDesc.trim(), color: projectColor },
+      {
+        onSuccess: (newProj) => {
+          setProjectId(newProj.id);
+          setProjectOpen(false);
+          setProjectName("");
+          setProjectDesc("");
+          setProjectColor(COLORS[0]);
+        },
+      }
+    );
+  };
+
+  const handleSaveLocation = () => {
+    if (!locationName.trim()) return;
+    createLocation.mutate(
+      { name: locationName.trim(), address: locationAddress.trim() },
+      {
+        onSuccess: (newLoc) => {
+          setLocationId(newLoc.id);
+          setLocationOpen(false);
+          setLocationName("");
+          setLocationAddress("");
+        },
+      }
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,16 +140,6 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
     );
   };
 
-  const hasProjectsAndLocations = projects.length > 0 && locations.length > 0;
-
-  if (!hasProjectsAndLocations) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-4 text-center text-sm text-muted-foreground">
-        Cadastre ao menos um <strong>projeto</strong> e um <strong>local</strong> para começar a registrar.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-2">
       {/* Entry type toggle */}
@@ -143,30 +181,54 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
           <div className="flex gap-2 flex-1 w-full">
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Projeto</label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {projects.map(p => (
-                    <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-                        {p.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-1 items-center">
+                <Select value={projectId} onValueChange={setProjectId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                          {p.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0"
+                  onClick={() => setProjectOpen(true)}
+                  title="Novo Projeto"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Local</label>
-              <Select value={locationId} onValueChange={setLocationId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {locations.map(l => (
-                    <SelectItem key={l.id} value={l.id} className="pl-2 [&>span:first-child]:hidden">{l.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-1 items-center">
+                <Select value={locationId} onValueChange={setLocationId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {locations.map(l => (
+                      <SelectItem key={l.id} value={l.id} className="pl-2 [&>span:first-child]:hidden">{l.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0"
+                  onClick={() => setLocationOpen(true)}
+                  title="Novo Local"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -188,6 +250,61 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
           </label>
         </div>
       )}
+
+      {/* Modal Novo Projeto */}
+      <Dialog open={projectOpen} onOpenChange={setProjectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Projeto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Nome</label>
+              <Input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="Nome do projeto" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Descrição</label>
+              <Textarea value={projectDesc} onChange={e => setProjectDesc(e.target.value)} placeholder="Opcional" rows={2} />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Cor</label>
+              <div className="flex gap-2">
+                {COLORS.map(c => (
+                  <button key={c} type="button" onClick={() => setProjectColor(c)}
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${projectColor === c ? "border-foreground scale-110" : "border-transparent"}`}
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
+            </div>
+            <Button onClick={handleSaveProject} className="w-full" disabled={createProject.isPending}>
+              {createProject.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Novo Local */}
+      <Dialog open={locationOpen} onOpenChange={setLocationOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Local</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Nome</label>
+              <Input value={locationName} onChange={e => setLocationName(e.target.value)} placeholder="Ex: Escritório Centro" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Endereço</label>
+              <Input value={locationAddress} onChange={e => setLocationAddress(e.target.value)} placeholder="Opcional" />
+            </div>
+            <Button onClick={handleSaveLocation} className="w-full" disabled={createLocation.isPending}>
+              {createLocation.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
