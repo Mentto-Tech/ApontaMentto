@@ -1,40 +1,53 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ApontaMentto</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
 
-    <meta name="theme-color" content="#0b1220" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ApontaMentto</title>
+  <meta name="description" content="ApontaMentto Project" />
+  <meta name="author" content="Mentto" />
 
-    <meta property="og:title" content="ApontaMentto" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/pwa-192x192.png" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <meta property="og:title" content="ApontaMentto" />
+  <meta property="og:description" content="Mentto Project" />
+  <meta property="og:type" content="website" />
 
-    <link rel="icon" href="/logo.png" type="image/png" />
-  </head>
+  <link rel="icon" href="/logo.png" type="image/png" />
+</head>
 
-  <body>
-    <div id="root">
-      <div id="initial-loader" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b1220;gap:24px;">
-        <img src="/logo.png" alt="ApontaMentto" style="height:64px;width:auto;opacity:0.9;" />
-        <div style="display:flex;gap:6px;">
-          <span style="height:10px;width:10px;border-radius:50%;background:#6366f1;animation:bounce 0.9s infinite;animation-delay:-0.3s;"></span>
-          <span style="height:10px;width:10px;border-radius:50%;background:#6366f1;animation:bounce 0.9s infinite;animation-delay:-0.15s;"></span>
-          <span style="height:10px;width:10px;border-radius:50%;background:#6366f1;animation:bounce 0.9s infinite;"></span>
-        </div>
-        <style>@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}</style>
+<body>
+  <div id="root">
+    <div id="initial-loader"
+      style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b1220;gap:24px;">
+      <img src="/logo.png" alt="ApontaMentto" style="height:64px;width:auto;opacity:0.9;" />
+      <div style="display:flex;gap:6px;">
+        <span
+          style="height:10px;width:10px;border-radius:50%;background:#6366f1;animation:bounce 0.9s infinite;animation-delay:-0.3s;"></span>
+        <span
+          style="height:10px;width:10px;border-radius:50%;background:#6366f1;animation:bounce 0.9s infinite;animation-delay:-0.15s;"></span>
+        <span
+          style="height:10px;width:10px;border-radius:50%;background:#6366f1;animation:bounce 0.9s infinite;"></span>
       </div>
+      <style>
+        @keyframes bounce {
+
+          0%,
+          100% {
+            transform: translateY(0)
+          }
+
+          50% {
+            transform: translateY(-8px)
+          }
+        }
+      </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

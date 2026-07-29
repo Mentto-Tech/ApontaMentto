@@ -100,6 +100,15 @@ class ChangePasswordRequest(CamelModel):
     new_password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 # ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------

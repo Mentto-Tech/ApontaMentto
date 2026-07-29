@@ -14,6 +14,8 @@ import ProjectsAndLocations from "./pages/ProjectsAndLocations";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import MonthlyView from "./pages/MonthlyView";
 import Timesheet from "./pages/Timesheet";
 import Justifications from "./pages/Justifications";
@@ -53,6 +55,8 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
     <Route path="/signup" element={<GuestRoute><Signup /></GuestRoute>} />
+    <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+    <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
     <Route path="/assinar/:token" element={<SignTimesheet />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/" element={<Index />} />

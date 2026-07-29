@@ -411,3 +411,22 @@ class PushSubscription(Base):
     )
 
     user: Mapped[User] = relationship("User")
+
+
+class PasswordResetToken(Base):
+    """Token de redefinição de senha — one-time use, expira em 1 hora."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: dt.utcnow(), nullable=False
+    )
+
+    user: Mapped[User] = relationship("User")

@@ -77,3 +77,34 @@ class EmailService:
         </div>
         """
         EmailService._send(to_email, subject, html)
+
+    @staticmethod
+    def send_password_reset_email(to_email: str, user_name: str, reset_url: str):
+        subject = "Redefinição de senha — ApontaMentto"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px">
+          <div style="text-align:center;margin-bottom:24px">
+            <h1 style="color:#6366f1;font-size:24px;margin:0">ApontaMentto</h1>
+          </div>
+          <h2 style="color:#1e293b;font-size:20px">Redefinição de Senha</h2>
+          <p>Olá <strong>{user_name}</strong>,</p>
+          <p>Recebemos uma solicitação para redefinir a senha da sua conta.
+          Clique no botão abaixo para criar uma nova senha:</p>
+          <p style="margin:32px 0;text-align:center">
+            <a href="{reset_url}"
+               style="background:#6366f1;color:#fff;padding:14px 28px;border-radius:8px;
+                      text-decoration:none;font-weight:600;font-size:15px">
+              Redefinir Senha
+            </a>
+          </p>
+          <p style="color:#64748b;font-size:13px">
+            Este link é válido por <strong>1 hora</strong>. Se você não solicitou a
+            redefinição de senha, ignore este email — sua senha permanece a mesma.
+          </p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+          <p style="color:#94a3b8;font-size:12px;text-align:center">
+            ApontaMentto · Mentto Tech
+          </p>
+        </div>
+        """
+        EmailService._send(to_email, subject, html)

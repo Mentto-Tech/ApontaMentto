@@ -1,17 +1,34 @@
+import logging
+import os
+import secrets
 import uuid
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user
-from models import User
-from schemas import LoginRequest, RegisterRequest, TokenResponse, UserOut
+from email_service import EmailService
+from models import PasswordResetToken, User
+from schemas import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserOut,
+)
 from security import create_access_token, hash_password, verify_password
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+# URL base do frontend — usada para montar o link de reset
+APP_URL = os.getenv("FRONTEND_URL") or os.getenv("APP_URL", "http://localhost:5173")
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -54,3 +71,107 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)):
     return UserOut.model_validate(current_user)
+
+
+# ---------------------------------------------------------------------------
+# Recuperação de senha
+# ---------------------------------------------------------------------------
+
+@router.post("/forgot-password", status_code=200)
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Solicita redefinição de senha via email.
+    Sempre retorna a mesma mensagem genérica para evitar user enumeration.
+    """
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Invalida tokens anteriores deste usuário (limpeza)
+        existing = await db.execute(
+            select(PasswordResetToken).where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used == False,  # noqa: E712
+            )
+        )
+        for old_token in existing.scalars().all():
+            old_token.used = True
+
+        raw_token = secrets.token_urlsafe(32)
+        reset_token = PasswordResetToken(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            token=raw_token,
+            expires_at=datetime.utcnow() + timedelta(hours=1),
+            used=False,
+        )
+        db.add(reset_token)
+        await db.commit()
+
+        reset_url = f"{APP_URL}/reset-password?token={raw_token}"
+
+        def _send_email():
+            try:
+                EmailService.send_password_reset_email(
+                    to_email=user.email,
+                    user_name=user.username,
+                    reset_url=reset_url,
+                )
+            except Exception as exc:
+                logger.error(f"Erro ao enviar email de reset para {user.email}: {exc}")
+
+        background_tasks.add_task(_send_email)
+
+    # Resposta genérica — não revela se o email existe ou não
+    return {
+        "message": "Se este email estiver cadastrado, você receberá as instruções em breve."
+    }
+
+
+@router.post("/reset-password", status_code=200)
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Redefine a senha usando o token recebido por email.
+    """
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="A senha deve ter pelo menos 8 caracteres.",
+        )
+
+    result = await db.execute(
+        select(PasswordResetToken).where(PasswordResetToken.token == data.token)
+    )
+    reset_token = result.scalar_one_or_none()
+
+    if (
+        not reset_token
+        or reset_token.used
+        or reset_token.expires_at < datetime.utcnow()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Token inválido ou expirado. Solicite um novo link de recuperação.",
+        )
+
+    # Atualiza a senha do usuário
+    user_result = await db.execute(select(User).where(User.id == reset_token.user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+    user.hashed_password = hash_password(data.new_password)
+
+    # Invalida o token (one-time use)
+    reset_token.used = True
+
+    await db.commit()
+
+    return {"message": "Senha redefinida com sucesso. Você já pode fazer login."}

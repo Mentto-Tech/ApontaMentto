@@ -45,7 +45,15 @@ const Login = () => {
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">Senha</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium">Senha</label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-primary hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
             <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" required />
           </div>
           <Button type="submit" className="w-full bg-primary" disabled={loading}>
