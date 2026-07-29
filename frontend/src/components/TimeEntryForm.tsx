@@ -44,6 +44,10 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const [locationName, setLocationName] = useState("");
   const [locationAddress, setLocationAddress] = useState("");
 
+  // Estados para controlar a abertura dos seletores
+  const [projectSelectOpen, setProjectSelectOpen] = useState(false);
+  const [locationSelectOpen, setLocationSelectOpen] = useState(false);
+
   useEffect(() => {
     setStartTime(entry?.startTime || "");
     setEndTime(entry?.endTime || "");
@@ -182,7 +186,7 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Projeto</label>
               <div className="flex gap-1 items-center">
-                <Select value={projectId} onValueChange={setProjectId}>
+                <Select value={projectId} onValueChange={setProjectId} open={projectSelectOpen} onOpenChange={setProjectSelectOpen}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {projects.map(p => (
@@ -199,9 +203,10 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 shrink-0"
+                  className={`h-10 w-10 shrink-0 transition-opacity ${projectSelectOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
                   onClick={() => setProjectOpen(true)}
                   title="Novo Projeto"
+                  tabIndex={projectSelectOpen ? 0 : -1}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -210,7 +215,7 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Local</label>
               <div className="flex gap-1 items-center">
-                <Select value={locationId} onValueChange={setLocationId}>
+                <Select value={locationId} onValueChange={setLocationId} open={locationSelectOpen} onOpenChange={setLocationSelectOpen}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {locations.map(l => (
@@ -222,9 +227,10 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 shrink-0"
+                  className={`h-10 w-10 shrink-0 transition-opacity ${locationSelectOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
                   onClick={() => setLocationOpen(true)}
                   title="Novo Local"
+                  tabIndex={locationSelectOpen ? 0 : -1}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
