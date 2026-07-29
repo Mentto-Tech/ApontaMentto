@@ -45,15 +45,7 @@ const Login = () => {
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
           </div>
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium">Senha</label>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-primary hover:underline"
-              >
-                Esqueci minha senha
-              </Link>
-            </div>
+            <label className="text-sm font-medium mb-1 block">Senha</label>
             <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" required />
           </div>
           <Button type="submit" className="w-full bg-primary" disabled={loading}>
@@ -64,6 +56,10 @@ const Login = () => {
         <p className="text-center text-sm text-muted-foreground mt-4">
           Não tem conta?{" "}
           <Link to="/signup" className="text-primary font-medium hover:underline">Cadastre-se</Link>
+        </p>
+
+        <p className="text-center text-sm mt-2">
+          <Link to="/forgot-password" className="text-primary font-medium hover:underline">Esqueci minha senha</Link>
         </p>
 
         <div className="mt-8 text-center text-xs text-muted-foreground">
