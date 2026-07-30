@@ -293,15 +293,18 @@ const Dashboard = () => {
             </div>
           </div>
         ) : null}
-        {isAdmin && totalUnattributed > 0 ? (
+        
+        {/* {isAdmin && totalUnattributed > 0 ? (
           <div className="db-card bg-card border border-border">
             <CalendarOff className="db-card__icon text-orange-500" />
             <div className="db-card__body">
               <div className="db-card__value">{totalUnattributed.toFixed(2)}h</div>
-              {/* <div className="db-card__label text-muted-foreground">Horas Não Atribuídas</div> */}
+              <div className="db-card__label text-muted-foreground">Horas Não Atribuídas</div>          
             </div>
           </div>
         ) : null}
+        */}
+        
       </div>
 
       <Tabs defaultValue="projects">
