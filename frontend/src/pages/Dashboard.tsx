@@ -298,7 +298,7 @@ const Dashboard = () => {
             <CalendarOff className="db-card__icon text-orange-500" />
             <div className="db-card__body">
               <div className="db-card__value">{totalUnattributed.toFixed(2)}h</div>
-              <div className="db-card__label text-muted-foreground">Horas Não Atribuídas</div>
+              {/* <div className="db-card__label text-muted-foreground">Horas Não Atribuídas</div> */}
             </div>
           </div>
         ) : null}
@@ -308,7 +308,7 @@ const Dashboard = () => {
         <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="hours">Horas</TabsTrigger>
           {isAdmin ? <TabsTrigger value="cost">Custo por Projeto</TabsTrigger> : null}
-          {isAdmin && unattributedData.length > 0 ? <TabsTrigger value="unattributed">Não Atribuídas</TabsTrigger> : null}
+          {/* {isAdmin && unattributedData.length > 0 ? <TabsTrigger value="unattributed">Não Atribuídas</TabsTrigger> : null} */}
         </TabsList>
 
         <TabsContent value="hours">
@@ -436,7 +436,7 @@ const Dashboard = () => {
           </TabsContent>
         ) : null}
 
-        {isAdmin && unattributedData.length > 0 ? (
+        {/* {isAdmin && unattributedData.length > 0 ? (
           <TabsContent value="unattributed">
             <div className="bg-card border border-border rounded-lg p-4">
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -479,7 +479,7 @@ const Dashboard = () => {
               </div>
             </div>
           </TabsContent>
-        ) : null}
+        ) : null} */}
       </Tabs>
     </div>
   );
