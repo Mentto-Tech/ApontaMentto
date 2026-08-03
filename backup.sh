@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
 BACKUP_DIR="$SCRIPT_DIR/arquitetura/backups"
-API_URL="https://aponta.mentto.com.br/api"
+API_URL="http://localhost:8000/api"
 MAX_BACKUPS=3
 
 # ── Carregar variáveis do .env ────────────────────────────────────────────────
