@@ -25,8 +25,8 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Obtendo token de autenticação..."
 
 TOKEN=$(curl -sf -X POST "$API_URL/auth/login" \
-    -H "Content-Type: application/x-www-form-urlencoded" \
-    -d "username=${ADMIN_EMAIL}&password=${ADMIN_PASSWORD}" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" \
     | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
 
 if [ -z "$TOKEN" ]; then
