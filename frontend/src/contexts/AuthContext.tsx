@@ -58,7 +58,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setToken(data.access_token);
       setUser(data.user);
       return true;
-    } catch {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[AuthContext] Falha no login — resposta da API:", message);
       return false;
     }
   }, []);

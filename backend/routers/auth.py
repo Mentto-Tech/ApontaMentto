@@ -33,13 +33,40 @@ APP_URL = os.getenv("FRONTEND_URL") or os.getenv("APP_URL", "http://localhost:51
 
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    email_domain = data.email.split("@")[1] if "@" in data.email else "sem-arroba"
+    email_len = len(data.email)
+    password_len = len(data.password)
+    has_leading_space = data.password.startswith(" ")
+    has_trailing_space = data.password.endswith(" ")
+
+    logger.info(
+        "[login] Tentativa recebida | domínio=%s email_len=%d password_len=%d "
+        "pw_leading_space=%s pw_trailing_space=%s",
+        email_domain, email_len, password_len, has_leading_space, has_trailing_space,
+    )
+
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(data.password, user.hashed_password):
+
+    if not user:
+        logger.warning("[login] Usuário não encontrado | domínio=%s", email_domain)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
         )
+
+    if not verify_password(data.password, user.hashed_password):
+        logger.warning(
+            "[login] Senha incorreta | user_id=%s domínio=%s password_len=%d "
+            "pw_leading_space=%s pw_trailing_space=%s",
+            user.id, email_domain, password_len, has_leading_space, has_trailing_space,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos",
+        )
+
+    logger.info("[login] Autenticação bem-sucedida | user_id=%s", user.id)
     token = create_access_token({"sub": user.id})
     return TokenResponse(access_token=token, user=UserOut.model_validate(user))
 
