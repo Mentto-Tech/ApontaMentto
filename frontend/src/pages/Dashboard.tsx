@@ -226,7 +226,6 @@ const Dashboard = () => {
         <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="hours">Horas</TabsTrigger>
           {isAdmin ? <TabsTrigger value="cost">Custo por Projeto</TabsTrigger> : null}
-          <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
 
         {/* Aba Horas */}
@@ -332,10 +331,123 @@ const Dashboard = () => {
                 </ResponsiveContainer>
               </div>
             ) : null}
+
+            {/* Ranking por Projeto */}
+            <div className="bg-card border border-border rounded-lg p-4">
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                <FolderOpen className="h-4 w-4 text-primary" /> Ranking — Horas por Projeto
+              </h3>
+              {hoursPerProject.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">Nenhum dado no período.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground text-xs">
+                      <th className="text-left pb-2 font-medium">#</th>
+                      <th className="text-left pb-2 font-medium">Projeto</th>
+                      <th className="text-right pb-2 font-medium">Horas</th>
+                      <th className="text-right pb-2 font-medium">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hoursPerProject.map((p, i) => {
+                      const total = hoursPerProject.reduce((s, x) => s + x.hours, 0);
+                      const pct = total > 0 ? (p.hours / total) * 100 : 0;
+                      return (
+                        <tr key={p.name} className="border-b border-border/40 last:border-0">
+                          <td className="py-2 pr-2 text-muted-foreground">{i + 1}</td>
+                          <td className="py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                              <span className="truncate max-w-[120px]">{p.name}</span>
+                            </div>
+                            <div className="mt-1 h-1 rounded-full bg-border overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: p.color }} />
+                            </div>
+                          </td>
+                          <td className="py-2 text-right font-medium tabular-nums">{p.hours}h</td>
+                          <td className="py-2 text-right text-muted-foreground tabular-nums">{pct.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border text-xs font-semibold">
+                      <td colSpan={2} className="pt-2">Total</td>
+                      <td className="pt-2 text-right tabular-nums">
+                        {hoursPerProject.reduce((s, x) => s + x.hours, 0).toFixed(2)}h
+                      </td>
+                      <td className="pt-2 text-right text-muted-foreground">100%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+
+            {/* Ranking por Usuário (admin only) */}
+            {isAdmin ? (
+              <div className="bg-card border border-border rounded-lg p-4">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" /> Ranking — Horas por Usuário
+                </h3>
+                {normalVsOvertimePerUser.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">Nenhum dado no período.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground text-xs">
+                        <th className="text-left pb-2 font-medium">#</th>
+                        <th className="text-left pb-2 font-medium">Usuário</th>
+                        <th className="text-right pb-2 font-medium">Normal</th>
+                        <th className="text-right pb-2 font-medium">Extra</th>
+                        <th className="text-right pb-2 font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {normalVsOvertimePerUser.map((u, i) => {
+                        const total = u.normal + u.overtime;
+                        const grandTotal = normalVsOvertimePerUser.reduce((s, x) => s + x.normal + x.overtime, 0);
+                        const pct = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
+                        const color = ["#0f766e","#2563eb","#9333ea","#dc2626","#ea580c","#ca8a04","#16a34a","#64748b"][i % 8];
+                        return (
+                          <tr key={u.id} className="border-b border-border/40 last:border-0">
+                            <td className="py-2 pr-2 text-muted-foreground">{i + 1}</td>
+                            <td className="py-2">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                <span className="truncate max-w-[100px]">{u.name}</span>
+                              </div>
+                              <div className="mt-1 h-1 rounded-full bg-border overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                              </div>
+                            </td>
+                            <td className="py-2 text-right tabular-nums">{u.normal}h</td>
+                            <td className="py-2 text-right tabular-nums text-amber-500">{u.overtime > 0 ? `${u.overtime}h` : "—"}</td>
+                            <td className="py-2 text-right font-medium tabular-nums">{total.toFixed(2)}h</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border text-xs font-semibold">
+                        <td colSpan={2} className="pt-2">Total</td>
+                        <td className="pt-2 text-right tabular-nums">
+                          {normalVsOvertimePerUser.reduce((s, x) => s + x.normal, 0).toFixed(2)}h
+                        </td>
+                        <td className="pt-2 text-right tabular-nums text-amber-500">
+                          {normalVsOvertimePerUser.reduce((s, x) => s + x.overtime, 0).toFixed(2)}h
+                        </td>
+                        <td className="pt-2 text-right tabular-nums">
+                          {normalVsOvertimePerUser.reduce((s, x) => s + x.normal + x.overtime, 0).toFixed(2)}h
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+            ) : null}
           </div>
         </TabsContent>
-
-        {/* Aba Custo */}
         {isAdmin ? (
           <TabsContent value="cost">
             <div className="bg-card border border-border rounded-lg p-4">
@@ -441,125 +553,6 @@ const Dashboard = () => {
             </div>
           </TabsContent>
         ) : null}
-        {/* Aba Ranking */}
-        <TabsContent value="ranking">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Ranking por Projeto */}
-            <div className="bg-card border border-border rounded-lg p-4">
-              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                <FolderOpen className="h-4 w-4 text-primary" /> Horas por Projeto
-              </h3>
-              {hoursPerProject.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">Nenhum dado no período.</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-muted-foreground text-xs">
-                      <th className="text-left pb-2 font-medium">#</th>
-                      <th className="text-left pb-2 font-medium">Projeto</th>
-                      <th className="text-right pb-2 font-medium">Horas</th>
-                      <th className="text-right pb-2 font-medium">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {hoursPerProject.map((p, i) => {
-                      const total = hoursPerProject.reduce((s, x) => s + x.hours, 0);
-                      const pct = total > 0 ? (p.hours / total) * 100 : 0;
-                      return (
-                        <tr key={p.name} className="border-b border-border/40 last:border-0">
-                          <td className="py-2 pr-2 text-muted-foreground">{i + 1}</td>
-                          <td className="py-2">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                              <span className="truncate max-w-[120px]">{p.name}</span>
-                            </div>
-                            <div className="mt-1 h-1 rounded-full bg-border overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: p.color }} />
-                            </div>
-                          </td>
-                          <td className="py-2 text-right font-medium tabular-nums">{p.hours}h</td>
-                          <td className="py-2 text-right text-muted-foreground tabular-nums">{pct.toFixed(1)}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-border text-xs font-semibold">
-                      <td colSpan={2} className="pt-2">Total</td>
-                      <td className="pt-2 text-right tabular-nums">
-                        {hoursPerProject.reduce((s, x) => s + x.hours, 0).toFixed(2)}h
-                      </td>
-                      <td className="pt-2 text-right text-muted-foreground">100%</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              )}
-            </div>
-
-            {/* Ranking por Usuário (admin only) */}
-            {isAdmin ? (
-              <div className="bg-card border border-border rounded-lg p-4">
-                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" /> Horas por Usuário
-                </h3>
-                {normalVsOvertimePerUser.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Nenhum dado no período.</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-muted-foreground text-xs">
-                        <th className="text-left pb-2 font-medium">#</th>
-                        <th className="text-left pb-2 font-medium">Usuário</th>
-                        <th className="text-right pb-2 font-medium">Normal</th>
-                        <th className="text-right pb-2 font-medium">Extra</th>
-                        <th className="text-right pb-2 font-medium">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {normalVsOvertimePerUser.map((u, i) => {
-                        const total = u.normal + u.overtime;
-                        const grandTotal = normalVsOvertimePerUser.reduce((s, x) => s + x.normal + x.overtime, 0);
-                        const pct = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
-                        const color = ["#0f766e","#2563eb","#9333ea","#dc2626","#ea580c","#ca8a04","#16a34a","#64748b"][i % 8];
-                        return (
-                          <tr key={u.id} className="border-b border-border/40 last:border-0">
-                            <td className="py-2 pr-2 text-muted-foreground">{i + 1}</td>
-                            <td className="py-2">
-                              <div className="flex items-center gap-2">
-                                <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                                <span className="truncate max-w-[100px]">{u.name}</span>
-                              </div>
-                              <div className="mt-1 h-1 rounded-full bg-border overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                              </div>
-                            </td>
-                            <td className="py-2 text-right tabular-nums">{u.normal}h</td>
-                            <td className="py-2 text-right tabular-nums text-amber-500">{u.overtime > 0 ? `${u.overtime}h` : "—"}</td>
-                            <td className="py-2 text-right font-medium tabular-nums">{total.toFixed(2)}h</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t border-border text-xs font-semibold">
-                        <td colSpan={2} className="pt-2">Total</td>
-                        <td className="pt-2 text-right tabular-nums">
-                          {normalVsOvertimePerUser.reduce((s, x) => s + x.normal, 0).toFixed(2)}h
-                        </td>
-                        <td className="pt-2 text-right tabular-nums text-amber-500">
-                          {normalVsOvertimePerUser.reduce((s, x) => s + x.overtime, 0).toFixed(2)}h
-                        </td>
-                        <td className="pt-2 text-right tabular-nums">
-                          {normalVsOvertimePerUser.reduce((s, x) => s + x.normal + x.overtime, 0).toFixed(2)}h
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );
