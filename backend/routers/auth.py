@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_current_user
 from email_service import EmailService
-from models import PasswordResetToken, User
+from models import PasswordResetToken, RefreshToken, User
 from schemas import (
     ForgotPasswordRequest,
     LoginRequest,
+    RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
     TokenResponse,
@@ -27,8 +28,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# URL base do frontend — usada para montar o link de reset
 APP_URL = os.getenv("FRONTEND_URL") or os.getenv("APP_URL", "http://localhost:5173")
+
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+
+async def _create_refresh_token(user_id: str, db: AsyncSession) -> str:
+    """Gera e persiste um refresh token rotativo."""
+    raw = secrets.token_urlsafe(48)
+    rt = RefreshToken(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        token=raw,
+        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+    db.add(rt)
+    await db.flush()
+    return raw
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -68,7 +84,9 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     logger.info("[login] Autenticação bem-sucedida | user_id=%s", user.id)
     token = create_access_token({"sub": user.id})
-    return TokenResponse(access_token=token, user=UserOut.model_validate(user))
+    refresh = await _create_refresh_token(user.id, db)
+    await db.commit()
+    return TokenResponse(access_token=token, refresh_token=refresh, user=UserOut.model_validate(user))
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -92,12 +110,44 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Nome de usuário já cadastrado")
     await db.refresh(user)
     token = create_access_token({"sub": user.id})
-    return TokenResponse(access_token=token, user=UserOut.model_validate(user))
+    refresh = await _create_refresh_token(user.id, db)
+    await db.commit()
+    return TokenResponse(access_token=token, refresh_token=refresh, user=UserOut.model_validate(user))
 
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)):
     return UserOut.model_validate(current_user)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    """Troca um refresh token válido por um novo par access_token + refresh_token (rotação)."""
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token == data.refresh_token)
+    )
+    rt = result.scalar_one_or_none()
+
+    if not rt or rt.revoked or rt.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido ou expirado. Faça login novamente.",
+        )
+
+    # Revogar o token usado (rotação)
+    rt.revoked = True
+
+    user_result = await db.execute(select(User).where(User.id == rt.user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado.")
+
+    new_access = create_access_token({"sub": user.id})
+    new_refresh = await _create_refresh_token(user.id, db)
+    await db.commit()
+
+    return TokenResponse(access_token=new_access, refresh_token=new_refresh, user=UserOut.model_validate(user))
 
 
 # ---------------------------------------------------------------------------

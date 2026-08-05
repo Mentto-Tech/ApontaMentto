@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiFetch, getToken, removeToken, setToken } from "@/lib/api";
+import { apiFetch, clearAuth, getToken, removeToken, setRefreshToken, setToken } from "@/lib/api";
 
 export interface AuthUser {
   id: string;
@@ -29,6 +29,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 interface TokenResponse {
   access_token: string;
+  refresh_token: string;
   user: AuthUser;
 }
 
@@ -45,8 +46,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     apiFetch<AuthUser>("/api/auth/me")
       .then(u => setUser(u))
-      .catch(() => removeToken())
+      .catch(() => clearAuth())
       .finally(() => setIsLoading(false));
+  }, []);
+
+  // Ouve evento disparado pelo apiFetch quando o refresh falha
+  useEffect(() => {
+    const handler = () => {
+      clearAuth();
+      setUser(null);
+    };
+    window.addEventListener("auth:logout", handler);
+    return () => window.removeEventListener("auth:logout", handler);
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
@@ -56,6 +67,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: { email, password },
       });
       setToken(data.access_token);
+      setRefreshToken(data.refresh_token);
       setUser(data.user);
       return true;
     } catch (err: unknown) {
@@ -72,6 +84,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: { name, email, password, category },
       });
       setToken(data.access_token);
+      setRefreshToken(data.refresh_token);
       setUser(data.user);
       return true;
     } catch {
@@ -80,7 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const logout = useCallback(() => {
-    removeToken();
+    clearAuth();
     setUser(null);
   }, []);
 
@@ -91,7 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const u = await apiFetch<AuthUser>("/api/auth/me");
       setUser(u);
     } catch {
-      removeToken();
+      clearAuth();
       setUser(null);
     }
   }, []);

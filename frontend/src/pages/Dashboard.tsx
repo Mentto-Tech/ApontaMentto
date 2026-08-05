@@ -4,7 +4,7 @@ import { useTimeEntries, useProjects, useUsers } from "@/lib/queries";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
 import { BarChart3, Clock, FolderOpen, Users, DollarSign, Coffee, Zap, CalendarOff } from "lucide-react";
 import "../styles/Dashboard.css";
 import { formatYmdToBr } from "@/lib/datetime";
@@ -113,6 +113,41 @@ const Dashboard = () => {
       }))
       .sort((a, b) => b.hours - a.hours);
   }, [workEntries, isAdmin, userMap]);
+
+  // Gráfico 3: horas normais vs extras por usuário
+  const normalVsOvertimePerUser = useMemo(() => {
+    if (!isAdmin) return [];
+    const map = new Map<string, { normal: number; overtime: number }>();
+    workEntries.forEach((e) => {
+      const key = e.userId || "unknown";
+      const prev = map.get(key) || { normal: 0, overtime: 0 };
+      const mins = calcMins(e);
+      if (e.isOvertime) prev.overtime += mins;
+      else prev.normal += mins;
+      map.set(key, prev);
+    });
+    return Array.from(map.entries())
+      .map(([id, { normal, overtime }]) => ({
+        name: userMap[id]?.username || "Desconhecido",
+        normal: Math.round((normal / 60) * 100) / 100,
+        overtime: Math.round((overtime / 60) * 100) / 100,
+      }))
+      .filter((d) => d.normal + d.overtime > 0)
+      .sort((a, b) => b.normal + b.overtime - (a.normal + a.overtime));
+  }, [workEntries, isAdmin, userMap]);
+
+  // Gráfico 7: custo normal vs hora extra por projeto
+  const normalVsOvertimeCostPerProject = useMemo(() => {
+    if (!isAdmin) return [];
+    return costPerProject
+      .filter((c) => c.cost > 0)
+      .map((c) => ({
+        name: c.name,
+        normal: c.normalCost,
+        overtime: c.overtimeCost,
+        color: c.color,
+      }));
+  }, [costPerProject, isAdmin]);
 
   const totalMinutes = workEntries.reduce((sum, e) => sum + calcMins(e), 0);
   const totalHours = Math.floor(totalMinutes / 60);
@@ -307,7 +342,7 @@ const Dashboard = () => {
         
       </div>
 
-      <Tabs defaultValue="projects">
+      <Tabs defaultValue="hours">
         <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="hours">Horas</TabsTrigger>
           {isAdmin ? <TabsTrigger value="cost">Custo por Projeto</TabsTrigger> : null}
@@ -376,6 +411,24 @@ const Dashboard = () => {
                 </ResponsiveContainer>
               </div>
             ) : null}
+
+            {isAdmin && normalVsOvertimePerUser.length > 0 ? (
+              <div className="bg-card border border-border rounded-lg p-4 md:col-span-2">
+                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" /> Horas Normais vs Extras por Usuário
+                </h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={normalVsOvertimePerUser}>
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="h" />
+                    <Tooltip formatter={(val: number) => [`${val}h`]} />
+                    <Legend />
+                    <Bar dataKey="normal" name="Normal" stackId="a" fill="#0f766e" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="overtime" name="Hora Extra" stackId="a" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : null}
           </div>
         </TabsContent>
 
@@ -402,6 +455,24 @@ const Dashboard = () => {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+
+                  {normalVsOvertimeCostPerProject.length > 0 && (
+                    <>
+                      <h3 className="text-sm font-semibold mb-4 mt-6 flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-amber-500" /> Custo Normal vs Hora Extra por Projeto (R$)
+                      </h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={normalVsOvertimeCostPerProject} layout="vertical" margin={{ left: 10 }}>
+                          <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${v}`} />
+                          <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} />
+                          <Tooltip formatter={(val: number) => [`R$ ${val.toFixed(2)}`]} />
+                          <Legend />
+                          <Bar dataKey="normal" name="Normal" stackId="a" fill="#0f766e" />
+                          <Bar dataKey="overtime" name="Hora Extra" stackId="a" fill="#f59e0b" radius={[0, 6, 6, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </>
+                  )}
 
                   {/* Cost breakdown table */}
                   <div className="mt-4 border-t border-border pt-4">
