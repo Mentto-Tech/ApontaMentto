@@ -381,6 +381,15 @@ class EmployeeSignIn(BaseModel):
     employee_signature: str     # dataURL base64 PNG
 
 
+class EmployeeSelfSignRequestIn(BaseModel):
+    month: str                  # YYYY-MM
+    employee_signature: str     # dataURL base64 PNG
+
+
+class ManagerSignIn(BaseModel):
+    manager_signature: str      # dataURL base64 PNG
+
+
 
 
 # ---------------------------------------------------------------------------

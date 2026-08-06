@@ -79,6 +79,45 @@ class EmailService:
         EmailService._send(to_email, subject, html)
 
     @staticmethod
+    def send_manager_sign_request(to_email: str, manager_name: str, employee_name: str, month_label: str, sign_url: str):
+        subject = f"Folha de Ponto {month_label} — {employee_name} aguarda sua assinatura"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px">
+          <h2 style="color:#1e293b">Folha de Ponto — {month_label}</h2>
+          <p>Olá <strong>{manager_name}</strong>,</p>
+          <p><strong>{employee_name}</strong> já assinou a folha de ponto de <strong>{month_label}</strong>
+          e aguarda a sua assinatura para concluir o documento.</p>
+          <p style="margin:32px 0">
+            <a href="{sign_url}"
+               style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+              Visualizar e Assinar
+            </a>
+          </p>
+          <p style="color:#64748b;font-size:13px">O link expira em 7 dias.</p>
+        </div>
+        """
+        EmailService._send(to_email, subject, html)
+
+    @staticmethod
+    def send_timesheet_complete_notification(to_email: str, employee_name: str, manager_name: str, month_label: str, download_url: str):
+        subject = f"Folha de Ponto {month_label} — Assinatura concluída"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px">
+          <h2 style="color:#1e293b">Folha de Ponto Completa — {month_label}</h2>
+          <p>Olá <strong>{employee_name}</strong>,</p>
+          <p>Sua folha de ponto de <strong>{month_label}</strong> foi assinada por
+          <strong>{manager_name}</strong> e está disponível para download.</p>
+          <p style="margin:32px 0">
+            <a href="{download_url}"
+               style="background:#16a34a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+              Ver Minhas Folhas
+            </a>
+          </p>
+        </div>
+        """
+        EmailService._send(to_email, subject, html)
+
+    @staticmethod
     def send_password_reset_email(to_email: str, user_name: str, reset_url: str):
         subject = "Redefinição de senha — ApontaMentto"
         html = f"""

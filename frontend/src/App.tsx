@@ -27,6 +27,7 @@ import AdminAnnouncements from "./pages/AdminAnnouncements";
 import NotFound from "./pages/NotFound";
 
 import SignTimesheet from "./pages/SignTimesheet";
+import SignTimesheetManager from "./pages/SignTimesheetManager";
 import MySignedTimesheets from "./pages/MySignedTimesheets";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const AppRoutes = () => (
     <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
     <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
     <Route path="/assinar/:token" element={<SignTimesheet />} />
+    <Route path="/gestor-assinar/:token" element={<SignTimesheetManager />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/" element={<Index />} />
       <Route path="/dashboard" element={<Dashboard />} />

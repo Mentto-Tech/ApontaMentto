@@ -1,12 +1,14 @@
 """
 Timesheet signing flow:
-  POST /api/timesheets/sign-request          — admin creates request + sends email to employee
-  GET  /api/timesheets/sign-request/{token}  — public: validate token, return metadata
-  POST /api/timesheets/sign-request/{token}/employee-sign — public: employee signs
-  GET  /api/timesheets/signed-pdfs           — admin: list completed PDFs (filter by user_id)
-  GET  /api/timesheets/signed-pdfs/{id}      — download PDF
-  GET  /api/timesheets/sign-requests         — admin: list all sign requests
-  GET  /api/timesheets/my-sign-requests      — employee: list own pending requests
+  POST /api/timesheets/sign-request                           — admin creates request + sends email to employee
+  POST /api/timesheets/sign-request/self                      — employee initiates own sign request + notifies manager
+  GET  /api/timesheets/sign-request/{token}/info              — public: validate token, return metadata
+  POST /api/timesheets/sign-request/{token}/employee-sign     — public: employee signs (when manager signed first)
+  POST /api/timesheets/sign-request/{token}/manager-sign      — public: manager signs (when employee signed first)
+  GET  /api/timesheets/signed-pdfs                            — admin: list completed PDFs (filter by user_id)
+  GET  /api/timesheets/signed-pdfs/{id}/download              — download PDF
+  GET  /api/timesheets/sign-requests                          — admin: list all sign requests
+  GET  /api/timesheets/my-sign-requests                       — employee: list own pending requests
 """
 
 import asyncio
@@ -30,6 +32,8 @@ from models import AuditLog, TimesheetSignRequest, TimesheetSignedPdf, User
 from schemas import (
     CreateSignRequestIn,
     EmployeeSignIn,
+    EmployeeSelfSignRequestIn,
+    ManagerSignIn,
     TimesheetSignedPdfOut,
     TimesheetSignRequestOut,
 )
@@ -45,6 +49,7 @@ router = APIRouter()
 s3_storage = S3Storage()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+MANAGER_EMAIL = "tiago@mentto.com.br"
 
 
 def _hash_token(token: str) -> str:
@@ -345,8 +350,221 @@ async def create_sign_request(
 
 
 # ---------------------------------------------------------------------------
-# Public: validate token
+# Employee: self-initiate sign request
 # ---------------------------------------------------------------------------
+@router.post("/sign-request/self", response_model=TimesheetSignRequestOut)
+async def employee_self_sign_request(
+    request: Request,
+    body: EmployeeSelfSignRequestIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Check for duplicate (same user + month not yet complete)
+    existing = await db.execute(
+        select(TimesheetSignRequest).where(
+            TimesheetSignRequest.user_id == current_user.id,
+            TimesheetSignRequest.month == body.month,
+            TimesheetSignRequest.status != "complete",
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(409, "Já existe uma solicitação de assinatura pendente para este mês")
+
+    # Find admin user to set as created_by_admin_id (use manager email)
+    admin_result = await db.execute(select(User).where(User.email == MANAGER_EMAIL))
+    manager = admin_result.scalar_one_or_none()
+    if not manager:
+        # Fallback: pick any admin
+        admin_result = await db.execute(select(User).where(User.role == "admin"))
+        manager = admin_result.scalar_one_or_none()
+    if not manager:
+        raise HTTPException(500, "Nenhum gestor encontrado no sistema")
+
+    raw_token = str(uuid.uuid4())
+    token_hash = _hash_token(raw_token)
+    expires_at = datetime.utcnow() + timedelta(days=7)
+
+    req = TimesheetSignRequest(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        month=body.month,
+        status="employee_signed",
+        token_hash=token_hash,
+        expires_at=expires_at,
+        employee_signature=body.employee_signature,
+        employee_signed_at=datetime.utcnow(),
+        created_by_admin_id=manager.id,
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+
+    ip, ua = _get_request_meta(request)
+    audit = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        username=current_user.username,
+        user_role=current_user.role,
+        action="FUNCIONARIO_ASSINOU_FOLHA",
+        timesheet_id=req.id,
+        month=body.month,
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(audit)
+    await db.commit()
+
+    # Notify manager via email with link to sign
+    sign_url = f"{FRONTEND_URL}/gestor-assinar/{raw_token}"
+    year, mon = body.month.split("-")
+    MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    month_label = f"{MONTHS_PT[int(mon)]} {year}"
+
+    _emp_name = current_user.username
+    _mgr_name = manager.username
+
+    def _notify():
+        try:
+            EmailService.send_manager_sign_request(
+                to_email=MANAGER_EMAIL,
+                manager_name=_mgr_name,
+                employee_name=_emp_name,
+                month_label=month_label,
+                sign_url=sign_url,
+            )
+        except Exception as e:
+            logger.error(f"[email error] Failed to notify manager: {type(e).__name__}: {e}", exc_info=True)
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, _notify)
+
+    return req
+
+
+# ---------------------------------------------------------------------------
+# Public: manager signs (employee signed first)
+# ---------------------------------------------------------------------------
+@router.post("/sign-request/{token}/manager-sign")
+async def manager_sign(request: Request, token: str, body: ManagerSignIn, db: AsyncSession = Depends(get_db)):
+    token_hash = _hash_token(token)
+    result = await db.execute(
+        select(TimesheetSignRequest).where(TimesheetSignRequest.token_hash == token_hash)
+    )
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(404, "Link inválido")
+    if req.expires_at < datetime.utcnow():
+        raise HTTPException(410, "Link expirado")
+    if req.status == "complete":
+        raise HTTPException(409, "Folha já assinada")
+    if req.status != "employee_signed":
+        raise HTTPException(400, "Esta folha não aguarda assinatura do gestor")
+
+    req.manager_signature = body.manager_signature
+    req.manager_signed_at = datetime.utcnow()
+    req.status = "complete"
+
+    emp_result = await db.execute(select(User).where(User.id == req.user_id))
+    employee = emp_result.scalar_one_or_none()
+    adm_result = await db.execute(select(User).where(User.id == req.created_by_admin_id))
+    manager = adm_result.scalar_one_or_none()
+
+    from models import DailyRecord
+    records_result = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == req.user_id,
+            DailyRecord.date.like(f"{req.month}%")
+        )
+    )
+    daily_records = records_result.scalars().all()
+
+    pdf_bytes = _build_pdf_bytes(
+        month=req.month,
+        employee_name=employee.username if employee else "",
+        manager_name=manager.username if manager else "",
+        manager_sig_dataurl=body.manager_signature,
+        employee_sig_dataurl=req.employee_signature,
+        daily_records=daily_records,
+    )
+
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+    pdf_id = str(uuid.uuid4())
+    s3_key = build_timesheet_pdf_s3_key(
+        user_id=req.user_id,
+        month=req.month,
+        pdf_id=pdf_id,
+    )
+
+    try:
+        s3_storage.upload_bytes(key=s3_key, data=pdf_bytes, content_type="application/pdf")
+    except Exception as exc:
+        if is_s3_error(exc):
+            logger.error("Falha ao enviar PDF assinado para S3: %s", exc)
+            raise HTTPException(status_code=500, detail="Falha ao salvar PDF no S3")
+        raise
+
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
+    signed_pdf = TimesheetSignedPdf(
+        id=pdf_id,
+        user_id=req.user_id,
+        month=req.month,
+        pdf_data=None,
+        s3_key=s3_key,
+        pdf_hash=pdf_hash,
+        signed_at=datetime.utcnow(),
+        sign_request_id=req.id,
+    )
+    db.add(signed_pdf)
+    await db.commit()
+    await db.refresh(signed_pdf)
+
+    ip, ua = _get_request_meta(request)
+    audit = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=manager.id if manager else None,
+        username=manager.username if manager else None,
+        user_role=manager.role if manager else None,
+        action="GESTOR_ASSINOU_FOLHA",
+        timesheet_id=req.id,
+        month=req.month,
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(audit)
+    await db.commit()
+
+    # Notify employee that it's complete
+    year, mon = req.month.split("-")
+    MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    month_label = f"{MONTHS_PT[int(mon)]} {year}"
+    if employee:
+        _emp = employee
+        _mgr_name = manager.username if manager else ""
+        download_url = f"{FRONTEND_URL}/minhas-folhas"
+
+        def _notify_employee():
+            try:
+                EmailService.send_timesheet_complete_notification(
+                    to_email=_emp.email,
+                    employee_name=_emp.username,
+                    manager_name=_mgr_name,
+                    month_label=month_label,
+                    download_url=download_url,
+                )
+            except Exception as e:
+                logger.error(f"[email error] Failed to notify employee: {type(e).__name__}: {e}", exc_info=True)
+
+        asyncio.get_running_loop().run_in_executor(None, _notify_employee)
+
+    return {"ok": True, "pdfId": signed_pdf.id}
+
+
+
 @router.get("/sign-request/{token}/info")
 async def get_sign_request_info(token: str, db: AsyncSession = Depends(get_db)):
     token_hash = _hash_token(token)
@@ -374,6 +592,7 @@ async def get_sign_request_info(token: str, db: AsyncSession = Depends(get_db)):
         "employeeName": employee.username if employee else "",
         "managerName": manager.username if manager else "",
         "managerSignature": req.manager_signature,
+        "employeeSignature": req.employee_signature,
         "expiresAt": req.expires_at.isoformat(),
     }
 
@@ -394,6 +613,8 @@ async def employee_sign(request: Request, token: str, body: EmployeeSignIn, db: 
         raise HTTPException(410, "Link expirado")
     if req.status == "complete":
         raise HTTPException(409, "Folha já assinada")
+    if req.status != "manager_signed":
+        raise HTTPException(400, "Esta folha não aguarda assinatura do funcionário")
 
     req.employee_signature = body.employee_signature
     req.employee_signed_at = datetime.utcnow()
@@ -531,7 +752,7 @@ async def my_sign_requests(
     result = await db.execute(
         select(TimesheetSignRequest)
         .where(TimesheetSignRequest.user_id == current_user.id)
-        .order_by(TimesheetSignRequest.manager_signed_at.desc())
+        .order_by(TimesheetSignRequest.employee_signed_at.desc(), TimesheetSignRequest.manager_signed_at.desc())
     )
     return result.scalars().all()
 
