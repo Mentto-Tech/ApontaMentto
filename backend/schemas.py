@@ -69,6 +69,7 @@ class UserOut(CamelModel):
     overtime_hourly_rate: Optional[float] = None
     category: Optional[UserCategory] = None
     weekly_hours: Optional[float] = None
+    manager_email: Optional[str] = None
     created_at: Optional[datetime] = None
 
     @field_validator("created_at", mode="before")
@@ -93,6 +94,7 @@ class UserAdminUpdate(CamelModel):
     overtime_hourly_rate: Optional[float] = None
     category: Optional[UserCategory] = None
     weekly_hours: Optional[float] = None
+    manager_email: Optional[str] = None
 
 
 class UserMeUpdate(CamelModel):

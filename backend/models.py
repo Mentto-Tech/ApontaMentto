@@ -56,6 +56,7 @@ class User(Base):
         default=UserCategory.clt,
     )
     weekly_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    manager_email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=lambda: dt.utcnow()
     )

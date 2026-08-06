@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, DollarSign, Briefcase, Clock } from "lucide-react";
+import { Users, DollarSign, Briefcase, Clock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUsers, useUpdateUserAdmin, type AuthUser } from "@/lib/queries";
 import "../styles/AdminUsers.css";
@@ -70,6 +70,9 @@ const AdminUsers = () => {
     }
     if (user.weeklyHours !== originalUser.weeklyHours) {
       changes.weeklyHours = user.weeklyHours === null ? null : Number(user.weeklyHours);
+    }
+    if (user.managerEmail !== originalUser.managerEmail) {
+      changes.managerEmail = user.managerEmail || null;
     }
     
     if (Object.keys(changes).length > 0) {
@@ -165,6 +168,21 @@ const AdminUsers = () => {
                     placeholder="N/A"
                     value={user.overtimeHourlyRate || ""}
                     onChange={(e) => handleFieldChange(user.id, "overtimeHourlyRate", e.target.value)}
+                    className="admin-user-input w-full h-8 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Manager Email */}
+              <div className="admin-user-field flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <label className="text-[10px] text-muted-foreground block">Email do gestor</label>
+                  <Input
+                    type="email"
+                    placeholder="tiago@mentto.com.br"
+                    value={user.managerEmail || ""}
+                    onChange={(e) => handleFieldChange(user.id, "managerEmail", e.target.value || null)}
                     className="admin-user-input w-full h-8 text-sm"
                   />
                 </div>

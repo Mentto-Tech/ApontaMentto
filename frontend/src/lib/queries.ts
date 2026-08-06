@@ -31,6 +31,7 @@ export interface AuthUser {
   overtimeHourlyRate?: number | null;
   category?: "pj" | "clt" | "estagiario" | "dono";
   weeklyHours?: number | null;
+  managerEmail?: string | null;
   createdAt?: string | null;
 }
 
@@ -184,6 +185,7 @@ export function useUpdateUserAdmin() {
       overtimeHourlyRate?: number | null;
       category?: string;
       weeklyHours?: number | null;
+      managerEmail?: string | null;
     }) =>
       apiFetch<AuthUser>(`/api/users/${userId}`, {
         method: "PATCH",

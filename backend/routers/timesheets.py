@@ -371,7 +371,8 @@ async def employee_self_sign_request(
         raise HTTPException(409, "Já existe uma solicitação de assinatura pendente para este mês")
 
     # Find admin user to set as created_by_admin_id (use manager email)
-    admin_result = await db.execute(select(User).where(User.email == MANAGER_EMAIL))
+    manager_email_to_use = current_user.manager_email or MANAGER_EMAIL
+    admin_result = await db.execute(select(User).where(User.email == manager_email_to_use))
     manager = admin_result.scalar_one_or_none()
     if not manager:
         # Fallback: pick any admin
@@ -427,7 +428,7 @@ async def employee_self_sign_request(
     def _notify():
         try:
             EmailService.send_manager_sign_request(
-                to_email=MANAGER_EMAIL,
+                to_email=manager_email_to_use,
                 manager_name=_mgr_name,
                 employee_name=_emp_name,
                 month_label=month_label,
