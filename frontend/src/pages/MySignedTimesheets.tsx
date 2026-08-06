@@ -25,6 +25,17 @@ function previousMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Gera lista de meses passados (até 24 meses atrás) no formato YYYY-MM
+function pastMonths(count = 24): string[] {
+  const months: string[] = [];
+  const now = new Date();
+  for (let i = 1; i <= count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return months;
+}
+
 function formatMonth(m: string) {
   try {
     const [year, mon] = m.split("-");
@@ -190,8 +201,13 @@ const MySignedTimesheets = () => {
   }, []);
 
   const pendingRequests = requests.filter(r => r.status !== "complete");
-  const prevMonth = previousMonth();
-  const canSelfSign = !requests.some(r => r.month === prevMonth) && !signedPdfs.some(p => p.month === prevMonth);
+
+  // Meses disponíveis para assinar = meses passados sem PDF nem request pendente/completo
+  const occupiedMonths = new Set([
+    ...requests.map(r => r.month),
+    ...signedPdfs.map(p => p.month),
+  ]);
+  const availableMonths = pastMonths().filter(m => !occupiedMonths.has(m));
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 md:py-10 space-y-8">
@@ -200,11 +216,20 @@ const MySignedTimesheets = () => {
           <FileText className="h-6 w-6 text-primary" />
           Minhas Folhas de Ponto
         </h1>
-        {canSelfSign && (
-          <Button size="sm" onClick={() => setSignMonth(prevMonth)}>
-            <Pen className="h-4 w-4 mr-2" />
-            Assinar {formatMonth(prevMonth)}
-          </Button>
+        {availableMonths.length > 0 && (
+          <div className="flex items-center gap-2">
+            <select
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              value=""
+              onChange={(e) => { if (e.target.value) setSignMonth(e.target.value); }}
+            >
+              <option value="">Assinar mês...</option>
+              {availableMonths.map(m => (
+                <option key={m} value={m}>{formatMonth(m)}</option>
+              ))}
+            </select>
+            <Pen className="h-4 w-4 text-muted-foreground" />
+          </div>
         )}
       </div>
 
