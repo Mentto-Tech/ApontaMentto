@@ -21,14 +21,25 @@ const Timesheet = () => {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedUserId, setSelectedUserId] = useState<string>(user?.id || "");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const isDrawingRef = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
 
   const monthStr = format(currentMonth, "yyyy-MM");
-  const targetUserId = isAdmin ? selectedUserId : user?.id || "";
+
+  // For non-admins always use own id; for admins use selected (default to own id)
+  const targetUserId = isAdmin
+    ? (selectedUserId || user?.id || "")
+    : (user?.id || "");
+
+  // Once user loads, seed selectedUserId for admin
+  React.useEffect(() => {
+    if (isAdmin && !selectedUserId && user?.id) {
+      setSelectedUserId(user.id);
+    }
+  }, [isAdmin, user?.id, selectedUserId]);
 
   const { data: allUsers = [] } = useUsers();
   const { data: dailyRecords = [] } = useDailyRecords({ month: monthStr, userId: targetUserId !== "all" ? targetUserId : undefined });
@@ -68,7 +79,8 @@ const Timesheet = () => {
   const daysInMonth = useMemo(() => eachDayOfInterval({ start: monthStart, end: monthEnd }), [monthStart, monthEnd]);
 
   const targetDailyRecords = useMemo(() => {
-    return dailyRecords.filter(r => r.date.startsWith(monthStr) && r.userId === targetUserId);
+    if (!targetUserId) return dailyRecords.filter(r => r.date.startsWith(monthStr));
+    return dailyRecords.filter(r => r.date.startsWith(monthStr) && (!r.userId || r.userId === targetUserId));
   }, [dailyRecords, monthStr, targetUserId]);
 
   const dailyRecordMap = useMemo(() => {
