@@ -28,7 +28,7 @@ const AppLayout = () => {
         { to: "/admin/settings", icon: Settings, label: "Backup" },
       ]
     : [
-        { to: "/minhas-folhas", icon: FileText, label: "Minhas Folhas" },
+        { to: "/timesheet", icon: FileText, label: "Folha de Ponto" },
       ];
 
   const handleLogout = () => {
