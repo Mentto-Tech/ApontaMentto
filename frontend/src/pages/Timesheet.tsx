@@ -397,6 +397,46 @@ const Timesheet = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasSignature, targetUserId, monthStr, emailInput, targetUser, loadSignedData]);
 
+  const handleSelfSign = useCallback(async () => {
+    if (!hasSignature || !canvasRef.current) return;
+    const employeeSignature = canvasRef.current.toDataURL("image/png");
+    setSendingEmail(true);
+    try {
+      await apiFetch("/api/timesheets/sign-request/self", {
+        method: "POST",
+        body: { month: monthStr, employee_signature: employeeSignature },
+      });
+      toast({ title: "Folha assinada!", description: "O gestor será notificado por email para concluir." });
+      clearSignature();
+      loadSignedData();
+    } catch (e: unknown) {
+      toast({ title: "Erro ao assinar", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [hasSignature, monthStr, loadSignedData]);
+
+  const handleManagerCompleteSign = useCallback(async (requestId: string) => {
+    if (!hasSignature || !canvasRef.current) return;
+    // We need the token — fetch it via the sign-requests list (admin has the id but not the raw token)
+    // Instead, use a dedicated admin endpoint that accepts the request id directly
+    const managerSignature = canvasRef.current.toDataURL("image/png");
+    setSendingEmail(true);
+    try {
+      await apiFetch(`/api/timesheets/sign-request/${requestId}/manager-sign-by-id`, {
+        method: "POST",
+        body: { manager_signature: managerSignature },
+      });
+      toast({ title: "Assinatura concluída!", description: "PDF gerado e funcionário notificado." });
+      clearSignature();
+      loadSignedData();
+    } catch (e: unknown) {
+      toast({ title: "Erro ao assinar", description: e instanceof Error ? e.message : "Tente novamente.", variant: "destructive" });
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [hasSignature, loadSignedData]);
+
   const handleDownload = useCallback(async (id: string) => {
     const blob = await apiFetchBlob(`/api/timesheets/signed-pdfs/${id}/download`);
     const url = URL.createObjectURL(blob);
@@ -556,6 +596,101 @@ const Timesheet = () => {
               <span className="sig-identity__date">{format(new Date(), "dd/MM/yyyy")}</span>
             </div>
           </div>
+
+          {/* Employee self-sign button */}
+          {!isAdmin && (() => {
+            const existingReq = pendingTimesheets.find(r => r.month === monthStr);
+            const alreadySigned = signedTimesheets.some(p => p.month === monthStr);
+            if (alreadySigned) {
+              return <p className="mt-3 text-sm text-green-600 text-center">✓ Folha de {format(currentMonth, "MMMM yyyy", { locale: ptBR })} já assinada.</p>;
+            }
+            if (existingReq?.status === "employee_signed") {
+              return <p className="mt-3 text-sm text-amber-600 text-center">Você já assinou. Aguardando assinatura do gestor.</p>;
+            }
+            if (existingReq?.status === "manager_signed") {
+              return <p className="mt-3 text-sm text-amber-600 text-center">Verifique seu email — o gestor já assinou e aguarda a sua assinatura.</p>;
+            }
+            return (
+              <Button
+                className="w-full mt-3"
+                size="lg"
+                disabled={!hasSignature || sendingEmail}
+                onClick={handleSelfSign}
+              >
+                {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Assinar e enviar para o gestor — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+              </Button>
+            );
+          })()}
+
+          {/* Admin: send to employee OR complete if employee already signed */}
+          {isAdmin && (() => {
+            const existingReq = pendingTimesheets.find(r => r.userId === targetUserId && r.month === monthStr);
+            const alreadySigned = signedTimesheets.some(p => p.userId === targetUserId && p.month === monthStr);
+
+            if (alreadySigned) {
+              return <p className="mt-3 text-sm text-green-600 text-center">✓ Folha de {targetUser?.username} em {format(currentMonth, "MMMM yyyy", { locale: ptBR })} já assinada.</p>;
+            }
+
+            if (existingReq?.status === "employee_signed") {
+              return (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm text-amber-600 text-center">{targetUser?.username} já assinou. Assine abaixo para concluir.</p>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    disabled={!hasSignature || sendingEmail}
+                    onClick={() => handleManagerCompleteSign(existingReq.id)}
+                  >
+                    {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Pen className="h-4 w-4 mr-2" />}
+                    Concluir assinatura — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                  </Button>
+                </div>
+              );
+            }
+
+            if (existingReq?.status === "manager_signed") {
+              return <p className="mt-3 text-sm text-amber-600 text-center">Link já enviado. Aguardando {targetUser?.username} assinar.</p>;
+            }
+
+            return (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Assine na aba acima, informe o email e envie o link para <strong>{targetUser?.username || "—"}</strong>.
+                </p>
+                <div className="relative">
+                  <input
+                    type="email"
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder={targetUser?.email ? `Usar email: ${targetUser.email}` : "Email do destinatário"}
+                    value={emailInput}
+                    onChange={e => { setEmailInput(e.target.value); setShowEmailSuggestions(true); }}
+                    onFocus={() => setShowEmailSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowEmailSuggestions(false), 150)}
+                  />
+                  {showEmailSuggestions && recentEmails.length > 0 && (
+                    <ul className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 max-h-40 overflow-auto">
+                      {recentEmails.map(e => (
+                        <li key={e} className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
+                          onMouseDown={() => { setEmailInput(e); setShowEmailSuggestions(false); }}>
+                          {e}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail || !targetUserId || (!emailInput.trim() && !targetUser?.email)}
+                >
+                  {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                  Enviar link — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                </Button>
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 
@@ -563,49 +698,6 @@ const Timesheet = () => {
         <FileText className="h-4 w-4 mr-2" />
         Gerar PDF da Folha de Ponto
       </Button>
-
-      {/* Send for signature (admin only) */}
-      {isAdmin && (
-        <div className="mt-4 border rounded-lg p-4 bg-card space-y-3">
-          <p className="text-sm font-medium">Enviar para assinatura do funcionário</p>
-          <p className="text-xs text-muted-foreground">
-            Assine na aba "Assinar" acima, informe o email e envie o link para <strong>{targetUser?.username || "—"}</strong>.
-          </p>
-          <div className="relative">
-            <input
-              type="email"
-              className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder={targetUser?.email ? `Usar email do funcionário: ${targetUser.email}` : "Email do destinatário"}
-              value={emailInput}
-              onChange={e => { setEmailInput(e.target.value); setShowEmailSuggestions(true); }}
-              onFocus={() => setShowEmailSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowEmailSuggestions(false), 150)}
-            />
-            {showEmailSuggestions && recentEmails.length > 0 && (
-              <ul className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 max-h-40 overflow-auto">
-                {recentEmails.map(e => (
-                  <li
-                    key={e}
-                    className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
-                    onMouseDown={() => { setEmailInput(e); setShowEmailSuggestions(false); }}
-                  >
-                    {e}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleSendEmail}
-            disabled={sendingEmail || !targetUserId || (!emailInput.trim() && !targetUser?.email)}
-          >
-            {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-            Enviar link — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
-          </Button>
-        </div>
-      )}
 
       {/* Pending sign requests */}
       {pendingTimesheets.length > 0 && (

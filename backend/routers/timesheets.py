@@ -727,8 +727,123 @@ async def employee_sign(request: Request, token: str, body: EmployeeSignIn, db: 
 
 
 # ---------------------------------------------------------------------------
-# Admin: list sign requests
+# Admin: sign by request ID (manager is authenticated, no token needed)
 # ---------------------------------------------------------------------------
+@router.post("/sign-request/{request_id}/manager-sign-by-id")
+async def manager_sign_by_id(
+    request: Request,
+    request_id: str,
+    body: ManagerSignIn,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    result = await db.execute(
+        select(TimesheetSignRequest).where(TimesheetSignRequest.id == request_id)
+    )
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(404, "Solicitação não encontrada")
+    if req.status == "complete":
+        raise HTTPException(409, "Folha já assinada")
+    if req.status != "employee_signed":
+        raise HTTPException(400, "Esta folha não aguarda assinatura do gestor")
+
+    req.manager_signature = body.manager_signature
+    req.manager_signed_at = datetime.utcnow()
+    req.status = "complete"
+
+    emp_result = await db.execute(select(User).where(User.id == req.user_id))
+    employee = emp_result.scalar_one_or_none()
+
+    from models import DailyRecord
+    records_result = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == req.user_id,
+            DailyRecord.date.like(f"{req.month}%")
+        )
+    )
+    daily_records = records_result.scalars().all()
+
+    pdf_bytes = _build_pdf_bytes(
+        month=req.month,
+        employee_name=employee.username if employee else "",
+        manager_name=admin.username,
+        manager_sig_dataurl=body.manager_signature,
+        employee_sig_dataurl=req.employee_signature,
+        daily_records=daily_records,
+    )
+
+    if not s3_storage.enabled:
+        raise HTTPException(status_code=503, detail="S3 não está habilitado no servidor")
+
+    pdf_id = str(uuid.uuid4())
+    s3_key = build_timesheet_pdf_s3_key(user_id=req.user_id, month=req.month, pdf_id=pdf_id)
+
+    try:
+        s3_storage.upload_bytes(key=s3_key, data=pdf_bytes, content_type="application/pdf")
+    except Exception as exc:
+        if is_s3_error(exc):
+            raise HTTPException(status_code=500, detail="Falha ao salvar PDF no S3")
+        raise
+
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+    signed_pdf = TimesheetSignedPdf(
+        id=pdf_id,
+        user_id=req.user_id,
+        month=req.month,
+        pdf_data=None,
+        s3_key=s3_key,
+        pdf_hash=pdf_hash,
+        signed_at=datetime.utcnow(),
+        sign_request_id=req.id,
+    )
+    db.add(signed_pdf)
+    await db.commit()
+    await db.refresh(signed_pdf)
+
+    ip, ua = _get_request_meta(request)
+    audit = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=admin.id,
+        username=admin.username,
+        user_role=admin.role,
+        action="GESTOR_ASSINOU_FOLHA",
+        timesheet_id=req.id,
+        month=req.month,
+        ip_address=ip,
+        user_agent=ua,
+    )
+    db.add(audit)
+    await db.commit()
+
+    # Notify employee
+    year, mon = req.month.split("-")
+    MONTHS_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    month_label = f"{MONTHS_PT[int(mon)]} {year}"
+    if employee:
+        _emp = employee
+        _mgr_name = admin.username
+        download_url = f"{FRONTEND_URL}/minhas-folhas"
+
+        def _notify_emp():
+            try:
+                EmailService.send_timesheet_complete_notification(
+                    to_email=_emp.email,
+                    employee_name=_emp.username,
+                    manager_name=_mgr_name,
+                    month_label=month_label,
+                    download_url=download_url,
+                )
+            except Exception as e:
+                logger.error(f"[email error] {type(e).__name__}: {e}", exc_info=True)
+
+        asyncio.get_running_loop().run_in_executor(None, _notify_emp)
+
+    return {"ok": True, "pdfId": signed_pdf.id}
+
+
+
 @router.get("/sign-requests", response_model=list[TimesheetSignRequestOut])
 async def list_sign_requests(
     user_id: str | None = None,
