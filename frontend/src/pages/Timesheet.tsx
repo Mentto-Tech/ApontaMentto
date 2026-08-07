@@ -358,6 +358,7 @@ const Timesheet = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState<string>("");
   const [showEmailSuggestions, setShowEmailSuggestions] = useState(false);
+  const [activeTab, setActiveTab] = useState("preview");
 
   const RECENT_EMAILS_KEY = "ts_recent_emails";
   const getRecentEmails = (): string[] => {
@@ -505,12 +506,22 @@ const Timesheet = () => {
         )}
       </div>
 
-      <Tabs defaultValue="preview" className="mb-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="w-full">
           <TabsTrigger value="preview" className="flex-1">Prévia</TabsTrigger>
           <TabsTrigger value="signature" className="flex-1">
             <Pen className="h-3.5 w-3.5 mr-1" /> Assinar
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="pending" className="flex-1 relative">
+              Pendentes
+              {pendingTimesheets.filter(r => r.status === "employee_signed").length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-amber-500 text-white rounded-full">
+                  {pendingTimesheets.filter(r => r.status === "employee_signed").length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="preview">
@@ -704,6 +715,45 @@ const Timesheet = () => {
             );
           })()}
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="pending">
+            {pendingTimesheets.filter(r => r.status === "employee_signed").length === 0 ? (
+              <div className="border rounded-lg p-8 bg-card text-center text-sm text-muted-foreground">
+                Nenhuma folha aguardando sua assinatura.
+              </div>
+            ) : (
+              <div className="border rounded-lg bg-card divide-y">
+                {pendingTimesheets
+                  .filter(r => r.status === "employee_signed")
+                  .map(req => {
+                    const emp = allUsers.find(u => u.id === req.userId);
+                    const [year, mon] = req.month.split("-");
+                    const monthLabel = format(new Date(Number(year), Number(mon) - 1, 1), "MMMM yyyy", { locale: ptBR });
+                    return (
+                      <div key={req.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                        <div>
+                          <span className="font-medium">{emp?.username ?? req.userId}</span>
+                          <span className="ml-2 text-muted-foreground capitalize">{monthLabel}</span>
+                          <span className="ml-2 text-xs text-amber-600">Aguardando sua assinatura</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (emp) setSelectedUserId(emp.id);
+                            setCurrentMonth(new Date(Number(year), Number(mon) - 1, 1));
+                            setActiveTab("signature");
+                          }}
+                        >
+                          <Pen className="h-3.5 w-3.5 mr-1" /> Assinar
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
 
       <Button onClick={generatePDF} className="w-full" size="lg">
