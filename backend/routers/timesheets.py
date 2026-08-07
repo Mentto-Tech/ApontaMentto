@@ -49,7 +49,6 @@ router = APIRouter()
 s3_storage = S3Storage()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-MANAGER_EMAIL = "tiago@mentto.com.br"
 
 
 def _hash_token(token: str) -> str:
@@ -371,15 +370,14 @@ async def employee_self_sign_request(
         raise HTTPException(409, "Já existe uma solicitação de assinatura pendente para este mês")
 
     # Find admin user to set as created_by_admin_id (use manager email)
-    manager_email_to_use = current_user.manager_email or MANAGER_EMAIL
+    manager_email_to_use = getattr(current_user, "manager_email", None)
+    if not manager_email_to_use:
+        raise HTTPException(400, "Nenhum gestor configurado para este usuário. Peça ao administrador para configurar o email do gestor na tela de usuários.")
+
     admin_result = await db.execute(select(User).where(User.email == manager_email_to_use))
     manager = admin_result.scalar_one_or_none()
     if not manager:
-        # Fallback: pick any admin
-        admin_result = await db.execute(select(User).where(User.role == "admin"))
-        manager = admin_result.scalar_one_or_none()
-    if not manager:
-        raise HTTPException(500, "Nenhum gestor encontrado no sistema")
+        raise HTTPException(400, f"Gestor com email '{manager_email_to_use}' não encontrado no sistema.")
 
     raw_token = str(uuid.uuid4())
     token_hash = _hash_token(raw_token)
