@@ -17,71 +17,77 @@ export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState<boolean>(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isChecking, setIsChecking] = useState<boolean>(true);
+  const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
 
   const checkSubscription = useCallback(async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window) ||
+      !("Notification" in window)
+    ) {
       setIsSupported(false);
-      setIsLoading(false);
+      setIsChecking(false);
       return;
     }
 
     setIsSupported(true);
-    setPermission(Notification.permission);
+    try {
+      setPermission(Notification.permission);
+    } catch {
+      // Ignore if permission getter throws
+    }
 
     try {
-      let reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) {
-        reg = await navigator.serviceWorker.register("/sw.js");
-      }
-      await navigator.serviceWorker.ready;
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("ServiceWorker operation timeout")), 2500)
+      );
 
-      const sub = await reg.pushManager.getSubscription();
-      setIsSubscribed(!!sub);
+      const getRegPromise = async () => {
+        let reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+          reg = await navigator.serviceWorker.register("/sw.js");
+        }
+        return reg;
+      };
 
-      // Se a permissão já estiver concedida mas a inscrição ainda não foi enviada para o backend, registrar silenciosamente
-      if (Notification.permission === "granted") {
-        if (!sub) {
-          const { publicKey } = await apiFetch<{ publicKey: string }>("/api/push/vapid-public-key");
-          if (publicKey) {
-            const convertedKey = urlBase64ToUint8Array(publicKey);
-            const newSub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: convertedKey,
-            });
-            const subJson = newSub.toJSON();
-            await apiFetch("/api/push/subscribe", {
-              method: "POST",
-              body: {
-                endpoint: newSub.endpoint,
-                keys: {
-                  p256dh: subJson.keys?.p256dh || "",
-                  auth: subJson.keys?.auth || "",
-                },
-              },
-            });
-            setIsSubscribed(true);
-          }
-        } else {
-          // Re-sincronizar inscrição existente com o backend
-          const subJson = sub.toJSON();
-          await apiFetch("/api/push/subscribe", {
-            method: "POST",
-            body: {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: subJson.keys?.p256dh || "",
-                auth: subJson.keys?.auth || "",
-              },
-            },
-          });
-          setIsSubscribed(true);
+      const reg = (await Promise.race([getRegPromise(), timeoutPromise])) as ServiceWorkerRegistration | undefined;
+      if (reg) {
+        const subPromise = reg.pushManager.getSubscription();
+        const sub = (await Promise.race([subPromise, timeoutPromise])) as PushSubscription | null;
+        setIsSubscribed(!!sub);
+
+        if (Notification.permission === "granted" && !sub) {
+          apiFetch<{ publicKey: string }>("/api/push/vapid-public-key")
+            .then(async ({ publicKey }) => {
+              if (publicKey) {
+                const convertedKey = urlBase64ToUint8Array(publicKey);
+                const newSub = await reg.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: convertedKey as unknown as BufferSource,
+                });
+                const subJson = newSub.toJSON();
+                await apiFetch("/api/push/subscribe", {
+                  method: "POST",
+                  body: {
+                    endpoint: newSub.endpoint,
+                    keys: {
+                      p256dh: subJson.keys?.p256dh || "",
+                      auth: subJson.keys?.auth || "",
+                    },
+                  },
+                });
+                setIsSubscribed(true);
+              }
+            })
+            .catch((err) => console.warn("Background push resubscribe skipped:", err));
         }
       }
     } catch (err) {
-      console.error("Erro ao verificar inscrição de push:", err);
+      console.warn("Check push subscription warning:", err);
     } finally {
-      setIsLoading(false);
+      setIsChecking(false);
     }
   }, []);
 
@@ -95,14 +101,13 @@ export function usePushNotifications() {
       return false;
     }
 
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
       const permResult = await Notification.requestPermission();
       setPermission(permResult);
 
       if (permResult !== "granted") {
         toast.error("Permissão de notificação negada pelo usuário.");
-        setIsLoading(false);
         return false;
       }
 
@@ -112,12 +117,20 @@ export function usePushNotifications() {
         throw new Error("Chave VAPID pública não disponível.");
       }
 
-      // 2. Garantir registro do Service Worker
-      let reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) {
-        reg = await navigator.serviceWorker.register("/sw.js");
-      }
-      await navigator.serviceWorker.ready;
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout ao acessar Service Worker.")), 5000)
+      );
+
+      const regPromise = (async () => {
+        let reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+          reg = await navigator.serviceWorker.register("/sw.js");
+        }
+        await navigator.serviceWorker.ready;
+        return reg;
+      })();
+
+      const reg = (await Promise.race([regPromise, timeoutPromise])) as ServiceWorkerRegistration;
 
       // 3. Inscrever no PushManager do navegador
       const convertedKey = urlBase64ToUint8Array(publicKey);
@@ -126,7 +139,7 @@ export function usePushNotifications() {
       if (!sub) {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: convertedKey,
+          applicationServerKey: convertedKey as unknown as BufferSource,
         });
       }
 
@@ -152,26 +165,27 @@ export function usePushNotifications() {
       toast.error(err.message || "Erro ao ativar notificações PUSH.");
       return false;
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   };
 
   const unsubscribe = async () => {
     if (!isSupported) return false;
 
-    setIsLoading(true);
+    setIsActionLoading(true);
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          await sub.unsubscribe();
 
-      if (sub) {
-        const endpoint = sub.endpoint;
-        await sub.unsubscribe();
-
-        await apiFetch("/api/push/unsubscribe", {
-          method: "POST",
-          body: { endpoint },
-        });
+          await apiFetch("/api/push/unsubscribe", {
+            method: "POST",
+            body: { endpoint },
+          });
+        }
       }
 
       setIsSubscribed(false);
@@ -182,7 +196,7 @@ export function usePushNotifications() {
       toast.error("Erro ao desativar notificações PUSH.");
       return false;
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   };
 
@@ -199,7 +213,8 @@ export function usePushNotifications() {
     isSupported,
     permission,
     isSubscribed,
-    isLoading,
+    isLoading: isActionLoading,
+    isChecking,
     subscribe,
     unsubscribe,
     sendTestNotification,
