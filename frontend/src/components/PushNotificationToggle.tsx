@@ -5,12 +5,76 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface PushNotificationToggleProps {
   showTestButton?: boolean;
-  variant?: "default" | "outline" | "ghost" | "sidebar";
+  variant?: "default" | "outline" | "ghost" | "sidebar" | "mobile";
 }
 
 export function PushNotificationToggle({ showTestButton = false, variant = "sidebar" }: PushNotificationToggleProps) {
   const { isSupported, permission, isSubscribed, isLoading, subscribe, unsubscribe, sendTestNotification } =
     usePushNotifications();
+
+  if (variant === "mobile") {
+    if (!isSupported) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled
+                className="shrink-0 flex flex-col items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg text-muted-foreground opacity-50 cursor-not-allowed"
+              >
+                <BellOff className="h-6 w-6" />
+                <span>Notificações</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Seu navegador não suporta Notificações PUSH.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    if (permission === "denied") {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled
+                className="shrink-0 flex flex-col items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg text-destructive opacity-75 cursor-not-allowed"
+              >
+                <BellOff className="h-6 w-6 text-destructive" />
+                <span>Push Bloqueado</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">As notificações foram bloqueadas nas configurações do seu navegador.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => (isSubscribed ? unsubscribe() : subscribe())}
+        disabled={isLoading}
+        className={`shrink-0 flex flex-col items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg transition-colors ${
+          isSubscribed
+            ? "text-primary hover:bg-accent/50"
+            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+        }`}
+        title={isSubscribed ? "Desativar Notificações Push" : "Ativar Notificações Push"}
+      >
+        {isLoading ? (
+          <Loader2 className="h-6 w-6 animate-spin" />
+        ) : (
+          <Bell className={`h-6 w-6 ${isSubscribed ? "text-primary fill-primary/20" : ""}`} />
+        )}
+        <span>{isSubscribed ? "Push Ativo" : "Ativar Push"}</span>
+      </button>
+    );
+  }
 
   if (!isSupported) {
     return (

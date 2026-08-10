@@ -124,8 +124,8 @@ const AppLayout = () => {
         </nav>
       </aside>
 
-      {/* Mobile bottom nav - show only key items */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex gap-3 px-3 py-4 overflow-x-auto flex-nowrap">
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex items-center gap-3 px-3 py-4 overflow-x-auto flex-nowrap">
         {[...mainNavItems, ...adminNavItems].map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -141,6 +141,17 @@ const AppLayout = () => {
             {label}
           </NavLink>
         ))}
+
+        <PushNotificationToggle variant="mobile" />
+
+        <button
+          onClick={handleLogout}
+          className="shrink-0 flex flex-col items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+          title="Sair da conta"
+        >
+          <LogOut className="h-6 w-6" />
+          <span>Sair</span>
+        </button>
       </nav>
 
       <main className="flex-1 min-w-0 overflow-x-hidden pb-28 md:pb-0 md:ml-56">
