@@ -107,9 +107,10 @@ async def import_data(
 ) -> AdminImportResult:
     """Full replace import.
 
-    - Usuários: upsert por ID (cria se não existe, atualiza metadados se já existe, preserva senha).
-    - Todo o resto: delete + recreate.
-    - TimesheetSignedPdf (PDFs binários) não são incluídos no backup/restore.
+    Apaga TODOS os dados (incluindo usuários) e recria a partir do backup JSON.
+    Usuários são deletados via SQL bulk delete para evitar conflitos de constraint
+    com usuários criados automaticamente no startup (ex: admin com ID diferente).
+    TimesheetSignedPdf (PDFs binários) não são incluídos no backup/restore.
     """
 
     users_raw = data.get("users", [])
@@ -123,7 +124,7 @@ async def import_data(
     sign_requests_raw = data.get("timesheetSignRequests") or data.get("timesheet_sign_requests") or []
     signed_pdfs_raw = data.get("timesheetSignedPdfs") or data.get("timesheet_signed_pdfs") or []
 
-    # --- Delete transactional data (children first) ---
+    # --- Delete TUDO (filhos primeiro para respeitar FK) ---
     await db.execute(delete(TimesheetSignedPdf))
     await db.execute(delete(TimesheetSignRequest))
     await db.execute(delete(TimeBankEntry))
@@ -133,6 +134,7 @@ async def import_data(
     await db.execute(delete(TimeEntry))
     await db.execute(delete(Location))
     await db.execute(delete(Project))
+    await db.execute(delete(User))  # deleta users por último (sem FKs pendentes)
     await db.flush()
 
     counts: Dict[str, int] = {
@@ -148,35 +150,24 @@ async def import_data(
         "timesheetSignedPdfs": 0,
     }
 
-    # --- Upsert Users (preserva senha se já existe) ---
+    # --- Recria Users direto do backup (sem upsert: DB está vazio) ---
     for u in users_raw:
         user_model = UserOut.model_validate(u)
-        existing = await db.get(User, user_model.id)
-        if existing is None:
-            # Novo usuário: usa hashed_password do JSON se disponível, senão placeholder
-            hashed_pw = u.get("hashedPassword") or u.get("hashed_password") or ""
-            new_user = User(
-                id=user_model.id,
-                username=user_model.username,
-                email=user_model.email,
-                hashed_password=hashed_pw,
-                role=user_model.role,
-                hourly_rate=user_model.hourly_rate,
-                overtime_hourly_rate=user_model.overtime_hourly_rate,
-                category=user_model.category or "clt",
-                weekly_hours=user_model.weekly_hours,
-                created_at=_naive(user_model.created_at) or datetime.utcnow(),
-            )
-            db.add(new_user)
-            counts["users"] += 1
-        else:
-            # Usuário já existe: atualiza metadados mas preserva senha e email
-            existing.username = user_model.username
-            existing.hourly_rate = user_model.hourly_rate
-            existing.overtime_hourly_rate = user_model.overtime_hourly_rate
-            if user_model.category:
-                existing.category = user_model.category
-            existing.weekly_hours = user_model.weekly_hours
+        hashed_pw = u.get("hashedPassword") or u.get("hashed_password") or ""
+        new_user = User(
+            id=user_model.id,
+            username=user_model.username,
+            email=user_model.email,
+            hashed_password=hashed_pw,
+            role=user_model.role,
+            hourly_rate=user_model.hourly_rate,
+            overtime_hourly_rate=user_model.overtime_hourly_rate,
+            category=user_model.category or "clt",
+            weekly_hours=user_model.weekly_hours,
+            created_at=_naive(user_model.created_at) or datetime.utcnow(),
+        )
+        db.add(new_user)
+        counts["users"] += 1
 
     await db.flush()  # garante que users existem antes dos FKs abaixo
 
