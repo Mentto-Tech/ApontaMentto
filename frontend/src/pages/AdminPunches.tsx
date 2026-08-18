@@ -87,13 +87,23 @@ const AdminPunches = () => {
     }));
   };
 
+  const getFieldValue = (
+    record: AdminPunchRecord,
+    draft: Partial<Record<PunchField, string>>,
+    field: PunchField,
+  ): string | null => {
+    // Campo não editado no rascunho → usa o valor original do registro
+    const value = draft[field] !== undefined ? draft[field]! : (record[field] ?? "");
+    return value === "" ? null : value;
+  };
+
   const handleSave = (record: AdminPunchRecord) => {
     const draft = drafts[record.id] ?? {};
     const payload: Record<string, string | null> = {};
 
     for (const field of PUNCH_FIELDS) {
-      const draftVal = (draft[field] ?? "") || null;
-      const origVal = (record[field] ?? "") || null;
+      const draftVal = getFieldValue(record, draft, field);
+      const origVal = getFieldValue(record, {}, field);
       if (draftVal !== origVal) {
         payload[field] = draftVal;
       }
@@ -132,9 +142,9 @@ const AdminPunches = () => {
   const hasDraftChanges = (record: AdminPunchRecord) => {
     const draft = drafts[record.id] ?? {};
     for (const field of PUNCH_FIELDS) {
-      const draftVal = (draft[field] ?? "") || null;
-      const origVal = (record[field] ?? "") || null;
-      if (draftVal !== origVal) return true;
+      if (getFieldValue(record, draft, field) !== getFieldValue(record, {}, field)) {
+        return true;
+      }
     }
     return false;
   };
