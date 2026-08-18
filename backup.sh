@@ -46,7 +46,8 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 # ── 1. pg_dump via Docker ──────────────────────────────────────────────────────
 log "Iniciando pg_dump do container db..."
 
-docker compose -f "$SCRIPT_DIR/docker-compose.yml" exec -T db \
+cd "$SCRIPT_DIR"
+docker compose exec -T db \
     pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" \
     | gzip > "$SQL_FILE"
 
