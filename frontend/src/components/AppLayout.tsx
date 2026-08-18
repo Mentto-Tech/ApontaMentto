@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History, Wallet, Bell } from "lucide-react";
+import { Clock, FolderOpen, MapPin, User, BarChart3, LogOut, Calendar, FileText, Users, Settings, Upload, History, Wallet, Bell, CalendarClock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import AnnouncementModal from "@/components/AnnouncementModal";
@@ -23,6 +23,7 @@ const AppLayout = () => {
   const adminNavItems = isAdmin
     ? [
         { to: "/timesheet", icon: FileText, label: "Folha" },
+        { to: "/admin/punches", icon: CalendarClock, label: "Pontos" },
         { to: "/admin/users", icon: Users, label: "Usuários" },
         { to: "/admin/logs", icon: History, label: "Logs" },
         { to: "/admin/settings", icon: Settings, label: "Backup" },

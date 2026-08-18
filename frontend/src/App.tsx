@@ -22,6 +22,7 @@ import Justifications from "./pages/Justifications";
 import TimeBank from "./pages/TimeBank";
 import AdminUsers from "./pages/AdminUsers";
 import AdminPunchLogs from "./pages/AdminPunchLogs";
+import AdminPunches from "./pages/AdminPunches";
 import AdminSettings from "./pages/AdminSettings";
 import AdminAnnouncements from "./pages/AdminAnnouncements";
 import NotFound from "./pages/NotFound";
@@ -71,6 +72,7 @@ const AppRoutes = () => (
       <Route path="/projects" element={<ProjectsAndLocations />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+      <Route path="/admin/punches" element={<AdminRoute><AdminPunches /></AdminRoute>} />
       <Route path="/admin/logs" element={<AdminRoute><AdminPunchLogs /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
       <Route path="/admin/announcements" element={<AdminAnnouncements />} />

@@ -170,6 +170,10 @@ class DailyRecord(Base):
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(
         DateTime, nullable=True
     )
+    # True quando um admin alterou manualmente os horários deste registro
+    manually_edited: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     user_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id"), nullable=False, index=True
     )

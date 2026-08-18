@@ -298,6 +298,60 @@ export function useUpsertDailyRecord() {
 }
 
 // ---------------------------------------------------------------------------
+// Admin Punches (edição manual dos pontos de todos os usuários)
+// ---------------------------------------------------------------------------
+export interface AdminPunchRecord extends DailyRecord {
+  username?: string | null;
+}
+
+export function useAdminPunches(params?: {
+  date?: string;
+  month?: string;
+  userId?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params?.date) search.set("date", params.date);
+  if (params?.month) search.set("month", params.month);
+  if (params?.userId) search.set("userId", params.userId);
+  const qs = search.toString() ? `?${search.toString()}` : "";
+
+  return useQuery<AdminPunchRecord[]>({
+    queryKey: ["admin-punches", params ?? {}],
+    queryFn: () => apiFetch<AdminPunchRecord[]>(`/api/admin/punches${qs}`),
+    staleTime: 10_000,
+  });
+}
+
+export function useUpdateAdminPunch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      recordId,
+      ...data
+    }: {
+      recordId: string;
+      in1?: string | null;
+      out1?: string | null;
+      in2?: string | null;
+      out2?: string | null;
+      extraIn?: string | null;
+      extraOut?: string | null;
+      lunch?: string | null;
+    }) =>
+      apiFetch<AdminPunchRecord>(`/api/admin/punches/${recordId}`, {
+        method: "PUT",
+        body: data,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-punches"] });
+      qc.invalidateQueries({ queryKey: ["daily-records"] });
+      qc.invalidateQueries({ queryKey: ["punch-logs"] });
+      qc.invalidateQueries({ queryKey: ["time-bank"] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Absence Justifications
 // ---------------------------------------------------------------------------
 export function useJustifications(params?: {

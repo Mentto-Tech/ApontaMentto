@@ -232,11 +232,30 @@ class DailyRecordOut(DailyRecordIn):
     updated_at: Optional[datetime] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
+    manually_edited: bool = False
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
     def _datetimes_as_utc(cls, v: Any):
         return _as_utc_datetime(v)
+
+
+class AdminPunchUpdateIn(CamelModel):
+    """Payload para edição manual de horários de ponto por um admin."""
+
+    in1: Optional[str] = None
+    out1: Optional[str] = None
+    in2: Optional[str] = None
+    out2: Optional[str] = None
+    extra_in: Optional[str] = None
+    extra_out: Optional[str] = None
+    lunch: Optional[str] = None
+
+
+class AdminPunchRecordOut(DailyRecordOut):
+    """Registro de ponto com nome do usuário para exibição em tabela admin."""
+
+    username: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,11 @@
+/* Admin Punches page */
+
+.page-admin-punches .ap-time-input {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .page-admin-punches .ap-time-input {
+    width: 6rem;
+  }
+}

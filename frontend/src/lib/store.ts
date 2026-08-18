@@ -45,6 +45,7 @@ export interface DailyRecord {
   extraOut?: string | null;
   overtimeMinutes?: number | null;
   lunch?: string | null; // HH:mm-HH:mm format for lunch break
+  manuallyEdited?: boolean; // true quando um admin alterou manualmente os horários
 
   // Localização/metadados do registro
   geoLat?: number | null;
