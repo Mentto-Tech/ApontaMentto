@@ -279,8 +279,8 @@ class TimesheetSignRequest(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     month = Column(String, nullable=False)  # YYYY-MM
     status = Column(String, nullable=False, default="pending")  # pending | manager_signed | employee_signed | complete
-    token_hash = Column(String, nullable=False, unique=True)
-    expires_at = Column(DateTime, nullable=False)
+    token_hash = Column(String, nullable=True, unique=True)   # null após request concluído
+    expires_at = Column(DateTime, nullable=True)               # null após request concluído
     # PDF com assinatura do gestor (base64 PNG da assinatura embutida no PDF)
     manager_signature = Column(Text, nullable=True)   # dataURL base64 PNG
     manager_signed_at = Column(DateTime, nullable=True)
