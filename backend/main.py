@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import admin_data, admin_punches, announcements, auth, daily_records, geocode, justifications, locations, projects, punch_logs, push, time_entries, users, time_bank, timesheets
+from routers import admin_data, admin_punches, ai_chat, announcements, auth, daily_records, geocode, justifications, locations, projects, punch_logs, push, time_entries, users, time_bank, timesheets
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +149,7 @@ app.include_router(admin_punches.router, prefix="/api/admin", tags=["admin"])
 app.include_router(timesheets.router, prefix="/api/timesheets", tags=["timesheets"])
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
 app.include_router(push.router, prefix="/api/push", tags=["push"])
+app.include_router(ai_chat.router, prefix="/api/ai", tags=["ai"])
 
 
 @app.get("/api/health")

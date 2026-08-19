@@ -97,6 +97,11 @@ class UserAdminUpdate(CamelModel):
     manager_email: Optional[str] = None
 
 
+class UserBackupOut(UserOut):
+    """User com hashed_password para uso exclusivo no backup/restore (admin)."""
+    hashed_password: str = ""
+
+
 class UserMeUpdate(CamelModel):
     name: Optional[str] = None
     email: Optional[str] = None
@@ -340,7 +345,7 @@ class TimeBankBalanceOut(CamelModel):
 class AdminExport(CamelModel):
     version: str
     exported_at: str
-    users: List[UserOut]
+    users: List[UserBackupOut]
     projects: List[ProjectOut]
     locations: List[LocationOut]
     time_entries: List[TimeEntryOut]

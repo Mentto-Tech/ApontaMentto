@@ -33,6 +33,7 @@ from schemas import (
     TimeEntryOut,
     TimesheetSignedPdfOut,
     TimesheetSignRequestOut,
+    UserBackupOut,
     UserOut,
 )
 
@@ -77,7 +78,7 @@ async def export_data(
     return AdminExport(
         version="2.0",
         exported_at=datetime.utcnow().isoformat(),
-        users=[UserOut.model_validate(u) for u in users_result.scalars().all()],
+        users=[UserBackupOut.model_validate(u) for u in users_result.scalars().all()],
         projects=[ProjectOut.model_validate(p) for p in projects_result.scalars().all()],
         locations=[LocationOut.model_validate(l) for l in locations_result.scalars().all()],
         time_entries=[TimeEntryOut.model_validate(e) for e in entries_result.scalars().all()],
@@ -152,8 +153,8 @@ async def import_data(
 
     # --- Recria Users direto do backup (sem upsert: DB está vazio) ---
     for u in users_raw:
-        user_model = UserOut.model_validate(u)
-        hashed_pw = u.get("hashedPassword") or u.get("hashed_password") or ""
+        user_model = UserBackupOut.model_validate(u)
+        hashed_pw = user_model.hashed_password or u.get("hashedPassword") or u.get("hashed_password") or ""
         new_user = User(
             id=user_model.id,
             username=user_model.username,

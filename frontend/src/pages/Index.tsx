@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import TimeEntryForm from "@/components/TimeEntryForm";
+import AIChat from "@/components/AIChat";
 import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord, type TimeEntry } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -433,6 +434,9 @@ const Index = () => {
       <div className="mb-6">
         <TimeEntryForm date={dateStr} />
       </div>
+
+      {/* Assistente de registros (chat com IA) */}
+      <AIChat />
 
       {/* Entries list */}
       <div className="space-y-2">

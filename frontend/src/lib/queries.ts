@@ -468,3 +468,56 @@ export function useIpGeocode(params?: { ip?: string | null; lang?: string }) {
     staleTime: 30 * 60 * 1000,
   });
 }
+
+// ---------------------------------------------------------------------------
+// AI Assistant (registros via chat)
+// ---------------------------------------------------------------------------
+export interface AiChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiEntry {
+  id?: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  project_id: string | null;
+  location_id: string | null;
+  notes?: string;
+  projectName?: string;
+  locationName?: string;
+}
+
+export interface AiChatResponse {
+  reply: string;
+  entries: AiEntry[];
+  saved: AiEntry[];
+  pending: AiEntry[];
+}
+
+export async function aiChat(
+  message: string,
+  history: AiChatMessage[]
+): Promise<AiChatResponse> {
+  return apiFetch<AiChatResponse>("/api/ai/chat", {
+    method: "POST",
+    body: { message, history },
+  });
+}
+
+export async function aiConfirm(entries: AiEntry[]): Promise<AiChatResponse> {
+  return apiFetch<AiChatResponse>("/api/ai/confirm", {
+    method: "POST",
+    body: { entries },
+  });
+}
+
+export async function aiTranscribe(file: File): Promise<{ text: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<{ text: string }>("/api/ai/transcribe", {
+    method: "POST",
+    body: form,
+  });
+}
