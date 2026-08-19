@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProjects, useLocations } from "@/lib/queries";
 import {
   aiChat,
@@ -53,12 +54,12 @@ const EntryCard = ({ entry, index }: { entry: AiEntry; index: number }) => (
       </span>
     </div>
     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
-      {entry.project_id && (
+      {(entry.projectName || entry.project_id) && (
         <span className="flex items-center gap-1">
           <FolderOpen className="h-3 w-3" /> {entry.projectName || "Projeto"}
         </span>
       )}
-      {entry.location_id && (
+      {(entry.locationName || entry.location_id) && (
         <span className="flex items-center gap-1">
           <MapPin className="h-3 w-3" /> {entry.locationName || "Local"}
         </span>
@@ -70,6 +71,7 @@ const EntryCard = ({ entry, index }: { entry: AiEntry; index: number }) => (
 const AIChat = () => {
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
+  const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -96,9 +98,19 @@ const AIChat = () => {
   const decorate = (entries: AiEntry[]): AiEntry[] =>
     entries.map((e) => ({
       ...e,
-      projectName: e.project_id ? projectMap[e.project_id]?.name : undefined,
-      locationName: e.location_id ? locationMap[e.location_id]?.name : undefined,
+      projectName: e.project_id
+        ? projectMap[e.project_id]?.name
+        : e.project_name,
+      locationName: e.location_id
+        ? locationMap[e.location_id]?.name
+        : e.location_name,
     }));
+
+  const refreshLists = () => {
+    queryClient.invalidateQueries({ queryKey: ["projects"] });
+    queryClient.invalidateQueries({ queryKey: ["locations"] });
+    queryClient.invalidateQueries({ queryKey: ["time-entries"] });
+  };
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -139,6 +151,7 @@ const AIChat = () => {
           saved: decorate(res.saved),
         },
       ]);
+      if (res.saved.length) refreshLists();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro inesperado";
       setMessages([
@@ -159,6 +172,7 @@ const AIChat = () => {
         ...prev,
         { role: "assistant", content: res.reply, saved: decorate(res.saved) },
       ]);
+      if (res.saved.length) refreshLists();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro inesperado";
       toast.error(message);

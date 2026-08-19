@@ -485,6 +485,8 @@ export interface AiEntry {
   project_id: string | null;
   location_id: string | null;
   notes?: string;
+  project_name?: string;
+  location_name?: string;
   projectName?: string;
   locationName?: string;
 }

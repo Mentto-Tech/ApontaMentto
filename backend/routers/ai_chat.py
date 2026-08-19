@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -193,6 +193,8 @@ def _build_system_prompt(projects: List[Project], locations: List[Location]) -> 
         "- end_time: término em HH:mm\n"
         "- project_id: id do projeto (escolha da lista o que melhor corresponder ao que o usuário disse; null se não houver)\n"
         "- location_id: id do local (idem)\n"
+        "- project_name: se o usuário citar um projeto que NÃO existe na lista, coloque o nome mencionado aqui (e project_id=null)\n"
+        "- location_name: idem para local inexistente\n"
         "- notes: observações curtas ou \"\" \n\n"
         f"PROJETOS disponíveis (id | nome | descrição):\n{json.dumps(proj_lines, ensure_ascii=False)}\n\n"
         f"LOCAIS disponíveis (id | nome | endereço):\n{json.dumps(loc_lines, ensure_ascii=False)}\n\n"
@@ -200,16 +202,34 @@ def _build_system_prompt(projects: List[Project], locations: List[Location]) -> 
         "Regras:\n"
         "1. Se um campo faltar, NÃO invente data/projeto/local. Pergunte apenas o que falta, de forma curta e natural, em pt-BR.\n"
         "2. Se o usuário mencionar um projeto ou local, escolha o id mais próximo pelo nome/descrição. "
-        "Se não houver correspondência, deixe null, avise e pergunte se ele prefere sem projeto/local.\n"
+        "Se não houver correspondência com a lista, NÃO invente um id: deixe project_id/location_id como null e "
+        "preencha project_name/location_name com o nome dito pelo usuário, avisando que esse projeto/local não existe "
+        "e perguntando se ele quer que você o CRIE ao salvar (ou se prefere salvar sem projeto/local). "
+        "Você pode CRIAR (POST) projetos e locais novos ao salvar, mas NUNCA pode alterar (update) nem excluir (delete) os existentes.\n"
         "3. Pode haver VÁRIAS atividades numa mesma mensagem — extraia todas.\n"
-        "4. Quando uma atividade estiver completa, inclua-a em \"entries\" para o usuário confirmar (mesmo com ready_to_save=false).\n"
-        "5. Quando o usuário confirmar explicitamente (\"confirmar\", \"ok\", \"pode salvar\", \"tudo certo\"...), "
+        "4. INTERPRETAÇÃO DE HORÁRIOS: considere o período do dia que o usuário disser para converter a hora.\n"
+        "   - \"da manhã\" = entre 00:00 e 11:59\n"
+        "   - \"da tarde\" = entre 12:00 e 17:59\n"
+        "   - \"da noite\" = entre 18:00 e 23:59\n"
+        "   - Ex.: \"11 da noite\" = 23:00; \"11:30 da noite\" = 23:30; \"3 da tarde\" = 15:00; "
+        "\"meio-dia\" = 12:00; \"meia-noite\" = 00:00.\n"
+        "   - Se o horário de início e término vierem juntos, os dois devem respeitar o MESMO período (ex.: "
+        "\"das 11 às 11:30 da noite\" = 23:00 às 23:30, NUNCA 11:00 às 23:30).\n"
+        "5. Quando o usuário disser que algo vale para TUDO ou para TODAS as atividades (ex.: \"foi tudo no CITAP\", "
+        "\"tudo no mesmo projeto\", \"as demais também no escritório\", \"o resto igual\"), aplique esse projeto/local "
+        "a TODAS as entradas que ainda não têm projeto/local definido, inclusive as já mencionadas antes.\n"
+        "6. Quando uma atividade estiver completa, inclua-a em \"entries\" para o usuário confirmar (mesmo com ready_to_save=false).\n"
+        "7. Quando o usuário confirmar explicitamente (\"confirmar\", \"ok\", \"pode salvar\", \"tudo certo\"...), "
         "responda com ready_to_save=true e repita TODAS as entradas pendentes em \"entries\".\n"
-        "6. Nunca marque ready_to_save=true sem confirmação explícita do usuário.\n\n"
+        "8. NUNCA invente project_id/location_id que não vieram da lista fornecida. Para projeto/local NOVO (inexistente na lista), "
+        "sempre use project_id=null + project_name (ou location_id=null + location_name) com o nome dito pelo usuário, "
+        "INCLUSIVE na resposta final de confirmação (ready_to_save=true). O sistema criará o projeto/local pelo nome.\n"
+        "9. Nunca marque ready_to_save=true sem confirmação explícita do usuário.\n\n"
         'Responda SEMPRE apenas com JSON válido, sem markdown, neste formato:\n'
         '{"reply": "mensagem amigável em pt-BR", '
         '"entries": [{"date": "YYYY-MM-DD", "start_time": "HH:mm", "end_time": "HH:mm", '
-        '"project_id": "id ou null", "location_id": "id ou null", "notes": ""}], '
+        '"project_id": "id ou null", "location_id": "id ou null", '
+        '"project_name": "nome novo ou null", "location_name": "nome novo ou null", "notes": ""}], '
         '"ready_to_save": false}'
     )
 
@@ -221,8 +241,59 @@ def _normalize_entry(entry: dict) -> dict:
         "end_time": _normalize_time(entry.get("end_time")) or "",
         "project_id": entry.get("project_id") or None,
         "location_id": entry.get("location_id") or None,
+        "project_name": (entry.get("project_name") or "").strip() or None,
+        "location_name": (entry.get("location_name") or "").strip() or None,
         "notes": (entry.get("notes") or "").strip(),
     }
+
+
+async def _resolve_or_create_project(db: AsyncSession, name: str) -> str:
+    """Cria (POST) um projeto novo se ainda não existir pelo nome (ci)."""
+    result = await db.execute(
+        select(Project).where(func.lower(Project.name) == name.lower())
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return existing.id
+    project = Project(id=str(uuid.uuid4()), name=name, created_at=datetime.utcnow())
+    db.add(project)
+    await db.flush()
+    return project.id
+
+
+async def _resolve_or_create_location(db: AsyncSession, name: str) -> str:
+    """Cria (POST) um local novo se ainda não existir pelo nome (ci)."""
+    result = await db.execute(
+        select(Location).where(func.lower(Location.name) == name.lower())
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        return existing.id
+    location = Location(id=str(uuid.uuid4()), name=name, created_at=datetime.utcnow())
+    db.add(location)
+    await db.flush()
+    return location.id
+
+
+def _merge_pending_names(
+    entries: List[dict], pending: List[dict]
+) -> List[dict]:
+    """Reaproveita nomes de projeto/local novos que o modelo pode ter esquecido
+    de repetir na confirmação final (match por data+início+fim)."""
+    pending_by_key = {
+        (e.get("date"), e.get("start_time"), e.get("end_time")): e
+        for e in pending
+    }
+    merged = []
+    for e in entries:
+        key = (e.get("date"), e.get("start_time"), e.get("end_time"))
+        p = pending_by_key.get(key) or {}
+        if not e.get("project_id") and not e.get("project_name"):
+            e["project_name"] = p.get("project_name") or None
+        if not e.get("location_id") and not e.get("location_name"):
+            e["location_name"] = p.get("location_name") or None
+        merged.append(e)
+    return merged
 
 
 async def _save_entries(db: AsyncSession, user_id: str, entries: List[dict]) -> List[dict]:
@@ -231,6 +302,21 @@ async def _save_entries(db: AsyncSession, user_id: str, entries: List[dict]) -> 
         entry = _normalize_entry(raw)
         if not entry["start_time"] or not entry["end_time"]:
             continue
+
+        # Valida ids vindos do modelo (evita id inventado -> erro de FK).
+        if entry["project_id"]:
+            if await db.get(Project, entry["project_id"]) is None:
+                entry["project_id"] = None
+        if entry["location_id"]:
+            if await db.get(Location, entry["location_id"]) is None:
+                entry["location_id"] = None
+
+        # Projeto/local inexistente mencionado pelo usuário: cria (POST) ao salvar.
+        if not entry["project_id"] and entry["project_name"]:
+            entry["project_id"] = await _resolve_or_create_project(db, entry["project_name"])
+        if not entry["location_id"] and entry["location_name"]:
+            entry["location_id"] = await _resolve_or_create_location(db, entry["location_name"])
+
         row = TimeEntry(
             id=str(uuid.uuid4()),
             date=entry["date"],
@@ -253,6 +339,8 @@ async def _save_entries(db: AsyncSession, user_id: str, entries: List[dict]) -> 
                 "end_time": row.end_time,
                 "project_id": row.project_id,
                 "location_id": row.location_id,
+                "project_name": entry["project_name"],
+                "location_name": entry["location_name"],
                 "notes": row.notes,
             }
         )
@@ -303,6 +391,8 @@ async def ai_chat(
         # usa as pendências guardadas da última proposta.
         if not entries:
             entries = _pending.get(current_user.id, [])
+        else:
+            entries = _merge_pending_names(entries, _pending.get(current_user.id, []))
         if entries:
             if not reply:
                 reply = "Perfeito! Vou salvar os registros."
