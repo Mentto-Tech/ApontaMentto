@@ -419,7 +419,12 @@ class PushSubscription(Base):
 
 
 class RefreshToken(Base):
-    """Token de refresh — one-time use rotativo, expira em 30 dias."""
+    """Token de refresh — one-time use rotativo, expira em 30 dias.
+
+    `replaced_by_id` aponta para o token que o substituiu na rotação.
+    Permite detectar refresh concorrente (outra aba/dispositivo usando o
+    mesmo token) e recuperar a sessão em vez de derrubar o usuário.
+    """
 
     __tablename__ = "refresh_tokens"
 
@@ -430,6 +435,9 @@ class RefreshToken(Base):
     token: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
     expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    replaced_by_id: Mapped[Optional[str]] = mapped_column(
+        String, ForeignKey("refresh_tokens.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=lambda: dt.utcnow(), nullable=False
     )

@@ -32,6 +32,55 @@ export function clearAuth(): void {
   removeRefreshToken();
 }
 
+// Máscara de token para logs — nunca expõe o token completo
+function maskToken(token: string | null): string {
+  if (!token) return "<vazio>";
+  if (token.length <= 8) return `<${token.length} caracteres>`;
+  return `${token.slice(0, 4)}...${token.slice(-4)} (len=${token.length})`;
+}
+
+// Sincroniza a rotação do refresh token entre abas do mesmo navegador
+const REFRESH_CHANNEL = "apontamentto:refresh";
+let _channel: BroadcastChannel | null = null;
+
+function getRefreshChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === "undefined") return null;
+  if (!_channel) {
+    try {
+      _channel = new BroadcastChannel(REFRESH_CHANNEL);
+      _channel.onmessage = (event: MessageEvent) => {
+        const msg = event.data as
+          | { type?: string; access_token?: string; refresh_token?: string }
+          | null;
+        if (!msg || msg.type !== "refresh") return;
+        if (msg.access_token) setToken(msg.access_token);
+        if (msg.refresh_token) setRefreshToken(msg.refresh_token);
+        console.info(
+          "[api] Refresh sincronizado de outra aba | token=",
+          maskToken(msg.refresh_token ?? null)
+        );
+      };
+    } catch {
+      _channel = null;
+    }
+  }
+  return _channel;
+}
+
+function broadcastRefresh(accessToken: string, refreshToken: string): void {
+  const ch = getRefreshChannel();
+  if (!ch) return;
+  try {
+    ch.postMessage({
+      type: "refresh",
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+  } catch {
+    // canal indisponível — outras abas serão sincronizadas via backend na próxima rotação
+  }
+}
+
 // Controle para evitar múltiplas chamadas de refresh simultâneas
 let _refreshPromise: Promise<string | null> | null = null;
 
@@ -39,32 +88,63 @@ async function tryRefreshToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise;
 
   _refreshPromise = (async () => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return null;
+    const initialToken = getRefreshToken();
+    if (!initialToken) return null;
 
-    try {
-      const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
+    let retries = 0;
+    const MAX_RETRIES = 2;
 
-      if (!res.ok) {
+    const attempt = async (): Promise<string | null> => {
+      const tokenToUse = getRefreshToken();
+      if (!tokenToUse) return null;
+
+      console.info("[api] Tentando renovar access token | token=", maskToken(tokenToUse));
+
+      try {
+        const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: tokenToUse }),
+        });
+
+        if (!res.ok) {
+          console.warn(
+            `[api] Refresh rejeitado (status=${res.status}) | token usado=${maskToken(tokenToUse)}`
+          );
+          // Outra aba pode ter rotacionado o token enquanto esta requisição estava em voo.
+          // Se o token atual em localStorage mudou, tenta uma única vez com o novo.
+          const currentToken = getRefreshToken();
+          if (currentToken && currentToken !== tokenToUse && retries < MAX_RETRIES) {
+            retries += 1;
+            console.info(
+              "[api] Retry de refresh com token atualizado por outra aba | token=",
+              maskToken(currentToken)
+            );
+            return attempt();
+          }
+          clearAuth();
+          return null;
+        }
+
+        const data = await res.json();
+        setToken(data.access_token);
+        setRefreshToken(data.refresh_token);
+        broadcastRefresh(data.access_token, data.refresh_token);
+        console.info("[api] Access token renovado | token=", maskToken(data.refresh_token));
+        return data.access_token as string;
+      } catch (err) {
+        console.warn("[api] Erro ao renovar access token:", err);
         clearAuth();
         return null;
       }
+    };
 
-      const data = await res.json();
-      setToken(data.access_token);
-      setRefreshToken(data.refresh_token);
-      return data.access_token as string;
-    } catch {
-      clearAuth();
-      return null;
-    } finally {
-      _refreshPromise = null;
-    }
+    return attempt();
   })();
+
+  _refreshPromise.finally(() => {
+    _refreshPromise = null;
+  });
 
   return _refreshPromise;
 }
@@ -109,11 +189,13 @@ export async function apiFetch<T>(
 
   // Se 401, tenta renovar o access token uma vez
   if (res.status === 401 && path !== "/api/auth/refresh" && path !== "/api/auth/login") {
+    console.warn(`[api] 401 em ${path} — tentando renovar sessão`);
     const newToken = await tryRefreshToken();
     if (newToken) {
       res = await doFetch(newToken);
     } else {
       // Refresh falhou — dispara evento para o AuthContext reagir
+      console.warn(`[api] Renovação falhou para ${path} — encerrando sessão`);
       window.dispatchEvent(new Event("auth:logout"));
     }
   }

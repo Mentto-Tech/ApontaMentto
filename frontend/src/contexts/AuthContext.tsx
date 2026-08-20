@@ -46,13 +46,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     apiFetch<AuthUser>("/api/auth/me")
       .then(u => setUser(u))
-      .catch(() => clearAuth())
+      .catch(() => {
+        console.warn("[AuthContext] Sessão restaurada mas inválida — limpando autenticação");
+        clearAuth();
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
   // Ouve evento disparado pelo apiFetch quando o refresh falha
   useEffect(() => {
     const handler = () => {
+      console.warn("[AuthContext] Evento auth:logout recebido — encerrando sessão");
       clearAuth();
       setUser(null);
     };

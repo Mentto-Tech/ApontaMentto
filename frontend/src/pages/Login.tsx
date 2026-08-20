@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,22 +14,46 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const attemptCountRef = useRef(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const trimmedEmail = email.trim();
-    if (trimmedEmail !== email) {
-      console.warn("[Login] Email enviado com espaços extras removidos automaticamente");
-    }
+    // Lê o valor real dos campos no momento do submit: autofill do navegador /
+    // gerenciador de senhas pode não disparar onChange do React.
+    const actualEmail = (emailRef.current?.value ?? email).trim();
+    const actualPassword = passwordRef.current?.value ?? password;
+    attemptCountRef.current += 1;
 
-    const ok = await login(trimmedEmail, password);
+    console.info(
+      `[Login] Enviando credenciais | tentativa=${attemptCountRef.current} ` +
+        `email_len=${actualEmail.length} password_len=${actualPassword.length} ` +
+        `pw_leading_space=${actualPassword.startsWith(" ")} ` +
+        `pw_trailing_space=${actualPassword.endsWith(" ")}`
+    );
+
+    const ok = await login(actualEmail, actualPassword);
     setLoading(false);
 
     if (ok) {
+      console.info(
+        `[Login] Autenticação bem-sucedida | tentativa=${attemptCountRef.current}`
+      );
       navigate("/");
     } else {
+      console.warn(
+        `[Login] Falha na autenticação | tentativa=${attemptCountRef.current} ` +
+          `password_len=${actualPassword.length} — campo de senha será limpo para nova tentativa`
+      );
+      // Evita acúmulo de conteúdo no campo entre tentativas (causa comum de
+      // senha "duplicada": digitar/pastar por cima do que já estava lá).
+      setPassword("");
+      if (passwordRef.current) {
+        passwordRef.current.value = "";
+      }
       toast.error("Email ou senha incorretos.");
     }
   };
@@ -50,16 +74,18 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="auth-card space-y-4 bg-card border border-border rounded-xl p-6">
           <div>
             <label className="text-sm font-medium mb-1 block">Email</label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
+            <Input ref={emailRef} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" autoComplete="email" required />
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Senha</label>
             <div className="relative">
               <Input
+                ref={passwordRef}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••"
+                autoComplete="current-password"
                 required
                 className="pr-10"
               />

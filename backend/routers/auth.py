@@ -4,7 +4,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,8 +33,31 @@ APP_URL = os.getenv("FRONTEND_URL") or os.getenv("APP_URL", "http://localhost:51
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 
 
-async def _create_refresh_token(user_id: str, db: AsyncSession) -> str:
-    """Gera e persiste um refresh token rotativo."""
+def _mask_token(token: str) -> str:
+    """Máscara segura de token para auditoria — nunca expõe o token completo."""
+    if not token:
+        return "<vazio>"
+    if len(token) <= 8:
+        return f"<{len(token)} caracteres>"
+    return f"{token[:4]}...{token[-4:]} (len={len(token)})"
+
+
+def _client_info(request: Request) -> str:
+    ip = request.client.host if request.client else "desconhecido"
+    ua = (request.headers.get("user-agent") or "desconhecido")[:160]
+    return f"ip={ip} ua={ua}"
+
+
+async def _create_refresh_token(
+    user_id: str,
+    db: AsyncSession,
+    replaced_by: "RefreshToken | None" = None,
+) -> str:
+    """Gera e persiste um refresh token rotativo.
+
+    Quando `replaced_by` é informado, registra a linhagem da rotação
+    (o token antigo aponta para o novo) para detectar refresh concorrente.
+    """
     raw = secrets.token_urlsafe(48)
     rt = RefreshToken(
         id=str(uuid.uuid4()),
@@ -44,11 +67,27 @@ async def _create_refresh_token(user_id: str, db: AsyncSession) -> str:
     )
     db.add(rt)
     await db.flush()
+    if replaced_by is not None:
+        replaced_by.replaced_by_id = rt.id
     return raw
 
 
+async def _find_live_replacement(db: AsyncSession, rt: RefreshToken) -> RefreshToken:
+    """Segue a cadeia de rotação até encontrar o token atual (não revogado)."""
+    current = rt
+    visited = set()
+    while current.replaced_by_id and current.id not in visited:
+        visited.add(current.id)
+        next_rt = await db.get(RefreshToken, current.replaced_by_id)
+        if not next_rt:
+            break
+        current = next_rt
+    return current
+
+
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    client = _client_info(request)
     email_domain = data.email.split("@")[1] if "@" in data.email else "sem-arroba"
     email_len = len(data.email)
     password_len = len(data.password)
@@ -56,16 +95,19 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     has_trailing_space = data.password.endswith(" ")
 
     logger.info(
-        "[login] Tentativa recebida | domínio=%s email_len=%d password_len=%d "
+        "[login] Tentativa recebida | %s domínio=%s email_len=%d password_len=%d "
         "pw_leading_space=%s pw_trailing_space=%s",
-        email_domain, email_len, password_len, has_leading_space, has_trailing_space,
+        client, email_domain, email_len, password_len, has_leading_space, has_trailing_space,
     )
 
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
     if not user:
-        logger.warning("[login] Usuário não encontrado | domínio=%s", email_domain)
+        logger.warning(
+            "[login] Falha: usuario_nao_encontrado | %s domínio=%s email_len=%d",
+            client, email_domain, email_len,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
@@ -73,16 +115,19 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     if not verify_password(data.password, user.hashed_password):
         logger.warning(
-            "[login] Senha incorreta | user_id=%s domínio=%s password_len=%d "
+            "[login] Falha: senha_incorreta | user_id=%s %s domínio=%s password_len=%d "
             "pw_leading_space=%s pw_trailing_space=%s",
-            user.id, email_domain, password_len, has_leading_space, has_trailing_space,
+            user.id, client, email_domain, password_len, has_leading_space, has_trailing_space,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
         )
 
-    logger.info("[login] Autenticação bem-sucedida | user_id=%s", user.id)
+    logger.info(
+        "[login] Sucesso | user_id=%s %s domínio=%s email_len=%d",
+        user.id, client, email_domain, email_len,
+    )
     token = create_access_token({"sub": user.id})
     refresh = await _create_refresh_token(user.id, db)
     await db.commit()
@@ -121,33 +166,112 @@ async def me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    """Troca um refresh token válido por um novo par access_token + refresh_token (rotação)."""
+async def refresh_token(
+    data: RefreshRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Troca um refresh token válido por um novo par (rotação).
+
+    Se o token apresentado já foi revogado por uma rotação anterior (ex.:
+    outra aba/dispositivo usando o mesmo token em paralelo), tenta recuperar
+    a sessão rotacionando o token atual da mesma linhagem em vez de derrubar
+    o usuário com 401.
+    """
+    client = _client_info(request)
+    masked = _mask_token(data.refresh_token)
+
+    logger.info("[refresh] Recebido | %s token=%s", client, masked)
+
     result = await db.execute(
         select(RefreshToken).where(RefreshToken.token == data.refresh_token)
     )
     rt = result.scalar_one_or_none()
 
-    if not rt or rt.revoked or rt.expires_at < datetime.utcnow():
+    if not rt:
+        logger.warning(
+            "[refresh] Falha: token_nao_encontrado | %s token=%s",
+            client, masked,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token inválido ou expirado. Faça login novamente.",
         )
 
-    # Revogar o token usado (rotação)
-    rt.revoked = True
+    if rt.expires_at < datetime.utcnow():
+        age_days = (datetime.utcnow() - rt.created_at).total_seconds() / 86400
+        logger.warning(
+            "[refresh] Falha: token_expirado | user_id=%s %s token=%s idade_dias=%.1f",
+            rt.user_id, client, masked, age_days,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido ou expirado. Faça login novamente.",
+        )
 
-    user_result = await db.execute(select(User).where(User.id == rt.user_id))
-    user = user_result.scalar_one_or_none()
+    if rt.revoked:
+        # Refresh concorrente: outro cliente já consumiu este token na rotação.
+        live = await _find_live_replacement(db, rt)
+        if live.id != rt.id and not live.revoked and live.expires_at >= datetime.utcnow():
+            live.revoked = True
+            new_refresh = await _create_refresh_token(rt.user_id, db, replaced_by=live)
+            user = await db.get(User, rt.user_id)
+            if not user:
+                await db.commit()
+                logger.warning(
+                    "[refresh] Falha: usuario_nao_encontrado | user_id=%s %s",
+                    rt.user_id, client,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Usuário não encontrado.",
+                )
+            new_access = create_access_token({"sub": user.id})
+            await db.commit()
+            logger.warning(
+                "[refresh] Sucesso apos reuso concorrente | user_id=%s %s token_apresentado=%s token_atual=%s",
+                rt.user_id, client, masked, _mask_token(live.token),
+            )
+            return TokenResponse(
+                access_token=new_access,
+                refresh_token=new_refresh,
+                user=UserOut.model_validate(user),
+            )
+
+        logger.warning(
+            "[refresh] Falha: token_revogado_sem_cadeia_valida | user_id=%s %s token=%s",
+            rt.user_id, client, masked,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido ou expirado. Faça login novamente.",
+        )
+
+    # Rotação normal
+    rt.revoked = True
+    user = await db.get(User, rt.user_id)
     if not user:
         await db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado.")
-
+        logger.warning(
+            "[refresh] Falha: usuario_nao_encontrado | user_id=%s %s",
+            rt.user_id, client,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado.",
+        )
     new_access = create_access_token({"sub": user.id})
-    new_refresh = await _create_refresh_token(user.id, db)
+    new_refresh = await _create_refresh_token(user.id, db, replaced_by=rt)
     await db.commit()
-
-    return TokenResponse(access_token=new_access, refresh_token=new_refresh, user=UserOut.model_validate(user))
+    logger.info(
+        "[refresh] Sucesso | user_id=%s %s token=%s",
+        user.id, client, masked,
+    )
+    return TokenResponse(
+        access_token=new_access,
+        refresh_token=new_refresh,
+        user=UserOut.model_validate(user),
+    )
 
 
 # ---------------------------------------------------------------------------

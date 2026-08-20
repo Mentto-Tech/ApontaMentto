@@ -290,7 +290,21 @@ export function useUpsertDailyRecord() {
       geoSource?: string | null;
     }) =>
       apiFetch<DailyRecord>("/api/daily-records", { method: "PUT", body: data }),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Atualiza o cache imediatamente para que a tela nunca fique atrás do
+      // servidor (ex.: quando a refetch falha por rede instável e a UI tentaria
+      // reenviar uma batida já gravada, sobrescrevendo o horário original).
+      qc.setQueriesData<DailyRecord[]>(
+        { queryKey: ["daily-records"] },
+        (old) => {
+          if (!old) return old;
+          const idx = old.findIndex((r) => r.id === data.id || r.date === data.date);
+          if (idx === -1) return old;
+          const next = [...old];
+          next[idx] = data;
+          return next;
+        }
+      );
       qc.invalidateQueries({ queryKey: ["daily-records"] });
       qc.invalidateQueries({ queryKey: ["punch-logs"] });
     },

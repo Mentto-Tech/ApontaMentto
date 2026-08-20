@@ -268,19 +268,55 @@ async def upsert_daily_record(
     if cand_out2 and (cand_out1 or cand_in2) and not cand_in2:
         raise HTTPException(status_code=400, detail="out2 requires in2")
 
-    # Prevent overwriting an existing punch with a new in1 when out1 hasn't been recorded yet.
+    # No fluxo normal de batida, cada horário é registrado uma única vez.
+    # Uma vez gravado, ele só pode ser alterado pela tela de correção (admin).
+    # Isso impede que uma tela com estado desatualizado (ex.: cache velho, app
+    # reaberto no meio do dia) reenvie um horário já confirmado com outro valor.
     existing_first_in = existing_in1 or existing_clock_in
     if (
         record
         and incoming_in1 is not None
         and existing_first_in
-        and not existing_out1
-        and "out1" not in fields_set
         and incoming_in1 != existing_first_in
     ):
         raise HTTPException(
             status_code=400,
-            detail="Entrada 1 já registrada. Registre a Saída 1 antes de alterar a entrada.",
+            detail="Entrada 1 já registrada. Use a tela de correção para alterá-la.",
+        )
+
+    if (
+        record
+        and "out1" in fields_set
+        and data.out1 is not None
+        and existing_out1
+        and data.out1 != existing_out1
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Saída 1 já registrada. Use a tela de correção para alterá-la.",
+        )
+
+    if (
+        record
+        and "in2" in fields_set
+        and data.in2 is not None
+        and existing_in2
+        and data.in2 != existing_in2
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Entrada 2 já registrada. Use a tela de correção para alterá-la.",
+        )
+
+    if (
+        record
+        and incoming_out2 is not None
+        and existing_out2
+        and incoming_out2 != existing_out2
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Saída 2 já registrada. Use a tela de correção para alterá-la.",
         )
 
     ip_address = _extract_client_ip(request)
