@@ -220,7 +220,6 @@ const TimeBank = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="destructive"
                     size="sm"
                     onClick={() => {
                       if (confirm("Confirma pagamento das horas do mês filtrado? Isso criará um lançamento de subtração no dia final do mês.")) {
@@ -241,87 +240,87 @@ const TimeBank = () => {
             </TooltipProvider>
           )}
           {isAdmin && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Lançamento
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Novo Lançamento Manual</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label>Data</Label>
-                  <Input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Tipo</Label>
-                  <Select value={formType} onValueChange={(v: "manual_add" | "manual_subtract") => setFormType(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manual_add">Adicionar Horas</SelectItem>
-                      <SelectItem value="manual_subtract">Subtrair Horas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Quantidade</Label>
-                  <div className="flex gap-2 items-center">
-                    <div className="flex items-center gap-1 flex-1">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={formHours}
-                        onChange={(e) => setFormHours(e.target.value)}
-                        placeholder="0"
-                        className="text-center"
-                      />
-                      <span className="text-sm text-muted-foreground shrink-0">h</span>
-                    </div>
-                    <div className="flex items-center gap-1 flex-1">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="59"
-                        value={formMinutes}
-                        onChange={(e) => setFormMinutes(e.target.value)}
-                        placeholder="0"
-                        className="text-center"
-                      />
-                      <span className="text-sm text-muted-foreground shrink-0">min</span>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Lançamento
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo Lançamento Manual</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label>Data</Label>
+                    <Input
+                      type="date"
+                      value={formDate}
+                      onChange={(e) => setFormDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Tipo</Label>
+                    <Select value={formType} onValueChange={(v: "manual_add" | "manual_subtract") => setFormType(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manual_add">Adicionar Horas</SelectItem>
+                        <SelectItem value="manual_subtract">Subtrair Horas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Quantidade</Label>
+                    <div className="flex gap-2 items-center">
+                      <div className="flex items-center gap-1 flex-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={formHours}
+                          onChange={(e) => setFormHours(e.target.value)}
+                          placeholder="0"
+                          className="text-center"
+                        />
+                        <span className="text-sm text-muted-foreground shrink-0">h</span>
+                      </div>
+                      <div className="flex items-center gap-1 flex-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={formMinutes}
+                          onChange={(e) => setFormMinutes(e.target.value)}
+                          placeholder="0"
+                          className="text-center"
+                        />
+                        <span className="text-sm text-muted-foreground shrink-0">min</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <Label>Descrição (opcional)</Label>
-                  <Textarea
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Motivo do lançamento (opcional)"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={createEntryMutation.isPending}>
-                    {createEntryMutation.isPending ? "Salvando..." : "Salvar"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+                  <div>
+                    <Label>Descrição (opcional)</Label>
+                    <Textarea
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      placeholder="Motivo do lançamento (opcional)"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={createEntryMutation.isPending}>
+                      {createEntryMutation.isPending ? "Salvando..." : "Salvar"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
