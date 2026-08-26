@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, Plus, Trash2, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { formatYmdToBr } from "@/lib/datetime";
@@ -123,6 +124,42 @@ const TimeBank = () => {
     },
   });
 
+  // Pay month hours (admin only)
+  const payMonthHoursMutation = useMutation({
+    mutationFn: () => {
+      if (!monthFilter) {
+        throw new Error("Mês não selecionado");
+      }
+      const yearMonth = monthFilter.split("-");
+      const year = parseInt(yearMonth[0], 10);
+      const month = parseInt(yearMonth[1], 10);
+      const lastDay = new Date(year, month, 0).getDate();
+      const payDate = `${yearMonth[0]}-${yearMonth[1]}-${String(lastDay).padStart(2, "0")}`;
+
+      const totalMinutes = timeBank?.entries.reduce((acc, e) => acc + e.amountMinutes, 0) || 0;
+      if (totalMinutes === 0) {
+        throw new Error("Nenhuma hora para pagar neste mês");
+      }
+
+      return apiFetch(`/api/time-bank?userId=${selectedUserId}`, {
+        method: "POST",
+        body: {
+          date: payDate,
+          amountMinutes: -Math.abs(totalMinutes),
+          description: "Horas pagas em folha",
+          entryType: "manual_subtract",
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timeBank"] });
+      toast.success("Horas do mês pagas com sucesso");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erro ao pagar horas do mês");
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const hours = parseInt(formHours || "0", 10);
@@ -178,6 +215,31 @@ const TimeBank = () => {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? "animate-spin" : ""}`} />
             Sincronizar
           </Button>
+          {isAdmin && monthFilter && timeBank && timeBank.entries.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm("Confirma pagamento das horas do mês filtrado? Isso criará um lançamento de subtração no dia final do mês.")) {
+                        payMonthHoursMutation.mutate();
+                      }
+                    }}
+                    disabled={payMonthHoursMutation.isPending}
+                  >
+                    <Clock className={`h-4 w-4 mr-2 ${payMonthHoursMutation.isPending ? "animate-spin" : ""}`} />
+                    Pagar horas do mês
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="start">
+                  <p className="text-sm">Desconta automaticamente o total de horas do mês filtrado</p>
+                  <p className="text-xs text-muted-foreground">Cria lançamento "Horas pagas em folha" no último dia do mês</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {isAdmin && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -202,7 +264,7 @@ const TimeBank = () => {
                 </div>
                 <div>
                   <Label>Tipo</Label>
-                  <Select value={formType} onValueChange={(v: any) => setFormType(v)}>
+                  <Select value={formType} onValueChange={(v: "manual_add" | "manual_subtract") => setFormType(v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
