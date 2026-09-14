@@ -240,7 +240,7 @@ const Timesheet = () => {
     setHasSignature(false);
   };
 
-  const generatePDF = useCallback(() => {
+  const generatePDF = useCallback((overrideSig?: string) => {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 15;
@@ -332,9 +332,9 @@ const Timesheet = () => {
     );
 
     // Signature — use canvas if drawn, or the saved submitted signature for this month
-    const sigToUse = hasSignature && canvasRef.current
-      ? canvasRef.current.toDataURL("image/png")
-      : (submittedSignatures[monthStr] ?? null);
+    const sigToUse = overrideSig
+      ?? (hasSignature && canvasRef.current ? canvasRef.current.toDataURL("image/png") : null)
+      ?? (submittedSignatures[monthStr] ?? null);
 
     if (sigToUse) {
       y += 8;
@@ -426,6 +426,10 @@ const Timesheet = () => {
       });
       // Save the signature locally so generatePDF can use it while awaiting manager
       setSubmittedSignatures(prev => ({ ...prev, [monthStr]: employeeSignature }));
+
+      // Auto-download the PDF with the employee's signature
+      generatePDF(employeeSignature);
+
       toast({ title: "Folha assinada!", description: "O gestor será notificado por email para concluir." });
       clearSignature();
       loadSignedData();
