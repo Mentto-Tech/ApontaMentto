@@ -26,6 +26,9 @@ const Timesheet = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const isDrawingRef = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
+  // Keeps the employee's submitted signature per month so generatePDF can use it
+  // even after the canvas is cleared (before manager signs)
+  const [submittedSignatures, setSubmittedSignatures] = useState<Record<string, string>>({});
 
   const monthStr = format(currentMonth, "yyyy-MM");
 
@@ -328,13 +331,16 @@ const Timesheet = () => {
       y
     );
 
-    // Signature — only include if the user drew one locally (preview PDF, before submitting)
-    if (hasSignature && canvasRef.current) {
+    // Signature — use canvas if drawn, or the saved submitted signature for this month
+    const sigToUse = hasSignature && canvasRef.current
+      ? canvasRef.current.toDataURL("image/png")
+      : (submittedSignatures[monthStr] ?? null);
+
+    if (sigToUse) {
       y += 8;
       doc.text("Assinaturas:", margin, y);
       y += 3;
-      const sigData = canvasRef.current.toDataURL("image/png");
-      doc.addImage(sigData, "PNG", margin, y, 60, 20);
+      doc.addImage(sigToUse, "PNG", margin, y, 60, 20);
       y += 25;
       doc.line(margin, y, margin + 60, y);
       doc.line(margin + 80, y, margin + 140, y);
@@ -345,7 +351,7 @@ const Timesheet = () => {
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
-  }, [dayData, currentMonth, targetUser, totalMonthMins, totalMonthOvertimeMins, hasSignature]);
+  }, [dayData, currentMonth, targetUser, totalMonthMins, totalMonthOvertimeMins, hasSignature, submittedSignatures, monthStr]);
 
   const prevMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
@@ -418,6 +424,8 @@ const Timesheet = () => {
         method: "POST",
         body: { month: monthStr, employee_signature: employeeSignature },
       });
+      // Save the signature locally so generatePDF can use it while awaiting manager
+      setSubmittedSignatures(prev => ({ ...prev, [monthStr]: employeeSignature }));
       toast({ title: "Folha assinada!", description: "O gestor será notificado por email para concluir." });
       clearSignature();
       loadSignedData();
