@@ -35,6 +35,8 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const [isOvertime, setIsOvertime] = useState(Boolean(entry?.isOvertime));
 
   // Estados dos modais de criação rápida
+  const [projectSearch, setProjectSearch] = useState("");
+
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectDesc, setProjectDesc] = useState("");
@@ -201,10 +203,19 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
           <div className="flex gap-2 flex-1 w-full">
             <div className="flex-1 min-w-0">
               <label className="text-xs text-muted-foreground mb-1 block">Projeto</label>
-              <Select value={projectId} onValueChange={handleProjectChange}>
+              <Select value={projectId} onValueChange={handleProjectChange} onOpenChange={open => { if (!open) setProjectSearch(""); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {projects.map(p => (
+                  <div className="px-2 pb-1">
+                    <Input
+                      placeholder="Buscar projeto..."
+                      value={projectSearch}
+                      onChange={e => setProjectSearch(e.target.value)}
+                      className="h-7 text-xs"
+                      onKeyDown={e => e.stopPropagation()}
+                    />
+                  </div>
+                  {projects.filter(p => p.name.toLowerCase().includes(projectSearch.toLowerCase())).map(p => (
                     <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />

@@ -652,7 +652,7 @@ const Timesheet = () => {
                 onClick={handleSelfSign}
               >
                 {sendingEmail ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                Assinar e enviar para o gestor — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                Assinar, Baixar e enviar para o gestor — {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
               </Button>
             );
           })()}
