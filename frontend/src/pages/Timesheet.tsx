@@ -328,21 +328,20 @@ const Timesheet = () => {
       y
     );
 
-    // Signature
+    // Signature — only include if the user drew one locally (preview PDF, before submitting)
     if (hasSignature && canvasRef.current) {
       y += 8;
       doc.text("Assinaturas:", margin, y);
       y += 3;
       const sigData = canvasRef.current.toDataURL("image/png");
-      doc.addImage(sigData, "PNG", margin, y, 60, 20); // Assign drawn signature to Tiago Goulart
+      doc.addImage(sigData, "PNG", margin, y, 60, 20);
       y += 25;
       doc.line(margin, y, margin + 60, y);
-      doc.line(margin + 80, y, margin + 140, y); // Add line for selected user signature
+      doc.line(margin + 80, y, margin + 140, y);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      const today = format(new Date(), "dd/MM/yyyy");
-      doc.text(`Tiago Goulart (Gestor)`, margin, y + 4);
-      doc.text(`${targetUser?.username || "—"} (Funcionário)`, margin + 80, y + 4); // Selected user signature remains empty
+      doc.text(`${targetUser?.username || "—"} (Funcionário)`, margin, y + 4);
+      doc.text(`Gestor`, margin + 80, y + 4);
     }
 
     doc.save(`folha-ponto-${format(currentMonth, "yyyy-MM")}-${targetUser?.username || "user"}.pdf`);
@@ -756,7 +755,21 @@ const Timesheet = () => {
         )}
       </Tabs>
 
-      <Button onClick={generatePDF} className="w-full" size="lg">
+      <Button
+        onClick={async () => {
+          // If there's a signed PDF for this month (and user), download it from the server
+          const signedPdf = signedTimesheets.find(p =>
+            p.month === monthStr && (isAdmin ? p.userId === targetUserId : true)
+          );
+          if (signedPdf) {
+            await handleDownload(signedPdf.id);
+          } else {
+            generatePDF();
+          }
+        }}
+        className="w-full"
+        size="lg"
+      >
         <FileText className="h-4 w-4 mr-2" />
         Gerar PDF da Folha de Ponto
       </Button>
