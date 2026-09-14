@@ -783,7 +783,7 @@ const Timesheet = () => {
         size="lg"
       >
         <FileText className="h-4 w-4 mr-2" />
-        Gerar PDF da Folha de Ponto
+        Baixar PDF da Folha de Ponto
       </Button>
 
       {/* Pending sign requests */}
