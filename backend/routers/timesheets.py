@@ -255,8 +255,8 @@ def _build_pdf_bytes(
             c.line(sig_x, sig_y - 45, sig_x + 150, sig_y - 45)
             c.drawString(sig_x, sig_y - 58, label)
 
-        _draw_sig(manager_sig_dataurl, f"Tiago Goulart (Gestor)", margin, y)
-        _draw_sig(employee_sig_dataurl, f"{employee_name} (Funcionário)", margin + 200, y)
+        _draw_sig(employee_sig_dataurl, f"{employee_name} (Funcionário)", margin, y)
+        _draw_sig(manager_sig_dataurl, f"{manager_name} (Gestor)", margin + 200, y)
 
         c.save()
         return buf.getvalue()
