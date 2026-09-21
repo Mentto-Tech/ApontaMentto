@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Coffee, Clock, MapPin, FolderOpen, Star } from "lucide-react";
@@ -228,15 +229,33 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
                   {sortedProjects.filter(p => p.name.toLowerCase().includes(projectSearch.toLowerCase())).map(p => {
                     const isFav = favoriteIds.has(p.id);
                     return (
-                      <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
+                      <SelectPrimitive.Item key={p.id} value={p.id} className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-2 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground"
+                        onPointerDown={(e) => {
+                          if ((e.target as HTMLElement).closest("[data-favorite-btn]")) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }
+                        }}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest("[data-favorite-btn]")) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }
+                        }}
+                      >
                         <span className="flex items-center gap-2">
                           <span
+                            data-favorite-btn
                             role="button"
                             tabIndex={-1}
-                            onPointerDownCapture={(e) => {
+                            onPointerDown={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
                               toggleFavorite.mutate({ projectId: p.id, isFavorite: isFav });
+                            }}
+                            onPointerUp={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
                             }}
                             className="flex items-center cursor-pointer"
                           >
@@ -244,10 +263,12 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
                               className={`h-3.5 w-3.5 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40 hover:text-yellow-400"}`}
                             />
                           </span>
-                          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-                          {p.name}
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
                         </span>
-                      </SelectItem>
+                        <SelectPrimitive.ItemText>
+                          <span className="truncate block max-w-[10ch]">{p.name}</span>
+                        </SelectPrimitive.ItemText>
+                      </SelectPrimitive.Item>
                     );
                   })}
                   <SelectItem value={NEW_PROJECT_VALUE} className="pl-2 [&>span:first-child]:hidden border-t border-border mt-1 pt-2 text-primary font-medium">

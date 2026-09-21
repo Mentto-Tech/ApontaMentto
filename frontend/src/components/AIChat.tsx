@@ -79,7 +79,7 @@ const AIChat = () => {
     {
       role: "assistant",
       content:
-        "Oi! Eu sou o assistente de registros. Descreva as atividades que você fez (ex: \"trabalhei de 8h às 12h no projeto Alfa no escritório\") ou grave um áudio. Posso entender várias atividades de uma vez.",
+        "Oi! Eu sou o assistente de registros. Descreva as atividades que você fez (ex: \"trabalhei de 8h às 12h no projeto InovaSkill no escritório\") ou grave um áudio. Posso entender várias atividades de uma vez.",
     },
   ]);
   const [sending, setSending] = useState(false);
@@ -256,7 +256,7 @@ const AIChat = () => {
 
       {/* Painel do chat */}
       {open && (
-        <div className="fixed z-40 right-0 sm:right-4 bottom-0 sm:bottom-24 md:bottom-6 w-full sm:w-96 h-[70vh] sm:h-[520px] sm:max-h-[70vh] flex flex-col bg-card border-t sm:border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed z-40 right-0 sm:right-4 bottom-20 sm:bottom-24 md:bottom-6 w-full sm:w-96 h-[60vh] sm:h-[520px] sm:max-h-[70vh] flex flex-col bg-card border-t sm:border rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -374,7 +374,7 @@ const AIChat = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ex: trabalhei das 8h às 12h no projeto Alfa na obra"
+                placeholder="Ex: trabalhei das 8h às 12h no projeto InovaSkill no Escritório"
                 rows={2}
                 className="min-h-[56px] resize-none text-sm"
                 disabled={sending || transcribing || recording}
