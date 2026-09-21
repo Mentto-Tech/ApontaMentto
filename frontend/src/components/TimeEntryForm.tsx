@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Coffee, Clock, MapPin, FolderOpen } from "lucide-react";
+import { Plus, Coffee, Clock, MapPin, FolderOpen, Star } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useProjects, useLocations, useCreateTimeEntry, useUpdateTimeEntry, useCreateProject, useCreateLocation, type TimeEntry } from "@/lib/queries";
+import { useProjects, useLocations, useCreateTimeEntry, useUpdateTimeEntry, useCreateProject, useCreateLocation, useProjectFavorites, useToggleProjectFavorite, type TimeEntry } from "@/lib/queries";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
@@ -21,6 +21,8 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   const { user } = useAuth();
   const { data: projects = [] } = useProjects();
   const { data: locations = [] } = useLocations();
+  const { data: favorites = [] } = useProjectFavorites();
+  const toggleFavorite = useToggleProjectFavorite();
   const createEntry = useCreateTimeEntry();
   const updateEntry = useUpdateTimeEntry();
   
@@ -49,6 +51,14 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
   // Valor especial para a opção de criar novo dentro do select
   const NEW_PROJECT_VALUE = "__new_project__";
   const NEW_LOCATION_VALUE = "__new_location__";
+
+  const favoriteIds = new Set(favorites.map(f => f.projectId));
+  const sortedProjects = [...projects].sort((a, b) => {
+    const aFav = favoriteIds.has(a.id) ? 0 : 1;
+    const bFav = favoriteIds.has(b.id) ? 0 : 1;
+    if (aFav !== bFav) return aFav - bFav;
+    return a.name.localeCompare(b.name);
+  });
 
   const handleProjectChange = (value: string) => {
     if (value === NEW_PROJECT_VALUE) {
@@ -215,14 +225,31 @@ const TimeEntryForm = ({ date, entry, onSuccess }: Props) => {
                       onKeyDown={e => e.stopPropagation()}
                     />
                   </div>
-                  {projects.filter(p => p.name.toLowerCase().includes(projectSearch.toLowerCase())).map(p => (
-                    <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-                        {p.name}
-                      </span>
-                    </SelectItem>
-                  ))}
+                  {sortedProjects.filter(p => p.name.toLowerCase().includes(projectSearch.toLowerCase())).map(p => {
+                    const isFav = favoriteIds.has(p.id);
+                    return (
+                      <SelectItem key={p.id} value={p.id} className="pl-2 [&>span:first-child]:hidden">
+                        <span className="flex items-center gap-2">
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            onPointerDownCapture={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              toggleFavorite.mutate({ projectId: p.id, isFavorite: isFav });
+                            }}
+                            className="flex items-center cursor-pointer"
+                          >
+                            <Star
+                              className={`h-3.5 w-3.5 transition-colors ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40 hover:text-yellow-400"}`}
+                            />
+                          </span>
+                          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                          {p.name}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                   <SelectItem value={NEW_PROJECT_VALUE} className="pl-2 [&>span:first-child]:hidden border-t border-border mt-1 pt-2 text-primary font-medium">
                     <span className="flex items-center gap-2">
                       <Plus className="h-3.5 w-3.5" />

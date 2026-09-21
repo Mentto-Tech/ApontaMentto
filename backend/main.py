@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import admin_data, admin_punches, ai_chat, announcements, auth, daily_records, geocode, justifications, locations, projects, punch_logs, push, time_entries, users, time_bank, timesheets
+from routers import admin_data, admin_punches, ai_chat, announcements, auth, daily_records, geocode, justifications, locations, project_favorites, projects, punch_logs, push, time_entries, users, time_bank, timesheets
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +137,7 @@ async def _unhandled_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
+app.include_router(project_favorites.router, prefix="/api/projects/favorites", tags=["projects"])
 app.include_router(locations.router, prefix="/api/locations", tags=["locations"])
 app.include_router(time_entries.router, prefix="/api/time-entries", tags=["time-entries"])
 app.include_router(daily_records.router, prefix="/api/daily-records", tags=["daily-records"])

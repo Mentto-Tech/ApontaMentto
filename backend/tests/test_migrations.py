@@ -18,8 +18,8 @@ BACKEND = Path(__file__).resolve().parent.parent
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-NEW_REVISION = "m9n0o1p2q3r4"
-PREV_REVISION = "l7g8h9i0j1k2"
+NEW_REVISION = "p2q3r4s5t6u7"
+PREV_REVISION = "m9n0o1p2q3r4"
 
 
 @pytest.fixture
@@ -49,16 +49,14 @@ def test_new_migration_is_linear_chain(alembic_cfg):
 
 
 def test_new_migration_file_content(alembic_cfg):
-    """A migração nova precisa adicionar replaced_by_id (coluna + FK) e remover no downgrade."""
-    content = (BACKEND / "alembic" / "versions" / f"{NEW_REVISION}_refresh_token_replaced_by.py").read_text(
+    """A migração nova precisa criar a tabela user_project_favorites."""
+    content = (BACKEND / "alembic" / "versions" / f"{NEW_REVISION}_add_user_project_favorites.py").read_text(
         encoding="utf-8"
     )
-    assert "replaced_by_id" in content
-    assert "add_column" in content
-    assert "create_foreign_key" in content
-    assert "drop_constraint" in content
-    assert "drop_column" in content
-    assert f'down_revision = "{PREV_REVISION}"' in content
+    assert "user_project_favorites" in content
+    assert "create_table" in content
+    assert "drop_table" in content
+    assert "down_revision" in content and PREV_REVISION in content
 
 
 def test_all_version_files_compile():

@@ -73,6 +73,9 @@ class User(Base):
     punch_logs: Mapped[List["PunchLog"]] = relationship(
         "PunchLog", back_populates="user", cascade="all, delete-orphan"
     )
+    project_favorites: Mapped[List["UserProjectFavorite"]] = relationship(
+        "UserProjectFavorite", cascade="all, delete-orphan"
+    )
 
 
 class Project(Base):
@@ -89,6 +92,9 @@ class Project(Base):
 
     time_entries: Mapped[List["TimeEntry"]] = relationship(
         "TimeEntry", back_populates="project"
+    )
+    favorited_by: Mapped[List["UserProjectFavorite"]] = relationship(
+        "UserProjectFavorite", cascade="all, delete-orphan"
     )
 
 
@@ -343,6 +349,28 @@ class AuditLog(Base):
     user: Mapped[Optional["User"]] = relationship("User")
     timesheet: Mapped[Optional["TimesheetSignRequest"]] = relationship("TimesheetSignRequest")
 
+
+
+class UserProjectFavorite(Base):
+    """Favoritos de projeto por usuário (estrelha no seletor)."""
+
+    __tablename__ = "user_project_favorites"
+    __table_args__ = (
+        UniqueConstraint("user_id", "project_id", name="uq_user_project_favorite"),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    project_id: Mapped[str] = mapped_column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: dt.utcnow(), nullable=False
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="project_favorites")
+    project: Mapped["Project"] = relationship("Project", back_populates="favorited_by")
 
 
 class Announcement(Base):

@@ -75,6 +75,39 @@ export function useDeleteProject() {
 }
 
 // ---------------------------------------------------------------------------
+// Project Favorites
+// ---------------------------------------------------------------------------
+export interface ProjectFavorite {
+  userId: string;
+  projectId: string;
+  createdAt?: string;
+}
+
+export function useProjectFavorites() {
+  return useQuery<ProjectFavorite[]>({
+    queryKey: ["project-favorites"],
+    queryFn: () => apiFetch<ProjectFavorite[]>("/api/projects/favorites"),
+    staleTime: 30_000,
+  });
+}
+
+export function useToggleProjectFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, isFavorite }: { projectId: string; isFavorite: boolean }) => {
+      if (isFavorite) {
+        await apiFetch(`/api/projects/favorites/${projectId}`, { method: "DELETE" });
+        return false;
+      } else {
+        await apiFetch(`/api/projects/favorites/${projectId}`, { method: "POST" });
+        return true;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["project-favorites"] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Locations
 // ---------------------------------------------------------------------------
 export function useLocations() {

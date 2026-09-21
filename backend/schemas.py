@@ -151,6 +151,17 @@ class ProjectOut(ProjectIn):
         return _as_utc_datetime(v)
 
 
+class UserProjectFavoriteOut(CamelModel):
+    user_id: str
+    project_id: str
+    created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_as_utc(cls, v: Any):
+        return _as_utc_datetime(v)
+
+
 # ---------------------------------------------------------------------------
 # Locations
 # ---------------------------------------------------------------------------
