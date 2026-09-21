@@ -63,6 +63,25 @@ const Dashboard = () => {
       .sort((a, b) => b.hours - a.hours);
   }, [workEntries, projectMap]);
 
+  const pieData = useMemo(() => {
+    const total = hoursPerProject.reduce((s, p) => s + p.hours, 0);
+    if (total === 0) return [];
+    const THRESHOLD = 0.05;
+    const main: { name: string; hours: number; color: string }[] = [];
+    let otherHours = 0;
+    hoursPerProject.forEach((p) => {
+      if (p.hours / total >= THRESHOLD) {
+        main.push(p);
+      } else {
+        otherHours += p.hours;
+      }
+    });
+    if (otherHours > 0) {
+      main.push({ name: "Outros", hours: Math.round(otherHours * 100) / 100, color: "#94a3b8" });
+    }
+    return main;
+  }, [hoursPerProject]);
+
   const costPerProject = useMemo(() => {
     if (!isAdmin) return [];
     const map = new Map<string, { normal: number; overtime: number }>();
@@ -247,23 +266,25 @@ const Dashboard = () => {
               </ResponsiveContainer>
             </div>
 
-            <div className="bg-card border border-border rounded-lg p-4">
+            <div className="bg-card border border-border rounded-lg p-4 overflow-hidden">
               <h3 className="text-sm font-semibold mb-4">Distribuição</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={hoursPerProject}
+                    data={pieData}
                     dataKey="hours"
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
-                    innerRadius={40}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={70}
+                    innerRadius={35}
+                    label={({ name, percent }) =>
+                      percent >= 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
+                    }
                     labelLine={false}
                     fontSize={11}
                   >
-                    {hoursPerProject.map((entry, i) => (
+                    {pieData.map((entry, i) => (
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>

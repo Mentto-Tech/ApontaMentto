@@ -6,7 +6,7 @@
 .db-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
@@ -17,14 +17,14 @@
 }
 
 @media (min-width: 768px) {
-  .db-cards--user  { grid-template-columns: repeat(3, 1fr); }
-  .db-cards--admin { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .db-cards--user,
+  .db-cards--admin { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ─── Individual card ────────────────────────── */
 .db-card {
   border-radius: 0.5rem;
-  padding: 1rem;
+  padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -32,8 +32,8 @@
 }
 
 .db-card__icon {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
   opacity: 0.6;
 }
@@ -44,7 +44,7 @@
 
 /* Default value size — counters, hours */
 .db-card__value {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
   line-height: 1.2;
 }
@@ -60,7 +60,7 @@
 }
 
 .db-card__label {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   margin-top: 0.1rem;
 }
 
