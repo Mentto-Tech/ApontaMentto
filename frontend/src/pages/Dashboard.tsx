@@ -5,7 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
-import { BarChart3, Clock, FolderOpen, DollarSign, Coffee, Zap, Users } from "lucide-react";
+import { BarChart3, Clock, FolderOpen, DollarSign, Coffee, Zap, Users, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
 import "../styles/Dashboard.css";
 
 const Dashboard = () => {
@@ -153,9 +156,291 @@ const Dashboard = () => {
   const overtimeMins = workEntries.filter((e) => e.isOvertime).reduce((sum, e) => sum + calcMins(e), 0);
   const totalOvertimeCost = isAdmin ? costPerProject.reduce((s, c) => s + (c.overtimeCost || 0), 0) : 0;
 
+  const MONTHS_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  const exportReport = (range: "month" | "3months" | "6months" | "year") => {
+    const now = new Date();
+    let from: Date;
+    let to: Date = new Date(now.getFullYear(), now.getMonth() + 1, 0); // end of current month
+
+    if (range === "month") {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (range === "3months") {
+      from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    } else if (range === "6months") {
+      from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    } else {
+      from = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    }
+
+    const fromStr = from.toISOString().slice(0, 10);
+    const toStr = to.toISOString().slice(0, 10);
+
+    // Filter entries for the chosen range (all users, since this is admin)
+    const rangeEntries = entries.filter((e) => e.date >= fromStr && e.date <= toStr);
+    const rangeWorkEntries = rangeEntries.filter((e) => e.entryType !== "break");
+
+    // Recompute hoursPerProject for range
+    const projMap = new Map<string, number>();
+    rangeWorkEntries.forEach((e) => {
+      projMap.set(e.projectId, (projMap.get(e.projectId) || 0) + calcMins(e));
+    });
+    const rangeHoursPerProject = Array.from(projMap.entries())
+      .map(([id, mins]) => ({
+        name: projectMap[id]?.name || "Desconhecido",
+        hours: Math.round((mins / 60) * 100) / 100,
+        color: projectMap[id]?.color || "#64748b",
+      }))
+      .sort((a, b) => b.hours - a.hours);
+
+    // Recompute pie data for range
+    const totalPie = rangeHoursPerProject.reduce((s, p) => s + p.hours, 0);
+    const THRESHOLD = 0.05;
+    const rangePieMain: { name: string; hours: number; color: string }[] = [];
+    let otherHours = 0;
+    rangeHoursPerProject.forEach((p) => {
+      if (totalPie > 0 && p.hours / totalPie >= THRESHOLD) rangePieMain.push(p);
+      else otherHours += p.hours;
+    });
+    if (otherHours > 0) rangePieMain.push({ name: "Outros", hours: Math.round(otherHours * 100) / 100, color: "#94a3b8" });
+
+    // Recompute user ranking for range
+    const userHoursMap = new Map<string, { normal: number; overtime: number }>();
+    rangeWorkEntries.forEach((e) => {
+      const key = e.userId || "unknown";
+      const prev = userHoursMap.get(key) || { normal: 0, overtime: 0 };
+      const mins = calcMins(e);
+      if (e.isOvertime) prev.overtime += mins;
+      else prev.normal += mins;
+      userHoursMap.set(key, prev);
+    });
+    const rangeUserRanking = Array.from(userHoursMap.entries())
+      .map(([id, { normal, overtime }]) => ({
+        name: userMap[id]?.username || "Desconhecido",
+        normal: Math.round((normal / 60) * 100) / 100,
+        overtime: Math.round((overtime / 60) * 100) / 100,
+      }))
+      .filter((d) => d.normal + d.overtime > 0)
+      .sort((a, b) => b.normal + b.overtime - (a.normal + a.overtime));
+
+    // Build the date label
+    const fromMonthLabel = `${MONTHS_PT[from.getMonth()]} ${from.getFullYear()}`;
+    const toMonthLabel = `${MONTHS_PT[to.getMonth()]} ${to.getFullYear()}`;
+    const periodLabel = from.getMonth() === to.getMonth() && from.getFullYear() === to.getFullYear()
+      ? fromMonthLabel
+      : `${fromMonthLabel} — ${toMonthLabel}`;
+
+    // Generate PDF
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("RELATÓRIO DO DASHBOARD", pageW / 2, y, { align: "center" });
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Período: ${periodLabel}`, pageW / 2, y, { align: "center" });
+    y += 5;
+    doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")}`, pageW / 2, y, { align: "center" });
+    y += 10;
+
+    // Section: Resumo
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Resumo Geral", margin, y);
+    y += 1;
+    doc.setDrawColor(180, 180, 180);
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const totalRangeMins = rangeWorkEntries.reduce((s, e) => s + calcMins(e), 0);
+    const rh = Math.floor(totalRangeMins / 60);
+    const rm = totalRangeMins % 60;
+    const overtimeRangeMins = rangeWorkEntries.filter((e) => e.isOvertime).reduce((s, e) => s + calcMins(e), 0);
+    const oh = Math.floor(overtimeRangeMins / 60);
+    const om = overtimeRangeMins % 60;
+    doc.text(`Total de horas: ${rh}h${rm > 0 ? ` ${rm}m` : ""}`, margin, y);
+    y += 5;
+    doc.text(`Horas extras: ${oh}h${om > 0 ? ` ${om}m` : ""}`, margin, y);
+    y += 5;
+    doc.text(`Projetos: ${rangeHoursPerProject.length}   |   Registros: ${rangeWorkEntries.length}`, margin, y);
+    y += 10;
+
+    // Section: Distribuição por Projeto (Pie)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Distribuição de Horas por Projeto", margin, y);
+    y += 1;
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+
+    if (rangePieMain.length === 0) {
+      doc.text("Nenhum dado no período.", margin, y);
+      y += 8;
+    } else {
+      const pieTotalH = rangePieMain.reduce((s, p) => s + p.hours, 0);
+      // Draw simple legend-style pie table
+      const col1 = margin;
+      const col2 = margin + 6;
+      const col3 = pageW - margin - 40;
+      const col4 = pageW - margin - 15;
+      doc.setFont("helvetica", "bold");
+      doc.text("Projeto", col2, y);
+      doc.text("Horas", col3, y, { align: "right" });
+      doc.text("%", col4, y, { align: "right" });
+      y += 2;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      for (const p of rangePieMain) {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const pct = pieTotalH > 0 ? (p.hours / pieTotalH) * 100 : 0;
+        // Color dot via hex
+        const hex = p.color.replace("#", "");
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        doc.setFillColor(r, g, b);
+        doc.circle(col1 + 1.5, y - 1.5, 1.5, "F");
+        doc.text(p.name, col2, y);
+        doc.text(`${p.hours}h`, col3, y, { align: "right" });
+        doc.text(`${pct.toFixed(1)}%`, col4, y, { align: "right" });
+        y += 5;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
+      doc.text("Total", col2, y);
+      doc.text(`${pieTotalH.toFixed(2)}h`, col3, y, { align: "right" });
+      doc.text("100%", col4, y, { align: "right" });
+      y += 10;
+    }
+
+    // Section: Ranking de Horas por Projeto
+    if (y > 240) { doc.addPage(); y = 20; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Ranking — Horas por Projeto", margin, y);
+    y += 1;
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+    doc.setFontSize(9);
+
+    if (rangeHoursPerProject.length === 0) {
+      doc.setFont("helvetica", "normal");
+      doc.text("Nenhum dado no período.", margin, y);
+      y += 8;
+    } else {
+      const hpTotal = rangeHoursPerProject.reduce((s, p) => s + p.hours, 0);
+      const c1 = margin, c2 = margin + 8, c3 = pageW - margin - 30, c4 = pageW - margin;
+      doc.text("#", c1, y);
+      doc.text("Projeto", c2, y);
+      doc.text("Horas", c3, y, { align: "right" });
+      doc.text("%", c4, y, { align: "right" });
+      y += 2;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      rangeHoursPerProject.forEach((p, i) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const pct = hpTotal > 0 ? (p.hours / hpTotal) * 100 : 0;
+        doc.text(String(i + 1), c1, y);
+        doc.text(p.name, c2, y);
+        doc.text(`${p.hours}h`, c3, y, { align: "right" });
+        doc.text(`${pct.toFixed(1)}%`, c4, y, { align: "right" });
+        y += 5;
+      });
+      doc.setFont("helvetica", "bold");
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
+      doc.text("Total", c2, y);
+      doc.text(`${hpTotal.toFixed(2)}h`, c3, y, { align: "right" });
+      doc.text("100%", c4, y, { align: "right" });
+      y += 10;
+    }
+
+    // Section: Ranking de Horas por Usuário
+    if (y > 240) { doc.addPage(); y = 20; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Ranking — Horas por Usuário", margin, y);
+    y += 1;
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+    doc.setFontSize(9);
+
+    if (rangeUserRanking.length === 0) {
+      doc.setFont("helvetica", "normal");
+      doc.text("Nenhum dado no período.", margin, y);
+      y += 8;
+    } else {
+      const u1 = margin, u2 = margin + 8, u3 = pageW - margin - 50, u4 = pageW - margin - 25, u5 = pageW - margin;
+      doc.text("#", u1, y);
+      doc.text("Usuário", u2, y);
+      doc.text("Normal", u3, y, { align: "right" });
+      doc.text("Extra", u4, y, { align: "right" });
+      doc.text("Total", u5, y, { align: "right" });
+      y += 2;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageW - margin, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      const uGrandTotal = rangeUserRanking.reduce((s, u) => s + u.normal + u.overtime, 0);
+      rangeUserRanking.forEach((u, i) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(String(i + 1), u1, y);
+        doc.text(u.name, u2, y);
+        doc.text(`${u.normal}h`, u3, y, { align: "right" });
+        doc.text(u.overtime > 0 ? `${u.overtime}h` : "—", u4, y, { align: "right" });
+        doc.text(`${(u.normal + u.overtime).toFixed(2)}h`, u5, y, { align: "right" });
+        y += 5;
+      });
+      doc.setFont("helvetica", "bold");
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
+      const totalNormal = rangeUserRanking.reduce((s, u) => s + u.normal, 0);
+      const totalOT = rangeUserRanking.reduce((s, u) => s + u.overtime, 0);
+      doc.text("Total", u2, y);
+      doc.text(`${totalNormal.toFixed(2)}h`, u3, y, { align: "right" });
+      doc.text(`${totalOT.toFixed(2)}h`, u4, y, { align: "right" });
+      doc.text(`${uGrandTotal.toFixed(2)}h`, u5, y, { align: "right" });
+    }
+
+    const rangeLabel = range === "month" ? "1 mês" : range === "3months" ? "3 meses" : range === "6months" ? "6 meses" : "12 meses";
+    const exportDate = now.toLocaleDateString("pt-BR").replace(/\//g, "-");
+    doc.save(`Relatório de Horas por Projetos - ${rangeLabel} - ${exportDate}.pdf`);
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        {isAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
+                Exportar Relatório
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportReport("month")}>Mês atual</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport("3months")}>Últimos 3 meses</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport("6months")}>Últimos 6 meses</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport("year")}>Último 1 ano</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="bg-card border border-border rounded-lg p-4 mb-6">

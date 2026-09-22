@@ -45,3 +45,6 @@ frontend/.env.*
 .DS_Store
 Thumbs.db
 Apontamentto.md
+
+# Docker local (não subir pra prod)
+docker-compose.local.yml
