@@ -11,7 +11,7 @@ import AIChat from "@/components/AIChat";
 import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord, type TimeEntry } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { enqueuePunch, watchOnlineAndFlush, pendingCount } from "@/lib/offline-punch-queue";
+import { enqueuePunch, flushOfflineQueue, pendingCount } from "@/lib/offline-punch-queue";
 import "../styles/Index.css";
 
 const Index = () => {
@@ -209,9 +209,9 @@ const Index = () => {
     });
   };
 
-  // Registra o listener de reconexão (roda só uma vez, na montagem do componente)
+  // Atualiza a referência estável a cada render para que o flush sempre
+  // use a instância mais recente de upsertDailyRecord.
   useEffect(() => {
-    // Atualiza a referência sem re-registrar o listener
     sendFnRef.current = async (queuedPayload: Record<string, unknown>) => {
       return new Promise<void>((resolve, reject) => {
         upsertDailyRecord.mutate(queuedPayload as DailyRecordPatch, {
@@ -222,18 +222,39 @@ const Index = () => {
     };
   });
 
+  // Tenta reenviar a fila offline em 3 situações:
+  //  1. Na montagem (cobre: usuário já reconectou antes de abrir o app)
+  //  2. Evento "online"  (cobre: reconexão em tempo real)
+  //  3. visibilitychange (cobre: usuário minimizou o app, reconectou e voltou)
+  // O evento "online" é notoriamente não-confiável no mobile — os fallbacks
+  // garantem que a fila seja esvaziada mesmo assim.
   useEffect(() => {
-    const cancel = watchOnlineAndFlush(
-      (payload) => sendFnRef.current(payload),
-      (count) => {
+    const tryFlush = async () => {
+      if (!navigator.onLine || pendingCount() === 0) return;
+      const count = await flushOfflineQueue((payload) => sendFnRef.current(payload));
+      if (count > 0) {
         setOfflinePending(pendingCount());
         toast({
           title: `${count} ponto${count > 1 ? "s" : ""} sincronizado${count > 1 ? "s" : ""}`,
           description: "As batidas que ficaram offline foram enviadas com sucesso.",
         });
       }
-    );
-    return cancel;
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") tryFlush();
+    };
+
+    window.addEventListener("online", tryFlush);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // Tenta imediatamente na montagem
+    tryFlush();
+
+    return () => {
+      window.removeEventListener("online", tryFlush);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

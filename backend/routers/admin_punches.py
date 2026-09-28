@@ -98,10 +98,10 @@ async def update_punch(
         record.lunch = data.lunch
 
     # Mantém os campos legados clock_in/clock_out alinhados com a folha de ponto
-    if record.in1 is not None:
-        record.clock_in = record.in1
-    if record.out2 is not None:
-        record.clock_out = record.out2
+    if "in1" in fields_set:
+        record.clock_in = data.in1
+    if "out2" in fields_set:
+        record.clock_out = data.out2
 
     # Hora extra é sempre recalculada automaticamente
     user = await db.get(User, record.user_id)
