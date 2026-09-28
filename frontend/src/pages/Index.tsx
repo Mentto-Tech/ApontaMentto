@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { format, addDays, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Trash2, Pencil, Clock, Coffee, Zap, LogIn, LogOut, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Pencil, Clock, Coffee, Zap, LogIn, LogOut, MapPin, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,12 +11,14 @@ import AIChat from "@/components/AIChat";
 import { useTimeEntries, useProjects, useLocations, useDeleteTimeEntry, useDailyRecords, useUpsertDailyRecord, type TimeEntry } from "@/lib/queries";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { enqueuePunch, watchOnlineAndFlush, pendingCount } from "@/lib/offline-punch-queue";
 import "../styles/Index.css";
 
 const Index = () => {
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
   const [date, setDate] = useState(new Date());
+  const [offlinePending, setOfflinePending] = useState(pendingCount);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -35,6 +37,9 @@ const Index = () => {
   const [entryToDelete, setEntryToDelete] = useState<TimeEntry | null>(null);
   const [geoConsentOpen, setGeoConsentOpen] = useState(false);
   const [pendingPatch, setPendingPatch] = useState<{ patch: DailyRecordPatch, opts?: { captureGeo?: boolean } } | null>(null);
+
+  // Referência estável para o sendFn usado pela fila offline (sem re-registrar o listener)
+  const sendFnRef = useRef<(payload: Record<string, unknown>) => Promise<void>>(async () => {});
 
   // Clock-in / clock-out
   const {
@@ -101,11 +106,18 @@ const Index = () => {
 
   type GeoPayload = { geoLat: number; geoLng: number; geoAccuracy?: number; geoSource: string };
 
+  /**
+   * Tenta obter a localização do dispositivo.
+   * NUNCA lança exceção — retorna null em caso de recusa ou timeout.
+   * O timeout é reduzido para 8s para não travar o fluxo no mobile.
+   */
   const tryGetDeviceGeo = async (): Promise<GeoPayload | null> => {
     if (!("geolocation" in navigator)) return null;
     return new Promise<GeoPayload | null>((resolve) => {
+      const timer = setTimeout(() => resolve(null), 8_000);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          clearTimeout(timer);
           resolve({
             geoLat: pos.coords.latitude,
             geoLng: pos.coords.longitude,
@@ -113,8 +125,11 @@ const Index = () => {
             geoSource: "device",
           });
         },
-        () => resolve(null),
-        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 }
+        () => {
+          clearTimeout(timer);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 8_000, maximumAge: 60_000 }
       );
     });
   };
@@ -134,12 +149,22 @@ const Index = () => {
     geoSource?: string | null;
   };
 
+  /**
+   * Envia o patch para o servidor.
+   * - Se offline: enfileira localmente e exibe aviso informativo (não bloqueia).
+   * - Geo é OPCIONAL: a batida é salva mesmo sem localização.
+   * - Em caso de erro de rede: enfileira e tenta novamente quando reconectar.
+   */
   const sendPatch = async (patch: DailyRecordPatch, opts?: { captureGeo?: boolean }) => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+    if (isOffline) {
+      // Salva o horário original e notifica o usuário
+      enqueuePunch(patch as Record<string, unknown>);
+      setOfflinePending(pendingCount());
       toast({
-        variant: "destructive",
-        title: "Sem conexão",
-        description: "Você está offline. Conecte-se à internet para salvar a batida.",
+        title: "Ponto salvo localmente",
+        description: "Você está sem conexão. O ponto será enviado automaticamente quando a internet voltar.",
       });
       return;
     }
@@ -150,28 +175,67 @@ const Index = () => {
       return;
     }
 
+    // Geo é não-bloqueante: se falhar ou demorar, o ponto é salvo sem localização
     const geo = opts?.captureGeo ? await tryGetDeviceGeo() : null;
-    if (opts?.captureGeo && !geo) {
-      toast({
-        variant: "destructive",
-        title: "Localização necessária",
-        description:
-          "Para registrar com endereço completo, permita o acesso à localização e tente novamente.",
-      });
-      return;
-    }
     const payload: DailyRecordPatch = geo ? { ...patch, ...geo } : patch;
+
     upsertDailyRecord.mutate(payload, {
       onError: (e) => {
-        const message = e instanceof Error ? e.message : "Falha ao salvar";
-        toast({
-          variant: "destructive",
-          title: "Não foi possível salvar",
-          description: message,
-        });
+        const message = e instanceof Error ? e.message : "";
+        // Erros de rede (offline transitório, conexão instável no mobile)
+        const isNetworkError =
+          !message ||
+          message.toLowerCase().includes("network") ||
+          message.toLowerCase().includes("fetch") ||
+          message.toLowerCase().includes("failed") ||
+          message.toLowerCase().includes("load");
+
+        if (isNetworkError) {
+          enqueuePunch(patch as Record<string, unknown>);
+          setOfflinePending(pendingCount());
+          toast({
+            title: "Ponto salvo localmente",
+            description: "Falha na conexão. O ponto será reenviado automaticamente quando a internet voltar.",
+          });
+        } else {
+          // Erro de negócio (ex: ponto já registrado) — exibe o erro real
+          toast({
+            variant: "destructive",
+            title: "Não foi possível salvar",
+            description: message || "Verifique se o ponto já foi registrado.",
+          });
+        }
       },
     });
   };
+
+  // Registra o listener de reconexão (roda só uma vez, na montagem do componente)
+  useEffect(() => {
+    // Atualiza a referência sem re-registrar o listener
+    sendFnRef.current = async (queuedPayload: Record<string, unknown>) => {
+      return new Promise<void>((resolve, reject) => {
+        upsertDailyRecord.mutate(queuedPayload as DailyRecordPatch, {
+          onSuccess: () => resolve(),
+          onError: (err) => reject(err),
+        });
+      });
+    };
+  });
+
+  useEffect(() => {
+    const cancel = watchOnlineAndFlush(
+      (payload) => sendFnRef.current(payload),
+      (count) => {
+        setOfflinePending(pendingCount());
+        toast({
+          title: `${count} ponto${count > 1 ? "s" : ""} sincronizado${count > 1 ? "s" : ""}`,
+          description: "As batidas que ficaram offline foram enviadas com sucesso.",
+        });
+      }
+    );
+    return cancel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const canUseOut1 = Boolean(effectiveIn1);
   const canUseIn2 = Boolean(effectiveIn1 && effectiveOut1);
@@ -312,6 +376,17 @@ const Index = () => {
   return (
     <div className="page-index max-w-2xl mx-auto px-4 py-6 md:py-10">
       <h1 className="text-2xl font-bold mb-6">Registros do Dia</h1>
+
+      {/* Banner de batidas offline pendentes */}
+      {offlinePending > 0 && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-md bg-amber-50 border border-amber-300 text-amber-800 dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-300">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span className="text-xs">
+            <strong>{offlinePending} {offlinePending > 1 ? "batidas pendentes" : "batida pendente"}</strong>
+            {" "}— serão enviadas automaticamente quando a internet voltar.
+          </span>
+        </div>
+      )}
 
       {/* Date navigator */}
       <div className="index-date-nav flex items-center justify-between mb-6 bg-card rounded-lg border border-border p-3">

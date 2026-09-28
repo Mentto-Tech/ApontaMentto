@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, date as date_type
 from typing import List, Optional
@@ -11,6 +12,7 @@ from dependencies import get_current_user
 from models import DailyRecord, PunchLog, User, TimeBankEntry
 from schemas import DailyRecordIn, DailyRecordOut
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
@@ -172,10 +174,27 @@ async def upsert_daily_record(
     current_user: User = Depends(get_current_user),
 ):
     """Create or update a daily record for the given date + current user."""
+
+    # Identifica o campo que está sendo registrado para facilitar o log
+    _fields_in_request = list(data.model_fields_set)
+    logger.info(
+        "[PUNCH] user=%s(%s) date=%s fields=%s ip=%s ua=%s",
+        current_user.username,
+        current_user.id,
+        data.date,
+        _fields_in_request,
+        request.headers.get("x-forwarded-for") or (request.client.host if request.client else "?"),
+        request.headers.get("user-agent", "")[:80],
+    )
+
     # Non-admins can only punch for today
     if current_user.role != "admin":
         today_str = date_type.today().isoformat()
         if data.date != today_str:
+            logger.warning(
+                "[PUNCH] BLOCKED user=%s tentou registrar em data diferente: requisitado=%s hoje=%s",
+                current_user.username, data.date, today_str,
+            )
             raise HTTPException(
                 status_code=403,
                 detail="Não é permitido registrar ponto em dias diferentes do dia atual.",
@@ -260,12 +279,15 @@ async def upsert_daily_record(
     # - Legacy single pair: in1 + out2 with out1/in2 empty
     # Note: For legacy single pair, out2 can exist without out1/in2.
     if cand_out1 and not cand_in1:
+        logger.warning("[PUNCH] VALIDATION_ERROR user=%s date=%s: out1 sem in1", current_user.username, data.date)
         raise HTTPException(status_code=400, detail="out1 requires in1")
 
     if cand_in2 and not cand_out1:
+        logger.warning("[PUNCH] VALIDATION_ERROR user=%s date=%s: in2 sem out1", current_user.username, data.date)
         raise HTTPException(status_code=400, detail="in2 requires out1")
 
     if cand_out2 and (cand_out1 or cand_in2) and not cand_in2:
+        logger.warning("[PUNCH] VALIDATION_ERROR user=%s date=%s: out2 sem in2", current_user.username, data.date)
         raise HTTPException(status_code=400, detail="out2 requires in2")
 
     # No fluxo normal de batida, cada horário é registrado uma única vez.
@@ -279,6 +301,10 @@ async def upsert_daily_record(
         and existing_first_in
         and incoming_in1 != existing_first_in
     ):
+        logger.warning(
+            "[PUNCH] CONFLICT user=%s date=%s: tentativa de sobrescrever in1=%s com %s",
+            current_user.username, data.date, existing_first_in, incoming_in1,
+        )
         raise HTTPException(
             status_code=400,
             detail="Entrada 1 já registrada. Use a tela de correção para alterá-la.",
@@ -291,6 +317,10 @@ async def upsert_daily_record(
         and existing_out1
         and data.out1 != existing_out1
     ):
+        logger.warning(
+            "[PUNCH] CONFLICT user=%s date=%s: tentativa de sobrescrever out1=%s com %s",
+            current_user.username, data.date, existing_out1, data.out1,
+        )
         raise HTTPException(
             status_code=400,
             detail="Saída 1 já registrada. Use a tela de correção para alterá-la.",
@@ -303,6 +333,10 @@ async def upsert_daily_record(
         and existing_in2
         and data.in2 != existing_in2
     ):
+        logger.warning(
+            "[PUNCH] CONFLICT user=%s date=%s: tentativa de sobrescrever in2=%s com %s",
+            current_user.username, data.date, existing_in2, data.in2,
+        )
         raise HTTPException(
             status_code=400,
             detail="Entrada 2 já registrada. Use a tela de correção para alterá-la.",
@@ -314,6 +348,10 @@ async def upsert_daily_record(
         and existing_out2
         and incoming_out2 != existing_out2
     ):
+        logger.warning(
+            "[PUNCH] CONFLICT user=%s date=%s: tentativa de sobrescrever out2=%s com %s",
+            current_user.username, data.date, existing_out2, incoming_out2,
+        )
         raise HTTPException(
             status_code=400,
             detail="Saída 2 já registrada. Use a tela de correção para alterá-la.",
@@ -507,4 +545,8 @@ async def upsert_daily_record(
 
     await db.commit()
     await db.refresh(record)
+    logger.info(
+        "[PUNCH] SUCCESS user=%s date=%s record_id=%s ot=%s",
+        current_user.username, data.date, record.id, record.overtime_minutes,
+    )
     return DailyRecordOut.model_validate(record)
