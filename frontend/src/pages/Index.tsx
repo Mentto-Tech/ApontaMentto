@@ -58,15 +58,23 @@ const Index = () => {
   const [extraOut, setExtraOut] = useState("");
   const [overtimeMinutes, setOvertimeMinutes] = useState("");
 
-  const serverIn1 = todayRecord?.in1 || todayRecord?.clockIn || "";
+  // Usa o servidor como fonte de verdade.
+  // Fallback para clockIn/clockOut SOMENTE se in1/out2 forem undefined (campo legado ausente no modelo).
+  // Se o admin limpou o campo (null/""), o fallback legado NÃO deve ser usado.
+  const serverIn1 = todayRecord?.in1 !== undefined
+    ? (todayRecord.in1 || "")
+    : (todayRecord?.clockIn || "");
   const serverOut1 = todayRecord?.out1 || "";
   const serverLunch = todayRecord?.lunch || "";
   const serverIn2 = todayRecord?.in2 || "";
-  const serverOut2 = todayRecord?.out2 || todayRecord?.clockOut || "";
+  const serverOut2 = todayRecord?.out2 !== undefined
+    ? (todayRecord.out2 || "")
+    : (todayRecord?.clockOut || "");
   const serverExtraIn = todayRecord?.extraIn || "";
   const serverExtraOut = todayRecord?.extraOut || "";
 
-  // Merge local optimistic state with server — avoids losing punches during refetch.
+  // O local state é mantido apenas para feedback otimista imediato (antes da resposta da API chegar).
+  // Quando o servidor retorna, o useEffect abaixo sincroniza e sobrescreve o local state.
   const effectiveIn1 = in1 || serverIn1;
   const effectiveOut1 = out1 || serverOut1;
   const effectiveLunch = lunch || serverLunch;
@@ -76,12 +84,23 @@ const Index = () => {
   const effectiveExtraOut = extraOut || serverExtraOut;
 
   useEffect(() => {
+    // Sincroniza SEMPRE com o servidor quando o todayRecord muda.
+    // Isso garante que campos zerados pelo admin aparecem zerados aqui também.
     if (todayRecord) {
-      setIn1(todayRecord.in1 || todayRecord.clockIn || "");
+      // Para in1: usa in1 se o campo existir no modelo novo; só cai para clockIn se in1 for undefined.
+      const in1Val = todayRecord.in1 !== undefined
+        ? (todayRecord.in1 || "")
+        : (todayRecord.clockIn || "");
+      // Para out2: mesmo raciocínio com clockOut.
+      const out2Val = todayRecord.out2 !== undefined
+        ? (todayRecord.out2 || "")
+        : (todayRecord.clockOut || "");
+
+      setIn1(in1Val);
       setOut1(todayRecord.out1 || "");
       setLunch(todayRecord.lunch || "");
       setIn2(todayRecord.in2 || "");
-      setOut2(todayRecord.out2 || todayRecord.clockOut || "");
+      setOut2(out2Val);
       setExtraIn(todayRecord.extraIn || "");
       setExtraOut(todayRecord.extraOut || "");
       setOvertimeMinutes(
