@@ -268,6 +268,11 @@ class AdminPunchUpdateIn(CamelModel):
     lunch: Optional[str] = None
 
 
+class AdminDailyRecordIn(DailyRecordIn):
+    """Payload para criação/atualização de registro de ponto por um admin em nome de outro usuário."""
+    user_id: str  # UUID do usuário alvo (obrigatório para admin)
+
+
 class AdminPunchRecordOut(DailyRecordOut):
     """Registro de ponto com nome do usuário para exibição em tabela admin."""
 
