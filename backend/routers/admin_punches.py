@@ -213,7 +213,7 @@ async def admin_upsert_daily_record(
     )
     record = result.scalar_one_or_none()
 
-    fields_set = set(data.model_fields_set) - {"user_id"}
+    fields_set = set(data.model_fields_set) - {"user_id", "ip_address"}
 
     # Mescla com valores existentes (mesma lógica do endpoint normal)
     existing_in1 = record.in1 if record else None
@@ -265,7 +265,11 @@ async def admin_upsert_daily_record(
             time_value=time_value,
             overtime_minutes=overtime_minutes,
             recorded_at=now,
-            geo_source="service_account",
+            geo_lat=data.geo_lat,
+            geo_lng=data.geo_lng,
+            geo_accuracy=data.geo_accuracy,
+            geo_source=data.geo_source or ("device" if data.geo_lat is not None else "service_account"),
+            ip_address=data.ip_address,
         ))
 
     if record:
@@ -289,6 +293,12 @@ async def admin_upsert_daily_record(
             record.lunch = data.lunch
         record.overtime_minutes = cand_ot
         record.updated_at = now
+        record.ip_address = data.ip_address
+        if data.geo_lat is not None and data.geo_lng is not None:
+            record.geo_lat = data.geo_lat
+            record.geo_lng = data.geo_lng
+            record.geo_accuracy = data.geo_accuracy
+            record.geo_source = data.geo_source or "device"
 
         if incoming_in1 is not None:
             _log("in1", time_value=incoming_in1, record_id=record.id)
@@ -314,7 +324,11 @@ async def admin_upsert_daily_record(
             extra_out=cand_extra_out,
             overtime_minutes=cand_ot,
             lunch=cand_lunch,
-            geo_source="service_account",
+            geo_lat=data.geo_lat,
+            geo_lng=data.geo_lng,
+            geo_accuracy=data.geo_accuracy,
+            geo_source=data.geo_source or ("device" if data.geo_lat is not None else "service_account"),
+            ip_address=data.ip_address,
             updated_at=now,
             created_at=now,
         )

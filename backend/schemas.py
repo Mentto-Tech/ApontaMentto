@@ -271,6 +271,7 @@ class AdminPunchUpdateIn(CamelModel):
 class AdminDailyRecordIn(DailyRecordIn):
     """Payload para criação/atualização de registro de ponto por um admin em nome de outro usuário."""
     user_id: str  # UUID do usuário alvo (obrigatório para admin)
+    ip_address: Optional[str] = None  # IP real do usuário, injetado pelo SSI
 
 
 class AdminPunchRecordOut(DailyRecordOut):
