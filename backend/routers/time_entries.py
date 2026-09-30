@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from dependencies import get_current_user
+from dependencies import get_current_user, get_admin_user
 from models import TimeEntry, TimeBankEntry, User
 from schemas import TimeEntryIn, TimeEntryOut
 
@@ -140,6 +140,45 @@ async def create_entry(
 
     if data.is_overtime and data.entry_type != "break":
         await _sync_time_bank_for_day(current_user.id, data.date, db)
+
+    await db.commit()
+    await db.refresh(entry)
+    return TimeEntryOut.model_validate(entry)
+
+
+class AdminTimeEntryIn(TimeEntryIn):
+    user_id: str
+
+
+@router.post("/admin", response_model=TimeEntryOut)
+async def admin_create_entry(
+    data: AdminTimeEntryIn,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    """Cria time entry para qualquer usuário (somente admin / service account SSI)."""
+    target = await db.get(User, data.user_id)
+    if not target:
+        raise HTTPException(404, f"Usuário {data.user_id} não encontrado.")
+
+    entry = TimeEntry(
+        id=str(uuid.uuid4()),
+        date=data.date,
+        start_time=data.start_time,
+        end_time=data.end_time,
+        project_id=data.project_id or None,
+        location_id=data.location_id or None,
+        notes=data.notes,
+        entry_type=data.entry_type,
+        is_overtime=data.is_overtime,
+        user_id=data.user_id,
+        created_at=datetime.utcnow(),
+    )
+    db.add(entry)
+    await db.flush()
+
+    if data.is_overtime and data.entry_type != "break":
+        await _sync_time_bank_for_day(data.user_id, data.date, db)
 
     await db.commit()
     await db.refresh(entry)
