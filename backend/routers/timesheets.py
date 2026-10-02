@@ -842,6 +842,58 @@ async def manager_sign_by_id(
 
 
 
+# ---------------------------------------------------------------------------
+# Download partial PDF for a pending sign request (one signature only)
+# ---------------------------------------------------------------------------
+@router.get("/sign-requests/{request_id}/preview-pdf")
+async def download_sign_request_preview_pdf(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return a PDF with whichever signature has been collected so far (partial)."""
+    result = await db.execute(
+        select(TimesheetSignRequest).where(TimesheetSignRequest.id == request_id)
+    )
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(404, "Solicitação não encontrada")
+
+    # Only admin or the employee who owns the request can download
+    if current_user.role != "admin" and req.user_id != current_user.id:
+        raise HTTPException(403, "Acesso negado")
+
+    emp_result = await db.execute(select(User).where(User.id == req.user_id))
+    employee = emp_result.scalar_one_or_none()
+
+    adm_result = await db.execute(select(User).where(User.id == req.created_by_admin_id))
+    manager = adm_result.scalar_one_or_none()
+
+    from models import DailyRecord
+    records_result = await db.execute(
+        select(DailyRecord).where(
+            DailyRecord.user_id == req.user_id,
+            DailyRecord.date.like(f"{req.month}%")
+        )
+    )
+    daily_records = records_result.scalars().all()
+
+    pdf_bytes = _build_pdf_bytes(
+        month=req.month,
+        employee_name=employee.username if employee else "",
+        manager_name=manager.username if manager else "",
+        manager_sig_dataurl=req.manager_signature,
+        employee_sig_dataurl=req.employee_signature,
+        daily_records=daily_records,
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="folha-ponto-{req.month}-parcial.pdf"'},
+    )
+
+
 @router.get("/sign-requests", response_model=list[TimesheetSignRequestOut])
 async def list_sign_requests(
     user_id: str | None = None,

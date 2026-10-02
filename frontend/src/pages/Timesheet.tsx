@@ -748,16 +748,33 @@ const Timesheet = () => {
                           <span className="ml-2 text-muted-foreground capitalize">{monthLabel}</span>
                           <span className="ml-2 text-xs text-amber-600">Aguardando sua assinatura</span>
                         </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            if (emp) setSelectedUserId(emp.id);
-                            setCurrentMonth(new Date(Number(year), Number(mon) - 1, 1));
-                            setActiveTab("signature");
-                          }}
-                        >
-                          <Pen className="h-3.5 w-3.5 mr-1" /> Assinar
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              const blob = await apiFetchBlob(`/api/timesheets/sign-requests/${req.id}/preview-pdf`);
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `folha-ponto-${req.month}-${emp?.username ?? req.userId}.pdf`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                          >
+                            <Download className="h-3.5 w-3.5 mr-1" /> Baixar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (emp) setSelectedUserId(emp.id);
+                              setCurrentMonth(new Date(Number(year), Number(mon) - 1, 1));
+                              setActiveTab("signature");
+                            }}
+                          >
+                            <Pen className="h-3.5 w-3.5 mr-1" /> Assinar
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
@@ -796,7 +813,24 @@ const Timesheet = () => {
               return (
                 <li key={req.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
                   <span>{req.month} — {emp?.username ?? req.userId}</span>
-                  <span className="text-xs text-amber-600 capitalize">{req.status.replace("_", " ")}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 capitalize">{req.status.replace("_", " ")}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        const blob = await apiFetchBlob(`/api/timesheets/sign-requests/${req.id}/preview-pdf`);
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `folha-ponto-${req.month}-${emp?.username ?? req.userId}.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1" /> Baixar
+                    </Button>
+                  </div>
                 </li>
               );
             })}
