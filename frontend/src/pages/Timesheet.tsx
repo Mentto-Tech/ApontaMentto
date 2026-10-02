@@ -753,7 +753,7 @@ const Timesheet = () => {
                             size="sm"
                             variant="outline"
                             onClick={async () => {
-                              const blob = await apiFetchBlob(`/api/timesheets/sign-requests/${req.id}/preview-pdf`);
+                              const blob = await apiFetchBlob(`/api/timesheets/sign-request/${req.id}/preview-pdf`);
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement("a");
                               a.href = url;
@@ -819,7 +819,7 @@ const Timesheet = () => {
                       variant="ghost"
                       size="sm"
                       onClick={async () => {
-                        const blob = await apiFetchBlob(`/api/timesheets/sign-requests/${req.id}/preview-pdf`);
+                        const blob = await apiFetchBlob(`/api/timesheets/sign-request/${req.id}/preview-pdf`);
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;

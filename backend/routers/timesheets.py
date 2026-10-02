@@ -845,7 +845,7 @@ async def manager_sign_by_id(
 # ---------------------------------------------------------------------------
 # Download partial PDF for a pending sign request (one signature only)
 # ---------------------------------------------------------------------------
-@router.get("/sign-requests/{request_id}/preview-pdf")
+@router.get("/sign-request/{request_id}/preview-pdf")
 async def download_sign_request_preview_pdf(
     request_id: str,
     db: AsyncSession = Depends(get_db),
